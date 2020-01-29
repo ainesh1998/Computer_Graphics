@@ -1,2 +1,3 @@
 *.o
 RedNoise
+*.DS_Store

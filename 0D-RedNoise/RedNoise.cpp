@@ -16,7 +16,9 @@ void draw();
 void update();
 void handleEvent(SDL_Event event);
 vector<float> interpolate(float start, float end, int noOfValues);
+vector<vec3> interpolate3(vec3 start, vec3 end, int noOfValues);
 void greyscale();
+void colourScale();
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
@@ -34,9 +36,27 @@ vector<float> interpolate(float start, float end, int noOfValues){
   return vals;
 }
 
+vector<vec3> interpolate3(vec3 start, vec3 end, int noOfValues) {
+    vector<vec3> vals;
+    float stepX = (end.x - start.x)/(noOfValues-1);
+    float stepY = (end.y - start.y)/(noOfValues-1);
+    float stepZ = (end.z - start.z)/(noOfValues-1);
+
+    vals.push_back(start);
+    for(int i = 0; i < noOfValues - 1; i++){
+      float tempX = vals[i].x + stepX;
+      float tempY = vals[i].y + stepY;
+      float tempZ = vals[i].z + stepZ;
+      vec3 temp(tempX, tempY, tempZ);
+      vals.push_back(temp);
+    }
+    return vals;
+}
+
 int main(int argc, char* argv[])
 {
   SDL_Event event;
+
   interpolate(2.2,8.5,7);
   while(true)
   {
@@ -45,7 +65,7 @@ int main(int argc, char* argv[])
     if(window.pollForInputEvents(&event)) handleEvent(event);
     update();
     // draw();
-    greyscale();
+    colourScale();
     // Need to render the frame at the end, or nothing actually gets shown on the screen !
     window.renderFrame();
   }
@@ -76,6 +96,29 @@ void greyscale() {
         uint32_t colour = (255<<24) + (int(pixelValue)<<16) + (int(pixelValue)<<8) + int(pixelValue);
         window.setPixelColour(x, y, colour);
       }
+    }
+}
+
+void colourScale() {
+    window.clearPixels();
+    vec3 red(255,0,0);
+    vec3 yellow(255,255,0);
+    vector<vec3> redToYellow = interpolate3(red, yellow, window.height);
+
+    vec3 blue(0,0,255);
+    vec3 green(0,255,0);
+    vector<vec3> blueToGreen = interpolate3(blue, green, window.height);
+
+    for(int y=0; y<window.height ;y++) {
+        vec3 start = redToYellow[y];
+        vec3 end = blueToGreen[y];
+        vector<vec3> pixelRow = interpolate3(start,end,window.width);
+
+        for(int x=0; x<window.width ;x++) {
+            vec3 pixel = pixelRow[x];
+            uint32_t colour = (255<<24) + (int(pixel.x)<<16) + (int(pixel.y)<<8) + int(pixel.z);
+            window.setPixelColour(x, y, colour);
+        }
     }
 }
 

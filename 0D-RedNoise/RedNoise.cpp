@@ -16,6 +16,7 @@ void draw();
 void update();
 void handleEvent(SDL_Event event);
 vector<float> interpolate(float start, float end, int noOfValues);
+void greyscale();
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
@@ -27,11 +28,12 @@ vector<float> interpolate(float start, float end, int noOfValues){
     float temp = vals[i] + stepVal;
     vals.push_back(temp);
   }
-  for(int i = 0; i < noOfValues; i++){
-    std::cout << vals[i] << ' ';
-  }
+  // for(int i = 0; i < noOfValues; i++){
+  //   std::cout << vals[i] << ' ';
+  // }
   return vals;
 }
+
 int main(int argc, char* argv[])
 {
   SDL_Event event;
@@ -42,7 +44,8 @@ int main(int argc, char* argv[])
     // We MUST poll for events - otherwise the window will freeze !
     if(window.pollForInputEvents(&event)) handleEvent(event);
     update();
-    draw();
+    // draw();
+    greyscale();
     // Need to render the frame at the end, or nothing actually gets shown on the screen !
     window.renderFrame();
   }
@@ -62,6 +65,19 @@ void draw()
   }
 }
 
+void greyscale() {
+    window.clearPixels();
+    vector<float> pixelRow = interpolate(0, 255, window.width);
+
+    for(int y=0; y<window.height ;y++) {
+
+      for(int x=0; x<window.width ;x++) {
+        float pixelValue = 255 - pixelRow[x];
+        uint32_t colour = (255<<24) + (int(pixelValue)<<16) + (int(pixelValue)<<8) + int(pixelValue);
+        window.setPixelColour(x, y, colour);
+      }
+    }
+}
 
 void update()
 {

@@ -15,14 +15,30 @@ using namespace glm;
 void draw();
 void update();
 void handleEvent(SDL_Event event);
+vector<float> interpolate(float start, float end, int noOfValues);
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
+vector<float> interpolate(float start, float end, int noOfValues){
+  vector<float> vals;
+  float stepVal = (end - start)/(noOfValues - 1);
+  vals.push_back(start);
+  for(int i = 0; i < noOfValues - 1; i++){
+    float temp = vals[i] + stepVal;
+    vals.push_back(temp);
+  }
+  for(int i = 0; i < noOfValues; i++){
+    std::cout << vals[i] << ' ';
+  }
+  return vals;
+}
 int main(int argc, char* argv[])
 {
   SDL_Event event;
+  interpolate(2.2,8.5,7);
   while(true)
   {
+
     // We MUST poll for events - otherwise the window will freeze !
     if(window.pollForInputEvents(&event)) handleEvent(event);
     update();
@@ -45,6 +61,7 @@ void draw()
     }
   }
 }
+
 
 void update()
 {

@@ -21,6 +21,7 @@ std::vector<float> interpolate(float start, float end, int noOfValues);
 std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValues);
 void drawLine(CanvasPoint start,CanvasPoint end,Colour c);
 void drawTriangle(CanvasTriangle triangle);
+void drawFilledTriangle(CanvasTriangle triangle);
 
 void greyscale();
 void colourScale();
@@ -86,6 +87,59 @@ void drawTriangle(CanvasTriangle triangle){
   drawLine(triangle.vertices[0],triangle.vertices[1],c);
   drawLine(triangle.vertices[1],triangle.vertices[2],c);
   drawLine(triangle.vertices[2],triangle.vertices[0],c);
+}
+
+void drawFilledTriangle(CanvasTriangle triangle){
+    //sort vertices in order y position
+    if(triangle.vertices[1].y < triangle.vertices[0].y){
+        std::swap(triangle.vertices[0],triangle.vertices[1]);
+    }
+
+    if(triangle.vertices[2].y < triangle.vertices[1].y){
+        std::swap(triangle.vertices[1],triangle.vertices[2]);
+        if(triangle.vertices[1].y < triangle.vertices[0].y){
+            std::swap(triangle.vertices[1],triangle.vertices[0]);
+        }
+    }
+    // std::cout << triangle << '\n';
+    // std::vector<float> vals = interpolate(2.2,8.5,3);
+    // for(int i = 0; i < 3; i++){
+    //   std::cout << vals[i] << ' ';
+    // }
+    // std::cout << '\n';
+    CanvasPoint v1 = triangle.vertices[0];
+    CanvasPoint v2 = triangle.vertices[1];
+    CanvasPoint v3 = triangle.vertices[2];
+    float slope = (v2.y - v1.y)/(v3.y - v1.y);
+    int newX = v1.x + slope * (v3.x - v1.x);
+    CanvasPoint v4 = CanvasPoint(newX,v2.y);
+    // std::cout << triangle << '\n';
+    // std::cout << v4 << '\n';
+    Colour c = triangle.colour;
+    uint32_t colour = (255<<24) + (int(c.red)<<16) + (int(c.green)<<8) + int(c.blue);
+
+
+    std::vector<float> leftX = interpolate(v1.x, v4.x, v4.y-v1.y);
+    std::vector<float> rightX = interpolate(v1.x, v2.x, v4.y-v1.y);
+    for(int i = v1.y; i < v4.y; i++){
+        std::vector<float> temp = interpolate(leftX[i - v1.y],rightX[i-v1.y],rightX[i-v1.y]- leftX[i - v1.y]+1);
+        for(int j = 0; j < temp.size(); j++){
+            window.setPixelColour(temp[j],i,colour);
+        }
+    }
+    leftX = interpolate(v4.x, v3.x, v3.y-v4.y);
+    rightX = interpolate(v2.x, v3.x, v3.y-v4.y);
+    for(int i = v4.y; i < v3.y; i++){
+        std::vector<float> temp = interpolate(leftX[i - v4.y],rightX[i-v4.y],rightX[i-v4.y]- leftX[i - v4.y]+1);
+        for(int j = 0; j < temp.size(); j++){
+            window.setPixelColour(temp[j],i,colour);
+        }
+    }
+    drawTriangle(triangle);
+
+
+    // for (int i = v1.y; i < v2.y; i++) {
+    // }
 }
 
 void drawLine(CanvasPoint start,CanvasPoint end,Colour c){
@@ -172,6 +226,14 @@ void handleEvent(SDL_Event event)
                                 CanvasPoint(rand()%WIDTH,rand()%HEIGHT),
                               CanvasPoint(rand()%WIDTH,rand()%HEIGHT),Colour(rand()%255,rand()%255,rand()%255));
       drawTriangle(triangle);
+
+    }
+    else if(event.key.keysym.sym == SDLK_f){
+
+      CanvasTriangle triangle = CanvasTriangle(CanvasPoint(rand()%WIDTH,rand()%HEIGHT),
+                                CanvasPoint(rand()%WIDTH,rand()%HEIGHT),
+                              CanvasPoint(rand()%WIDTH,rand()%HEIGHT),Colour(rand()%255,rand()%255,rand()%255));
+      drawFilledTriangle(triangle);
 
     }
 

@@ -11,8 +11,8 @@
 // using namespace std;
 // using namespace glm;
 
-#define WIDTH 320
-#define HEIGHT 240
+#define WIDTH 800
+#define HEIGHT 640
 
 void draw();
 void update();
@@ -74,7 +74,7 @@ int main(int argc, char* argv[])
     CanvasTriangle triangle = CanvasTriangle(CanvasPoint(150,10),
                               CanvasPoint(140,50),
                             CanvasPoint(300,50),Colour(12,45,60));
-    drawTriangle(triangle);
+  //  drawTriangle(triangle);
     //colourScale();
     // Need to render the frame at the end, or nothing actually gets shown on the screen !
     window.renderFrame();
@@ -166,6 +166,15 @@ void handleEvent(SDL_Event event)
     else if(event.key.keysym.sym == SDLK_RIGHT) std::cout << "RIGHT" << std::endl;
     else if(event.key.keysym.sym == SDLK_UP) std::cout << "UP" << std::endl;
     else if(event.key.keysym.sym == SDLK_DOWN) std::cout << "DOWN" << std::endl;
+    else if(event.key.keysym.sym == SDLK_u){
+
+      CanvasTriangle triangle = CanvasTriangle(CanvasPoint(rand()%WIDTH,rand()%HEIGHT),
+                                CanvasPoint(rand()%WIDTH,rand()%HEIGHT),
+                              CanvasPoint(rand()%WIDTH,rand()%HEIGHT),Colour(rand()%255,rand()%255,rand()%255));
+      drawTriangle(triangle);
+
+    }
+
   }
   else if(event.type == SDL_MOUSEBUTTONDOWN) std::cout << "MOUSE CLICKED" << std::endl;
 }

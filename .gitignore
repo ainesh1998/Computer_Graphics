@@ -1,4 +1,4 @@
 *.o
 RedNoise
 *.DS_Store
-TextureMapping
+1D-TextureMapping/TextureMapping

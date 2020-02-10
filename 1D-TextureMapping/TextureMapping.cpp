@@ -20,6 +20,7 @@ void handleEvent(SDL_Event event);
 std::vector<float> interpolate(float start, float end, int noOfValues);
 std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValues);
 void drawLine(CanvasPoint start,CanvasPoint end,Colour c);
+void drawTriangle(CanvasTriangle triangle);
 
 void greyscale();
 void colourScale();
@@ -69,11 +70,22 @@ int main(int argc, char* argv[])
     if(window.pollForInputEvents(&event)) handleEvent(event);
     update();
     // draw();
-    drawLine(CanvasPoint(150,150),CanvasPoint(300,160),Colour(255,255,0));
+    // drawLine(CanvasPoint(150,150),CanvasPoint(300,160),Colour(255,255,0));
+    CanvasTriangle triangle = CanvasTriangle(CanvasPoint(150,10),
+                              CanvasPoint(140,50),
+                            CanvasPoint(300,50),Colour(12,45,60));
+    drawTriangle(triangle);
     //colourScale();
     // Need to render the frame at the end, or nothing actually gets shown on the screen !
     window.renderFrame();
   }
+}
+
+void drawTriangle(CanvasTriangle triangle){
+  Colour c = triangle.colour;
+  drawLine(triangle.vertices[0],triangle.vertices[1],c);
+  drawLine(triangle.vertices[1],triangle.vertices[2],c);
+  drawLine(triangle.vertices[2],triangle.vertices[0],c);
 }
 
 void drawLine(CanvasPoint start,CanvasPoint end,Colour c){

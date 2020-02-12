@@ -90,7 +90,7 @@ void drawTriangle(CanvasTriangle triangle){
 }
 
 void drawFilledTriangle(CanvasTriangle triangle){
-    //sort vertices in order y position
+    //sort vertices in order (y position)
     if(triangle.vertices[1].y < triangle.vertices[0].y){
         std::swap(triangle.vertices[0],triangle.vertices[1]);
     }
@@ -117,26 +117,59 @@ void drawFilledTriangle(CanvasTriangle triangle){
     // std::cout << v4 << '\n';
     Colour c = triangle.colour;
     uint32_t colour = (255<<24) + (int(c.red)<<16) + (int(c.green)<<8) + int(c.blue);
+    drawLine(v2,v4,Colour(255,255,255));
 
+    //fill top triangle
+    float invslope1 = (v2.x - v1.x) / (v2.y - v1.y);
+    float invslope2 = (v4.x - v1.x) / (v4.y - v1.y);
+    float curx1 = v1.x;
+    float curx2 = v1.x;
+    for (int scanlineY = v1.y; scanlineY <= v2.y; scanlineY++)
+  {
+    drawLine(CanvasPoint(curx1, scanlineY), CanvasPoint(curx2, scanlineY),c);
+    curx1 += invslope1;
+    curx2 += invslope2;
+  }
+   //  //fill bottom triangle
+    float invslope3 = (v3.x - v2.x) / (v3.y - v2.y);
+    float invslope4 = (v3.x - v4.x) / (v3.y - v4.y);
 
-    std::vector<float> leftX = interpolate(v1.x, v4.x, v4.y-v1.y);
-    std::vector<float> rightX = interpolate(v1.x, v2.x, v4.y-v1.y);
-    for(int i = v1.y; i < v4.y; i++){
-        std::vector<float> temp = interpolate(leftX[i - v1.y],rightX[i-v1.y],rightX[i-v1.y]- leftX[i - v1.y]+1);
-        for(int j = 0; j < temp.size(); j++){
-            window.setPixelColour(temp[j],i,colour);
-        }
-    }
-    leftX = interpolate(v4.x, v3.x, v3.y-v4.y);
-    rightX = interpolate(v2.x, v3.x, v3.y-v4.y);
-    for(int i = v4.y; i < v3.y; i++){
-        std::vector<float> temp = interpolate(leftX[i - v4.y],rightX[i-v4.y],rightX[i-v4.y]- leftX[i - v4.y]+1);
-        for(int j = 0; j < temp.size(); j++){
-            window.setPixelColour(temp[j],i,colour);
-        }
-    }
+    float curx3 = v3.x;
+    float curx4 = v3.x;
+
+    for (int scanlineY = v3.y; scanlineY > v2.y; scanlineY--)
+   {
+     drawLine(CanvasPoint(curx3, scanlineY), CanvasPoint(curx4, scanlineY),c);
+     curx3 -= invslope3;
+     curx4 -= invslope4;
+   }
+
+    // std::vector<float>  topYVals= interpolate();
+
+    // std::cout << triangle << /* message */v4 << '\n';
+    // std::vector<float> leftX = interpolate(v1.x, v4.x, std::abs(v4.y-v1.y)+1);
+    // std::cerr << leftX.size() << '\n';
+    // std::vector<float> rightX = interpolate(v1.x, v2.x, std::abs(v4.y-v1.y)+1);
+    // for(int i = v1.y; i <= v4.y; i++){
+    //     std::vector<float> temp = interpolate(leftX[i - v1.y],rightX[i-v1.y],std::abs(leftX[i - v1.y]-rightX[i-v1.y])+1);
+    //     // for(int i = 0; i < temp.size(); i++){
+    //     //   std::cout << temp[i] << ' ';
+    //     // }
+    //     // std::cout << std::abs(-4) <<'\n';
+    //
+    //     for(int j = 0; j < temp.size(); j++){
+    //         window.setPixelColour(temp[j],i,colour);
+    //     }
+    // }
+    // leftX = interpolate(v4.x, v3.x, v3.y-v4.y+1);
+    // rightX = interpolate(v2.x, v3.x, v3.y-v4.y+1);
+    // for(int i = v4.y; i <= v3.y; i++){
+    //     std::vector<float> temp = interpolate(leftX[i - v4.y],rightX[i-v4.y],std::abs(leftX[i - v4.y]-rightX[i-v4.y])+1);
+    //     for(int j = 0; j < temp.size(); j++){
+    //         window.setPixelColour(temp[j],i,colour);
+    //     }
+    // }
     drawTriangle(triangle);
-
 
     // for (int i = v1.y; i < v2.y; i++) {
     // }

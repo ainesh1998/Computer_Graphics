@@ -22,7 +22,9 @@ std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValu
 void drawLine(CanvasPoint start,CanvasPoint end,Colour c);
 void drawTriangle(CanvasTriangle triangle);
 void drawFilledTriangle(CanvasTriangle triangle);
-void readPPM(char* filename);
+void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::vector<Colour> payload,int width,int height);
+void displayPicture(std::vector<Colour> payload,int width,int height);
+std::vector<Colour> readPPM(char* filename,int* width, int* height);
 
 void greyscale();
 void colourScale();
@@ -62,8 +64,21 @@ std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValu
 
 int main(int argc, char* argv[])
 {
+  int width;
+  int height;
+  std::vector<Colour> v = readPPM("texture.ppm",&width,&height);
+  std::cout << width << '\n';
+  std::cout << height << '\n';
+  CanvasTriangle triangle = CanvasTriangle(CanvasPoint(160,10),
+                            CanvasPoint(300,230),
+                          CanvasPoint(10,150),Colour(255,255,255));
 
-  readPPM("texture.ppm");
+  CanvasTriangle texture = CanvasTriangle(CanvasPoint(195,5),
+                            CanvasPoint(395,380),
+                          CanvasPoint(65,330),Colour(0,0,255));
+  // displayPicture(v,width,height);
+  drawTriangle(texture);
+  drawTriangle(triangle);
   SDL_Event event;
 
   while(true)
@@ -83,7 +98,52 @@ void drawTriangle(CanvasTriangle triangle){
   drawLine(triangle.vertices[1],triangle.vertices[2],c);
   drawLine(triangle.vertices[2],triangle.vertices[0],c);
 }
-
+void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::vector<Colour> payload,int width,int height){
+    //sort vertices in order (y position)
+    // if(triangle.vertices[1].y < triangle.vertices[0].y){
+    //     std::swap(triangle.vertices[0],triangle.vertices[1]);
+    // }
+    //
+    // if(triangle.vertices[2].y < triangle.vertices[1].y){
+    //     std::swap(triangle.vertices[1],triangle.vertices[2]);
+    //     if(triangle.vertices[1].y < triangle.vertices[0].y){
+    //         std::swap(triangle.vertices[1],triangle.vertices[0]);
+    //     }
+    // }
+    //
+    // if(texture.vertices[1].y < texture.vertices[0].y){
+    //     std::swap(texture.vertices[0],triangle.vertices[1]);
+    // }
+    //
+    // if(triangle.vertices[2].y < triangle.vertices[1].y){
+    //     std::swap(triangle.vertices[1],triangle.vertices[2]);
+    //     if(triangle.vertices[1].y < triangle.vertices[0].y){
+    //         std::swap(triangle.vertices[1],triangle.vertices[0]);
+    //     }
+    // }
+    // // std::cout << triangle << '\n';
+    // // std::vector<float> vals = interpolate(2.2,8.5,3);
+    // // for(int i = 0; i < 3; i++){
+    // //   std::cout << vals[i] << ' ';
+    // // }
+    // // std::cout << '\n';
+    // CanvasPoint v1 = triangle.vertices[0];
+    // CanvasPoint v2 = triangle.vertices[1];
+    // CanvasPoint v3 = triangle.vertices[2];
+    // float slope = (v2.y - v1.y)/(v3.y - v1.y);
+    // int newX = v1.x + slope * (v3.x - v1.x);
+    // CanvasPoint v4 = CanvasPoint(newX,v2.y);
+    //
+    // CanvasPoint u1 = texture.vertices[0];
+    // CanvasPoint u2 = texture.vertices[1];
+    // CanvasPoint u3 = texture.vertices[2];
+    //
+    // int newUX = u1.x + slope * (u3.x - u1.x);
+    // CanvasPoint v4 = CanvasPoint(newUX,u2.y);
+    //
+    // float dxdyl = (v4.x - v1.x)/(v4.y -v1.y);
+    // float dudyl =  /(v4.y -v1.y);
+}
 void drawFilledTriangle(CanvasTriangle triangle){
     //sort vertices in order (y position)
     if(triangle.vertices[1].y < triangle.vertices[0].y){
@@ -154,6 +214,7 @@ void drawLine(CanvasPoint start,CanvasPoint end,Colour c){
   }
 
 }
+
 
 void draw()
 {
@@ -238,7 +299,15 @@ void handleEvent(SDL_Event event)
   }
   else if(event.type == SDL_MOUSEBUTTONDOWN) std::cout << "MOUSE CLICKED" << std::endl;
 }
-void readPPM(char* filename){
+void displayPicture(std::vector<Colour> payload,int width,int height){
+    for(int i = 0; i < width; i++){
+        for(int j = 0; j < height; j++){
+            uint32_t colour = payload[i + j * width].packed_colour();
+            window.setPixelColour(i, j, colour);
+        }
+    }
+}
+std::vector<Colour> readPPM(char* filename,int* width, int* height){
     std::ifstream stream;
     stream.open(filename,std::ifstream::in);
     char encoding[3];
@@ -251,10 +320,9 @@ void readPPM(char* filename){
 
     stream.getline(widthText,256,' ');
     stream.getline(heightText,256);
-    int width = std::stoi(widthText);
-    int height = std::stoi(heightText);
-    std::cout << width << '\n';
-    std::cout << height << '\n';
+    *width = std::stoi(widthText);
+    *height = std::stoi(heightText);
+
     char maxValT[256];
     stream.getline(maxValT,256);
     int maxVal = std::stoi(maxValT);
@@ -265,16 +333,9 @@ void readPPM(char* filename){
     std::vector<Colour> payload;
     while(stream.get(r) &&stream.get(g)&& stream.get(b)){
         payload.push_back(Colour(r,g,b));
-        // std::cout << Colour(r,g,b).packed_colour() << '\n';
     }
-    for(int i = 0; i < width; i++){
-        for(int j = 0; j < height; j++){
-            uint32_t colour = payload[i + j * width].packed_colour();
-            window.setPixelColour(i, j, colour);
-        }
-    }
-
     stream.clear();
     stream.close();
+    return payload;
 
 }

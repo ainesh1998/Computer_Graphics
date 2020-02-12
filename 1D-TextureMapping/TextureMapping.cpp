@@ -22,6 +22,7 @@ std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValu
 void drawLine(CanvasPoint start,CanvasPoint end,Colour c);
 void drawTriangle(CanvasTriangle triangle);
 void drawFilledTriangle(CanvasTriangle triangle);
+void readPPM(char* filename);
 
 void greyscale();
 void colourScale();
@@ -61,22 +62,16 @@ std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValu
 
 int main(int argc, char* argv[])
 {
+
+  readPPM("texture.ppm");
   SDL_Event event;
 
-  interpolate(2.2,8.5,7);
   while(true)
   {
 
     // We MUST poll for events - otherwise the window will freeze !
     if(window.pollForInputEvents(&event)) handleEvent(event);
     update();
-    // draw();
-    // drawLine(CanvasPoint(150,150),CanvasPoint(300,160),Colour(255,255,0));
-    CanvasTriangle triangle = CanvasTriangle(CanvasPoint(150,10),
-                              CanvasPoint(140,50),
-                            CanvasPoint(300,50),Colour(12,45,60));
-  //  drawTriangle(triangle);
-    //colourScale();
     // Need to render the frame at the end, or nothing actually gets shown on the screen !
     window.renderFrame();
   }
@@ -116,7 +111,6 @@ void drawFilledTriangle(CanvasTriangle triangle){
     // std::cout << triangle << '\n';
     // std::cout << v4 << '\n';
     Colour c = triangle.colour;
-    uint32_t colour = (255<<24) + (int(c.red)<<16) + (int(c.green)<<8) + int(c.blue);
     drawLine(v2,v4,Colour(255,255,255));
 
     //fill top triangle
@@ -144,35 +138,6 @@ void drawFilledTriangle(CanvasTriangle triangle){
      curx4 -= invslope4;
    }
 
-    // std::vector<float>  topYVals= interpolate();
-
-    // std::cout << triangle << /* message */v4 << '\n';
-    // std::vector<float> leftX = interpolate(v1.x, v4.x, std::abs(v4.y-v1.y)+1);
-    // std::cerr << leftX.size() << '\n';
-    // std::vector<float> rightX = interpolate(v1.x, v2.x, std::abs(v4.y-v1.y)+1);
-    // for(int i = v1.y; i <= v4.y; i++){
-    //     std::vector<float> temp = interpolate(leftX[i - v1.y],rightX[i-v1.y],std::abs(leftX[i - v1.y]-rightX[i-v1.y])+1);
-    //     // for(int i = 0; i < temp.size(); i++){
-    //     //   std::cout << temp[i] << ' ';
-    //     // }
-    //     // std::cout << std::abs(-4) <<'\n';
-    //
-    //     for(int j = 0; j < temp.size(); j++){
-    //         window.setPixelColour(temp[j],i,colour);
-    //     }
-    // }
-    // leftX = interpolate(v4.x, v3.x, v3.y-v4.y+1);
-    // rightX = interpolate(v2.x, v3.x, v3.y-v4.y+1);
-    // for(int i = v4.y; i <= v3.y; i++){
-    //     std::vector<float> temp = interpolate(leftX[i - v4.y],rightX[i-v4.y],std::abs(leftX[i - v4.y]-rightX[i-v4.y])+1);
-    //     for(int j = 0; j < temp.size(); j++){
-    //         window.setPixelColour(temp[j],i,colour);
-    //     }
-    // }
-    drawTriangle(triangle);
-
-    // for (int i = v1.y; i < v2.y; i++) {
-    // }
 }
 
 void drawLine(CanvasPoint start,CanvasPoint end,Colour c){
@@ -272,4 +237,44 @@ void handleEvent(SDL_Event event)
 
   }
   else if(event.type == SDL_MOUSEBUTTONDOWN) std::cout << "MOUSE CLICKED" << std::endl;
+}
+void readPPM(char* filename){
+    std::ifstream stream;
+    stream.open(filename,std::ifstream::in);
+    char encoding[3];
+    stream.getline(encoding,3);
+    std::cout << encoding << '\n';
+    char comment[256];
+    stream.getline(comment,256);
+    char widthText[256];
+    char heightText[256];
+
+    stream.getline(widthText,256,' ');
+    stream.getline(heightText,256);
+    int width = std::stoi(widthText);
+    int height = std::stoi(heightText);
+    std::cout << width << '\n';
+    std::cout << height << '\n';
+    char maxValT[256];
+    stream.getline(maxValT,256);
+    int maxVal = std::stoi(maxValT);
+
+    char r;
+    char g;
+    char b;
+    std::vector<Colour> payload;
+    while(stream.get(r) &&stream.get(g)&& stream.get(b)){
+        payload.push_back(Colour(r,g,b));
+        // std::cout << Colour(r,g,b).packed_colour() << '\n';
+    }
+    for(int i = 0; i < width; i++){
+        for(int j = 0; j < height; j++){
+            uint32_t colour = payload[i + j * width].packed_colour();
+            window.setPixelColour(i, j, colour);
+        }
+    }
+
+    stream.clear();
+    stream.close();
+
 }

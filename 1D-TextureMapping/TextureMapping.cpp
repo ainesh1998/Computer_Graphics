@@ -66,9 +66,9 @@ int main(int argc, char* argv[])
 {
   int width;
   int height;
-  std::vector<Colour> v = readPPM("texture.ppm",&width,&height);
-  std::cout << width << '\n';
-  std::cout << height << '\n';
+  std::vector<Colour> payload = readPPM("texture.ppm",&width,&height);
+  // std::cout << width << '\n';
+  // std::cout << height << '\n';
   CanvasTriangle triangle = CanvasTriangle(CanvasPoint(160,10),
                             CanvasPoint(300,230),
                           CanvasPoint(10,150),Colour(255,255,255));
@@ -79,6 +79,7 @@ int main(int argc, char* argv[])
   // displayPicture(v,width,height);
   drawTriangle(texture);
   drawTriangle(triangle);
+  drawTexturedTriangle(triangle,texture,payload,width,height);
   SDL_Event event;
 
   while(true)
@@ -100,44 +101,55 @@ void drawTriangle(CanvasTriangle triangle){
 }
 void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::vector<Colour> payload,int width,int height){
     //sort vertices in order (y position)
-    // if(triangle.vertices[1].y < triangle.vertices[0].y){
-    //     std::swap(triangle.vertices[0],triangle.vertices[1]);
+    if(triangle.vertices[1].y < triangle.vertices[0].y){
+        std::swap(triangle.vertices[0],triangle.vertices[1]);
+    }
+
+    if(triangle.vertices[2].y < triangle.vertices[1].y){
+        std::swap(triangle.vertices[1],triangle.vertices[2]);
+        if(triangle.vertices[1].y < triangle.vertices[0].y){
+            std::swap(triangle.vertices[1],triangle.vertices[0]);
+        }
+    }
+
+
+    if(texture.vertices[1].y < texture.vertices[0].y){
+        std::swap(texture.vertices[0],texture.vertices[1]);
+    }
+
+    if(texture.vertices[2].y < texture.vertices[1].y){
+        std::swap(texture.vertices[1],texture.vertices[2]);
+        if(texture.vertices[1].y < texture.vertices[0].y){
+            std::swap(texture.vertices[1],texture.vertices[0]);
+        }
+    }
+    // std::cout << triangle << '\n';
+    // std::vector<float> vals = interpolate(2.2,8.5,3);
+    // for(int i = 0; i < 3; i++){
+    //   std::cout << vals[i] << ' ';
     // }
-    //
-    // if(triangle.vertices[2].y < triangle.vertices[1].y){
-    //     std::swap(triangle.vertices[1],triangle.vertices[2]);
-    //     if(triangle.vertices[1].y < triangle.vertices[0].y){
-    //         std::swap(triangle.vertices[1],triangle.vertices[0]);
-    //     }
-    // }
-    //
-    // if(texture.vertices[1].y < texture.vertices[0].y){
-    //     std::swap(texture.vertices[0],triangle.vertices[1]);
-    // }
-    //
-    // if(triangle.vertices[2].y < triangle.vertices[1].y){
-    //     std::swap(triangle.vertices[1],triangle.vertices[2]);
-    //     if(triangle.vertices[1].y < triangle.vertices[0].y){
-    //         std::swap(triangle.vertices[1],triangle.vertices[0]);
-    //     }
-    // }
-    // // std::cout << triangle << '\n';
-    // // std::vector<float> vals = interpolate(2.2,8.5,3);
-    // // for(int i = 0; i < 3; i++){
-    // //   std::cout << vals[i] << ' ';
-    // // }
-    // // std::cout << '\n';
-    // CanvasPoint v1 = triangle.vertices[0];
-    // CanvasPoint v2 = triangle.vertices[1];
-    // CanvasPoint v3 = triangle.vertices[2];
-    // float slope = (v2.y - v1.y)/(v3.y - v1.y);
-    // int newX = v1.x + slope * (v3.x - v1.x);
-    // CanvasPoint v4 = CanvasPoint(newX,v2.y);
-    //
-    // CanvasPoint u1 = texture.vertices[0];
-    // CanvasPoint u2 = texture.vertices[1];
-    // CanvasPoint u3 = texture.vertices[2];
-    //
+    // std::cout << '\n';
+    CanvasPoint v1 = triangle.vertices[0];
+    CanvasPoint v2 = triangle.vertices[1];
+    CanvasPoint v3 = triangle.vertices[2];
+    float slope = (v2.y - v1.y)/(v3.y - v1.y);
+    int newX = v1.x + slope * (v3.x - v1.x);
+    CanvasPoint v4 = CanvasPoint(newX,v2.y);
+
+    CanvasPoint u1 = texture.vertices[0];
+    CanvasPoint u2 = texture.vertices[1];
+    CanvasPoint u3 = texture.vertices[2];
+    // drawLine(v1,u1,Colour(0,255,0));
+    // drawLine(v2,u2,Colour(0,255,0));
+    // drawLine(v3,u3,Colour(0,255,0));
+    float k_x = (u3.x-u1.x)/(v3.x-v1.x);
+    float k_y = (u3.y-u1.y)/(v3.y-v1.y);
+    int u4_x = u1.x + k_x * (v4.x-v1.x);
+    int u4_y = u1.y + k_y * (v4.y-v1.y);
+    CanvasPoint u4 = CanvasPoint(u4_x,u4_y);
+     drawLine(u4,u2,Colour(0,255,0));
+     drawLine(v4,v2,Colour(0,255,0));
+
     // int newUX = u1.x + slope * (u3.x - u1.x);
     // CanvasPoint v4 = CanvasPoint(newUX,u2.y);
     //

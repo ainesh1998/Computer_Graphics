@@ -64,22 +64,7 @@ std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValu
 
 int main(int argc, char* argv[])
 {
-  int width;
-  int height;
-  std::vector<Colour> payload = readPPM("texture.ppm",&width,&height);
-  // std::cout << width << '\n';
-  // std::cout << height << '\n';
-  CanvasTriangle triangle = CanvasTriangle(CanvasPoint(160,10),
-                            CanvasPoint(300,230),
-                          CanvasPoint(10,150),Colour(255,255,255));
 
-  CanvasTriangle texture = CanvasTriangle(CanvasPoint(195,5),
-                            CanvasPoint(395,380),
-                          CanvasPoint(65,330),Colour(0,0,255));
-  // displayPicture(v,width,height);
-  drawTriangle(texture);
-  drawTriangle(triangle);
-  drawTexturedTriangle(triangle,texture,payload,width,height);
   SDL_Event event;
 
   while(true)
@@ -147,14 +132,106 @@ void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::ve
     int u4_x = u1.x + k_x * (v4.x-v1.x);
     int u4_y = u1.y + k_y * (v4.y-v1.y);
     CanvasPoint u4 = CanvasPoint(u4_x,u4_y);
-     drawLine(u4,u2,Colour(0,255,0));
-     drawLine(v4,v2,Colour(0,255,0));
+    drawLine(u4,u2,Colour(0,255,0));
+    drawLine(v4,v2,Colour(0,255,0));
+    //Compute  flat bottom triangle
+    float dxdyl = (v2.x - v1.x)/(v2.y -v1.y);
+    float dux_dyl = (u2.x - u1.x)/(v2.y -v1.y);
+    float duy_dyl = (u2.y- u1.y)/(v2.y -v1.y);
 
-    // int newUX = u1.x + slope * (u3.x - u1.x);
-    // CanvasPoint v4 = CanvasPoint(newUX,u2.y);
-    //
-    // float dxdyl = (v4.x - v1.x)/(v4.y -v1.y);
-    // float dudyl =  /(v4.y -v1.y);
+    float dxdyr = (v4.x - v1.x)/(v2.y -v1.y);
+    float dux_dyr = (u4.x - u1.x)/(v2.y -v1.y);
+    float duy_dyr = (u4.y- u1.y)/(v2.y -v1.y);
+
+    float xl = v1.x;
+    float u_xl = u1.x;
+    float u_yl = u1.y;
+
+    float xr = v1.x;
+    float u_xr = u1.x;
+    float u_yr = u1.y;
+
+    for (int y = v1.y; y <= v2.y; y++){
+        float ui = u_xl;
+        float vi = u_yl;
+        float dx = xr - xl;
+        float du = (u_xr - u_xl)/dx;
+        float dv = (u_yr - u_yl)/dx;
+        for(int x = xl; x <= xr;x++){
+            ui = std::floor(ui);
+            vi = std::floor(vi);
+            Colour c = payload[ui + vi * width];
+            window.setPixelColour(x,y,c.packed_colour());
+            ui += du;
+            vi += dv;
+        }
+
+        xl += dxdyl;
+        u_xl += dux_dyl;
+        u_yl += duy_dyl;
+        xr += dxdyr;
+        u_xr += dux_dyr;
+        u_yr += duy_dyr;
+  }
+
+  //Compute Flat Top triangle
+  dxdyl = (v3.x - v2.x)/(v3.y -v2.y);
+  dux_dyl = (u3.x - u2.x)/(v3.y -v2.y);
+  duy_dyl = (u3.y- u2.y)/(v3.y -v2.y);
+
+  dxdyr = (v3.x - v4.x)/(v3.y -v2.y);
+  dux_dyr = (u3.x - u4.x)/(v3.y -v2.y);
+  duy_dyr = (u3.y- u4.y)/(v3.y -v2.y);
+
+  // xl = v2.x;
+  // u_xl = u2.x;
+  // u_yl = u2.y;
+  //
+  // xr = v4.x;
+  // u_xr = u4.x;
+  // u_yr = u4.y;
+
+  xl = v3.x;
+  u_xl = u3.x;
+  u_yl = u3.y;
+
+  xr = v3.x;
+  u_xr = u3.x;
+  u_yr = u3.y;
+  // std::cout <<  << '\n';
+  for (int y = v3.y; y > v2.y; y--){
+      float ui = u_xl;
+      float vi = u_yl;
+      float dx = xr - xl;
+      float du = (u_xr - u_xl)/dx;
+      float dv = (u_yr - u_yl)/dx;
+      // std::cout << xl << '\n';
+      // std::cout << xr << '\n';
+      // std::cout << "" << '\n';
+      for(int x = xl; x <= xr;x++){
+          ui = std::floor(ui);
+          vi = std::floor(vi);
+          std::cout << ui << '\n';
+          std::cout << vi << '\n';
+          std::cout << "" << '\n';
+          Colour c = payload[ui + vi * width];
+          // std::cout << x << '\n';
+          // std::cout << y << '\n';
+          // std::cout << "" << '\n';
+         window.setPixelColour(x,y,c.packed_colour());
+          ui += du;
+          vi += dv;
+      }
+      xl -= dxdyl;
+      u_xl -= dux_dyl;
+      u_yl -= duy_dyl;
+      xr -= dxdyr;
+      u_xr -= dux_dyr;
+      u_yr -= duy_dyr;
+}
+
+
+
 }
 void drawFilledTriangle(CanvasTriangle triangle){
     //sort vertices in order (y position)
@@ -307,6 +384,39 @@ void handleEvent(SDL_Event event)
       drawFilledTriangle(triangle);
 
     }
+    else if(event.key.keysym.sym == SDLK_d){
+        int width;
+        int height;
+        std::vector<Colour> payload = readPPM("texture.ppm",&width,&height);
+
+        CanvasTriangle texture = CanvasTriangle(CanvasPoint(195,5),
+                                  CanvasPoint(395,380),
+                                CanvasPoint(65,330),Colour(0,0,255));
+        displayPicture(payload,width,height);
+        drawTriangle(texture);
+
+    }
+    else if(event.key.keysym.sym == SDLK_g){
+        int width;
+        int height;
+        std::vector<Colour> payload = readPPM("texture.ppm",&width,&height);
+        // std::cout << width << '\n';
+        // std::cout << height << '\n';
+        CanvasTriangle triangle = CanvasTriangle(CanvasPoint(160,10),
+                                  CanvasPoint(300,230),
+                                CanvasPoint(10,150),Colour(255,255,255));
+
+        CanvasTriangle texture = CanvasTriangle(CanvasPoint(195,5),
+                                  CanvasPoint(395,380),
+                                CanvasPoint(65,330),Colour(0,0,255));
+        // displayPicture(v,width,height);
+        drawTriangle(texture);
+        drawTriangle(triangle);
+        drawTexturedTriangle(triangle,texture,payload,width,height);
+    }
+    else if(event.key.keysym.sym == SDLK_c){
+        window.clearPixels();
+    }
 
   }
   else if(event.type == SDL_MOUSEBUTTONDOWN) std::cout << "MOUSE CLICKED" << std::endl;
@@ -324,7 +434,7 @@ std::vector<Colour> readPPM(char* filename,int* width, int* height){
     stream.open(filename,std::ifstream::in);
     char encoding[3];
     stream.getline(encoding,3);
-    std::cout << encoding << '\n';
+    // std::cout << encoding << '\n';
     char comment[256];
     stream.getline(comment,256);
     char widthText[256];

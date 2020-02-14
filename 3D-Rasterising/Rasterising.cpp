@@ -20,7 +20,8 @@ void drawTriangle(CanvasTriangle triangle);
 void drawFilledTriangle(CanvasTriangle triangle);
 void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::vector<Colour> payload,int width,int height);
 void displayPicture(std::vector<Colour> payload,int width,int height);
-std::vector<Colour> readPPM(char* filename,int* width, int* height);
+std::vector<Colour> readPPM(std::string filename,int* width, int* height);
+void readOBJ(std::string filename);
 
 void greyscale();
 void colourScale();
@@ -368,6 +369,12 @@ void handleEvent(SDL_Event event)
         // drawTriangle(triangle);
         drawTexturedTriangle(triangle,texture,payload,width,height);
     }
+
+    // start of 3D lab
+    else if (event.key.keysym.sym == SDLK_o) {
+        readOBJ("cornell-box");
+    }
+
     else if(event.key.keysym.sym == SDLK_c){
         window.clearPixels();
     }
@@ -384,9 +391,9 @@ void displayPicture(std::vector<Colour> payload,int width,int height){
         }
     }
 }
-std::vector<Colour> readPPM(char* filename,int* width, int* height){
+std::vector<Colour> readPPM(std::string filename,int* width, int* height){
     std::ifstream stream;
-    stream.open(filename,std::ifstream::in);
+    stream.open(filename.c_str(),std::ifstream::in);
     char encoding[3];
     stream.getline(encoding,3);
 
@@ -414,4 +421,40 @@ std::vector<Colour> readPPM(char* filename,int* width, int* height){
     stream.close();
     return payload;
 
+}
+
+void readOBJ(std::string filename) {
+    std::vector<Colour> colours;
+    std::ifstream stream;
+    stream.open(filename + "/" + filename + ".mtl",std::ifstream::in);
+
+    char newmtl[256];
+
+    while(stream.getline(newmtl, 256, ' ') && strcmp(newmtl, "newmtl") == 0) {
+        char colourName[256];
+        stream.getline(colourName, 256);
+
+        char mtlProperty[256];
+        char rc[256];
+        char gc[256];
+        char bc[256];
+
+        stream.getline(mtlProperty, 256, ' ');
+        stream.getline(rc, 256, ' ');
+        stream.getline(gc, 256, ' ');
+        stream.getline(bc, 256);
+
+        int r = std::stof(rc) * 255;
+        int g = std::stof(gc) * 255;
+        int b = std::stof(bc) * 255;
+
+        Colour c = Colour(colourName, r, g, b);
+        colours.push_back(c);
+
+        char newLine[256];
+        stream.getline(newLine, 256);
+    }
+
+    stream.clear();
+    stream.close();
 }

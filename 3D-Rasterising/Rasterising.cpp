@@ -504,57 +504,6 @@ void readOBJ(std::string filename) {
         }
     }
 
-    // char newobj[256];
-    // stream.getline(newobj,256); // skip newline
-    //
-    // while(stream.getline(newobj, 256, ' ') && strcmp(newobj, "o") == 0) {
-    //     char section[256]; // skip description e.g "light" in "o light"
-    //     stream.getline(section,256);
-    //     //reusing line just to avoid making new arrays
-    //     char line[256];
-    //     stream.getline(line,256);
-    //
-    //     std::string* colourProperty = split(line,' '); // usemtl colour
-    //     Colour colour = colourMap[colourProperty[1]];
-    //     // std::cout << colour << '\n';
-    //     //go through vertices e.g lines that start with v
-    //     while(stream.getline(line,256,' ') && strcmp(line, "v") == 0){
-    //         stream.getline(line,256);
-    //         std::string* points = split(line,' ');
-    //         float x = std::stof(points[0]);
-    //         float y = std::stof(points[1]);
-    //         float z = std::stof(points[2]);
-    //         glm::vec3 v(x,y,z);
-    //         vertices.push_back(v);
-    //     }
-    //     // std::cout << line << '\n';
-    //     stream.getline(line,256);
-    //     std::string* indexes = split(line,' ');
-    //     int index1 = indexes[0][0] - '0';
-    //     // std::cout << index1 << '\n';
-    //     int index2 = indexes[1][0] - '0';
-    //     int index3 = indexes[2][0] - '0';
-    //     //offset index by -1
-    //     ModelTriangle m = ModelTriangle(vertices[index1 -1],
-    //     vertices[index2 - 1], vertices[index3 -1],colour);
-    //     modelTriangles.push_back(m);
-    //     std::cout << m << '\n';
-    //     while(stream.getline(line,256,' ') && strcmp(line, "f") == 0){
-    //         stream.getline(line,256);
-    //         std::string* indexes = split(line,' ');
-    //         int index1 = indexes[0][0] - '0';
-    //         // std::cout << index1 << '\n';
-    //         int index2 = indexes[1][0] - '0';
-    //         int index3 = indexes[2][0] - '0';
-    //         //offset index by -1
-    //         ModelTriangle m = ModelTriangle(vertices[index1 -1],
-    //         vertices[index2 - 1], vertices[index3 -1],colour);
-    //         modelTriangles.push_back(m);
-    //         std::cout << m << '\n';
-    //     }
-    //     std::cout << line << '\n';
-    // }
-
     stream.clear();
     stream.close();
 }

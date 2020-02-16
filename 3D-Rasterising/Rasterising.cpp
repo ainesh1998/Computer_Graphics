@@ -23,6 +23,7 @@ void drawFilledTriangle(CanvasTriangle triangle);
 void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::vector<Colour> payload,int width,int height);
 void displayPicture(std::vector<Colour> payload,int width,int height);
 std::vector<Colour> readPPM(std::string filename,int* width, int* height);
+std::map<std::string,Colour> readMTL(std::string filename);
 void readOBJ(std::string filename);
 
 void greyscale();
@@ -424,12 +425,10 @@ std::vector<Colour> readPPM(std::string filename,int* width, int* height){
     return payload;
 
 }
-
-void readOBJ(std::string filename) {
-    // std::vector<Colour> colours;
+std::map<std::string,Colour> readMTL(std::string filename){
     std::map<std::string,Colour> colourMap;
     std::ifstream stream;
-    stream.open(filename + "/" + filename + ".mtl",std::ifstream::in);
+    stream.open(filename,std::ifstream::in);
 
     char newmtl[256];
 
@@ -458,12 +457,102 @@ void readOBJ(std::string filename) {
         char newLine[256];
         stream.getline(newLine, 256);
     }
-    // for(int i = 0; i < (int)colours.size(); i++){
-    //     std::cout << colours[i] << '\n';
-    // }
+    stream.clear();
+    stream.close();
+    return colourMap;
+}
+void readOBJ(std::string filename) {
 
-    // for(std::map<std::string,Colour>::iterator itr = colourMap.begin(); itr != colourMap.end(); ++itr){
-    //     std::cout << itr->first << '\n';
+    std::ifstream stream;
+    stream.open(filename + "/" + filename + ".obj",std::ifstream::in);
+    char mtlFile[256];
+    stream.getline(mtlFile,256,' '); //skip the mtllib
+    stream.getline(mtlFile,256);
+
+    std::map<std::string,Colour> colourMap = readMTL("cornell-box/" +(std::string)mtlFile);
+
+    std::vector<glm::vec3> vertices;
+    std::vector<ModelTriangle> modelTriangles;
+    char line[256];
+    Colour colour;
+    while(stream.getline(line,256)){
+
+        std::string* contents = split(line,' ');
+        if(line[0] == 'u'){
+            colour = colourMap[contents[1]];
+        }
+        else if(line[0] == 'v'){
+                float x = std::stof(contents[1]);
+                float y = std::stof(contents[2]);
+                float z = std::stof(contents[3]);
+                glm::vec3 v(x,y,z);
+                vertices.push_back(v);
+        }
+        else if(line[0] == 'f'){
+            std::string* indexes1 = split(contents[1],'/');
+            std::string* indexes2 = split(contents[2],'/');
+            std::string* indexes3 = split(contents[3],'/');
+
+            int index1 = std::stoi(indexes1[0]);
+            int index2 = std::stoi(indexes2[0]);
+            int index3 = std::stoi(indexes3[0]);
+
+            ModelTriangle m = ModelTriangle(vertices[index1 -1],
+            vertices[index2 - 1], vertices[index3 -1],colour);
+            modelTriangles.push_back(m);
+            // std::cout << m << '\n';
+        }
+    }
+
+    // char newobj[256];
+    // stream.getline(newobj,256); // skip newline
+    //
+    // while(stream.getline(newobj, 256, ' ') && strcmp(newobj, "o") == 0) {
+    //     char section[256]; // skip description e.g "light" in "o light"
+    //     stream.getline(section,256);
+    //     //reusing line just to avoid making new arrays
+    //     char line[256];
+    //     stream.getline(line,256);
+    //
+    //     std::string* colourProperty = split(line,' '); // usemtl colour
+    //     Colour colour = colourMap[colourProperty[1]];
+    //     // std::cout << colour << '\n';
+    //     //go through vertices e.g lines that start with v
+    //     while(stream.getline(line,256,' ') && strcmp(line, "v") == 0){
+    //         stream.getline(line,256);
+    //         std::string* points = split(line,' ');
+    //         float x = std::stof(points[0]);
+    //         float y = std::stof(points[1]);
+    //         float z = std::stof(points[2]);
+    //         glm::vec3 v(x,y,z);
+    //         vertices.push_back(v);
+    //     }
+    //     // std::cout << line << '\n';
+    //     stream.getline(line,256);
+    //     std::string* indexes = split(line,' ');
+    //     int index1 = indexes[0][0] - '0';
+    //     // std::cout << index1 << '\n';
+    //     int index2 = indexes[1][0] - '0';
+    //     int index3 = indexes[2][0] - '0';
+    //     //offset index by -1
+    //     ModelTriangle m = ModelTriangle(vertices[index1 -1],
+    //     vertices[index2 - 1], vertices[index3 -1],colour);
+    //     modelTriangles.push_back(m);
+    //     std::cout << m << '\n';
+    //     while(stream.getline(line,256,' ') && strcmp(line, "f") == 0){
+    //         stream.getline(line,256);
+    //         std::string* indexes = split(line,' ');
+    //         int index1 = indexes[0][0] - '0';
+    //         // std::cout << index1 << '\n';
+    //         int index2 = indexes[1][0] - '0';
+    //         int index3 = indexes[2][0] - '0';
+    //         //offset index by -1
+    //         ModelTriangle m = ModelTriangle(vertices[index1 -1],
+    //         vertices[index2 - 1], vertices[index3 -1],colour);
+    //         modelTriangles.push_back(m);
+    //         std::cout << m << '\n';
+    //     }
+    //     std::cout << line << '\n';
     // }
 
     stream.clear();

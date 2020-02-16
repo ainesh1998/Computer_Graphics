@@ -24,7 +24,7 @@ void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::ve
 void displayPicture(std::vector<Colour> payload,int width,int height);
 std::vector<Colour> readPPM(std::string filename,int* width, int* height);
 std::map<std::string,Colour> readMTL(std::string filename);
-void readOBJ(std::string filename);
+std::vector<ModelTriangle> readOBJ(std::string filename,float scale);
 
 void greyscale();
 void colourScale();
@@ -375,7 +375,7 @@ void handleEvent(SDL_Event event)
 
     // start of 3D lab
     else if (event.key.keysym.sym == SDLK_o) {
-        readOBJ("cornell-box");
+        readOBJ("cornell-box",1);
     }
 
     else if(event.key.keysym.sym == SDLK_c){
@@ -461,7 +461,7 @@ std::map<std::string,Colour> readMTL(std::string filename){
     stream.close();
     return colourMap;
 }
-void readOBJ(std::string filename) {
+std::vector<ModelTriangle> readOBJ(std::string filename,float scale) {
 
     std::ifstream stream;
     stream.open(filename + "/" + filename + ".obj",std::ifstream::in);
@@ -500,10 +500,10 @@ void readOBJ(std::string filename) {
             ModelTriangle m = ModelTriangle(vertices[index1 -1],
             vertices[index2 - 1], vertices[index3 -1],colour);
             modelTriangles.push_back(m);
-            // std::cout << m << '\n';
         }
     }
 
     stream.clear();
     stream.close();
+    return modelTriangles;
 }

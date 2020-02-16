@@ -5,6 +5,8 @@
 #include <glm/glm.hpp>
 #include <fstream>
 #include <vector>
+#include <map>
+
 
 
 #define WIDTH 800
@@ -424,7 +426,8 @@ std::vector<Colour> readPPM(std::string filename,int* width, int* height){
 }
 
 void readOBJ(std::string filename) {
-    std::vector<Colour> colours;
+    // std::vector<Colour> colours;
+    std::map<std::string,Colour> colourMap;
     std::ifstream stream;
     stream.open(filename + "/" + filename + ".mtl",std::ifstream::in);
 
@@ -449,11 +452,19 @@ void readOBJ(std::string filename) {
         int b = std::stof(bc) * 255;
 
         Colour c = Colour(colourName, r, g, b);
-        colours.push_back(c);
+        colourMap[colourName] = c;
+        // colours.push_back(c);
 
         char newLine[256];
         stream.getline(newLine, 256);
     }
+    // for(int i = 0; i < (int)colours.size(); i++){
+    //     std::cout << colours[i] << '\n';
+    // }
+
+    // for(std::map<std::string,Colour>::iterator itr = colourMap.begin(); itr != colourMap.end(); ++itr){
+    //     std::cout << itr->first << '\n';
+    // }
 
     stream.clear();
     stream.close();

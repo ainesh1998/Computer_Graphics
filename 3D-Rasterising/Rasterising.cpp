@@ -24,6 +24,7 @@ void displayPicture(std::vector<Colour> payload,int width,int height);
 std::vector<Colour> readPPM(std::string filename,int* width, int* height);
 std::map<std::string,Colour> readMTL(std::string filename);
 std::vector<ModelTriangle> readOBJ(std::string filename,float scale);
+void order_triangle(CanvasTriangle *triangle);
 void wireframe(std::string filename, float stepBack, float focalLength);
 
 
@@ -195,7 +196,19 @@ void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::ve
   }
 }
 
+//sort triangle vertices in ascending order accroding to y
+void order_triangle(CanvasTriangle *triangle){
+    if(triangle->vertices[1].y < triangle->vertices[0].y){
+        std::swap(triangle->vertices[0],triangle->vertices[1]);
+    }
 
+    if(triangle->vertices[2].y < triangle->vertices[1].y){
+        std::swap(triangle->vertices[1],triangle->vertices[2]);
+        if(triangle->vertices[1].y < triangle->vertices[0].y){
+            std::swap(triangle->vertices[1],triangle->vertices[0]);
+        }
+    }
+}
 void drawFilledTriangle(CanvasTriangle triangle){
     //sort vertices in order (y position)
     if(triangle.vertices[1].y < triangle.vertices[0].y){
@@ -405,24 +418,134 @@ std::vector<ModelTriangle> readOBJ(std::string filename,float scale) {
 void wireframe(std::string filename, float stepBack, float focalLength) {
     // stepBack = dv, focalLength = di
 
-    std::vector<ModelTriangle> triangles = readOBJ(filename, 100);
+    float depth_buffer[WIDTH][HEIGHT];
+    for(int x = 0; x < WIDTH; x++){
+        for(int y = 0; y < HEIGHT; y++){
+            depth_buffer[x][y] = std::numeric_limits<float>::infinity();
+        }
+    }
+    std::vector<ModelTriangle> triangles = readOBJ(filename, 150);
 
-    for (int i = 0; i < triangles.size(); i++) {
+    for (int i = 0; i < (int) triangles.size(); i++) {
         glm::vec3 cameraPos = glm::vec3(0, 0, -stepBack);
         std::vector<CanvasPoint> points;
         for (int j = 0; j < 3; j++) {
-
             glm::vec3 wrtCamera = triangles[i].vertices[j] + cameraPos;
             float ratio = focalLength/(-wrtCamera.z);
 
             float x = wrtCamera.x * ratio + WIDTH/2;
-            float y = (1-wrtCamera.y) * ratio + HEIGHT/2;
+            //Added +60 to try  and centre it
+            float y = (-wrtCamera.y) * ratio + HEIGHT/2 + 60;
 
-            CanvasPoint point = CanvasPoint(x, y);
+            CanvasPoint point = CanvasPoint(x, y,-wrtCamera.z);
             points.push_back(point);
         }
+
         CanvasTriangle triangle = CanvasTriangle(points[0], points[1], points[2], triangles[i].colour);
-        drawFilledTriangle(triangle);
+        order_triangle(&triangle);
+
+        CanvasPoint v1 = triangle.vertices[0];
+        CanvasPoint v2 = triangle.vertices[1];
+        CanvasPoint v3 = triangle.vertices[2];
+
+        float slope = (v2.y - v1.y)/(v3.y - v1.y);
+        int newX = v1.x + slope * (v3.x - v1.x);
+        int newZ = v1.depth + slope * (v3.depth - v1.depth);
+        CanvasPoint v4 = CanvasPoint(newX,v2.y,newZ);
+
+        Colour c = triangle.colour;
+        // drawLine(v2,v4,Colour(255,255,255));
+
+        //fill top triangle
+        float invslope1 = (v2.x - v1.x) / (v2.y - v1.y);
+        float invslope2 = (v4.x - v1.x) / (v4.y - v1.y);
+        float depthslope1 = (v2.depth - v1.depth) / (v2.y - v1.y);
+        float depthslope2 = (v4.depth - v1.depth) / (v2.y - v1.y);
+        float curx1 = v1.x;
+        float curx2 = v1.x;
+        float curDepth1 = v1.depth;
+        float curDepth2 = v1.depth;
+
+        for (int y = v1.y; y <= v2.y; y++) {
+        //    drawLine(CanvasPoint(curx1, scanlineY), CanvasPoint(curx2, scanlineY),c);
+
+            int x_max = std::max(curx1,curx2);
+            int x_min = std::min(curx1,curx2);
+            float depth = curDepth1;
+            float dx = x_max - x_min;
+            float d_depth = (curDepth2 - curDepth1)/dx;
+            for(int x = x_min; x <= x_max; x++){
+                if(depth < depth_buffer[x][y]){
+                    depth_buffer[x][y] = depth;
+                    window.setPixelColour( x,  y, c.packed_colour());
+                }
+                depth += d_depth;
+            }
+            curDepth1 += depthslope1;
+            curDepth2 += depthslope2;
+            curx1 += invslope1;
+            curx2 += invslope2;
+        }
+
+       //  //fill bottom triangle
+        float invslope3 = (v3.x - v2.x) / (v3.y - v2.y);
+        float invslope4 = (v3.x - v4.x) / (v3.y - v4.y);
+        float depthslope3 = (v3.depth - v2.depth) / (v3.y - v2.y);
+        float depthslope4 = (v3.depth - v4.depth) / (v3.y - v2.y);
+
+        float curx3 = v3.x;
+        float curx4 = v3.x;
+
+        float curDepth3 = v3.depth;
+        float curDepth4 = v3.depth;
+
+        for (int y = v3.y; y > v2.y; y--)
+       {
+           int x_max = std::max(curx3,curx4);
+           int x_min = std::min(curx3,curx4);
+           float depth = curDepth3;
+           float dx = x_max - x_min;
+           float d_depth = (curDepth3 - curDepth4)/dx;
+           for(int x = x_min; x <= x_max; x++){
+               if(depth < depth_buffer[x][y]){
+                   depth_buffer[x][y] = depth;
+                   window.setPixelColour( x,  y, c.packed_colour());
+               }
+               depth += d_depth;
+           }
+         curx3 -= invslope3;
+         curx4 -= invslope4;
+         curDepth3 -= depthslope3;
+         curDepth4 -= depthslope4;
+       }
+
+
+        //compute triangle bounding box
+        // int bbox_min_x = std::min(points[0].x,std::min(points[1].x,points[2].x));
+        // int bbox_min_y = std::min(points[0].y,std::min(points[1].y,points[2].y));
+        //
+        // int bbox_max_x = std::max(points[0].x,std::max(points[1].x,points[2].x));
+        // int bbox_max_y = std::max(points[0].y,std::max(points[1].y,points[2].y));
+        // for(int x = bbox_min_x;x<= bbox_max_x;x++){
+        //     for(int y =bbox_min_y; y <= bbox_max_y; y++){
+        //         //calc z depth
+        //         //obtained from scratch a pixel textbook
+        //         float z = 0;
+        //         glm::vec3 v0 = triangles[i].vertices[0];
+        //         glm::vec3 v1= triangles[i].vertices[1];
+        //         glm::vec3 v2 = triangles[i].vertices[2];
+        //         float v0_prime_x =v0.x/v0.z;
+        //         float v1_prime_x =v1.x/v1.z;
+        //         float lambda = (x - v0_prime_x)/(v1_prime_x- v0_prime_x);
+        //         if(z < depth_buffer[x][y]){
+        //             depth_buffer[x][y] = z;
+        //
+        //             window.setPixelColour((int) x, (int) y, triangle.colour.packed_colour());
+        //         }
+        //     }
+        //}
+
+    //    drawFilledTriangle(triangle);
     }
 
 }

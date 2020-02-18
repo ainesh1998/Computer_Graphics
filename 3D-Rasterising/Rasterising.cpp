@@ -5,12 +5,13 @@
 #include <glm/glm.hpp>
 #include <fstream>
 #include <vector>
+#include <map>
+
 
 
 #define WIDTH 800
 #define HEIGHT 640
 
-void draw();
 void update();
 void handleEvent(SDL_Event event);
 std::vector<float> interpolate(float start, float end, int noOfValues);
@@ -21,10 +22,10 @@ void drawFilledTriangle(CanvasTriangle triangle);
 void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::vector<Colour> payload,int width,int height);
 void displayPicture(std::vector<Colour> payload,int width,int height);
 std::vector<Colour> readPPM(std::string filename,int* width, int* height);
-void readOBJ(std::string filename);
+std::map<std::string,Colour> readMTL(std::string filename);
+std::vector<ModelTriangle> readOBJ(std::string filename,float scale);
+void wireframe(std::string filename, float stepBack, float focalLength);
 
-void greyscale();
-void colourScale();
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
@@ -223,12 +224,13 @@ void drawFilledTriangle(CanvasTriangle triangle){
     float invslope2 = (v4.x - v1.x) / (v4.y - v1.y);
     float curx1 = v1.x;
     float curx2 = v1.x;
-    for (int scanlineY = v1.y; scanlineY <= v2.y; scanlineY++)
-  {
-    drawLine(CanvasPoint(curx1, scanlineY), CanvasPoint(curx2, scanlineY),c);
-    curx1 += invslope1;
-    curx2 += invslope2;
-  }
+
+    for (int scanlineY = v1.y; scanlineY <= v2.y; scanlineY++) {
+        drawLine(CanvasPoint(curx1, scanlineY), CanvasPoint(curx2, scanlineY),c);
+        curx1 += invslope1;
+        curx2 += invslope2;
+    }
+    
    //  //fill bottom triangle
     float invslope3 = (v3.x - v2.x) / (v3.y - v2.y);
     float invslope4 = (v3.x - v4.x) / (v3.y - v4.y);
@@ -260,62 +262,162 @@ void drawLine(CanvasPoint start,CanvasPoint end,Colour c){
 
 }
 
-
-// void draw()
-// {
-//   window.clearPixels();
-//   for(int y=0; y<window.height ;y++) {
-//     for(int x=0; x<window.width ;x++) {
-//       float red = rand() % 255;
-//       float green = 0.0;
-//       float blue = 0.0;
-//       uint32_t colour = (255<<24) + (int(red)<<16) + (int(green)<<8) + int(blue);
-//       window.setPixelColour(x, y, colour);
-//     }
-//   }
-// }
-//
-// void greyscale() {
-//     window.clearPixels();
-//     std::vector<float> pixelRow = interpolate(0, 255, window.width);
-//
-//     for(int y=0; y<window.height ;y++) {
-//
-//       for(int x=0; x<window.width ;x++) {
-//         float pixelValue = 255 - pixelRow[x];
-//         uint32_t colour = (255<<24) + (int(pixelValue)<<16) + (int(pixelValue)<<8) + int(pixelValue);
-//         window.setPixelColour(x, y, colour);
-//       }
-//     }
-// }
-//
-// void colourScale() {
-//     window.clearPixels();
-//     glm::vec3 red(255,0,0);
-//     glm::vec3 yellow(255,255,0);
-//     std::vector<glm::vec3> redToYellow = interpolate3(red, yellow, window.height);
-//
-//     glm::vec3 blue(0,0,255);
-//     glm::vec3 green(0,255,0);
-//     std::vector<glm::vec3> blueToGreen = interpolate3(blue, green, window.height);
-//
-//     for(int y=0; y<window.height ;y++) {
-//         glm::vec3 start = redToYellow[y];
-//         glm::vec3 end = blueToGreen[y];
-//         std::vector<glm::vec3> pixelRow = interpolate3(start,end,window.width);
-//
-//         for(int x=0; x<window.width ;x++) {
-//             glm::vec3 pixel = pixelRow[x];
-//             uint32_t colour = (255<<24) + (int(pixel.x)<<16) + (int(pixel.y)<<8) + int(pixel.z);
-//             window.setPixelColour(x, y, colour);
-//         }
-//     }
-// }
-
-void update()
-{
-  // Function for performing animation (shifting artifacts or moving the camera)
+void displayPicture(std::vector<Colour> payload,int width,int height){
+    for(int i = 0; i < width; i++){
+        for(int j = 0; j < height; j++){
+            uint32_t colour = payload[i + j * width].packed_colour();
+            window.setPixelColour(i, j, colour);
+        }
+    }
 }
+
+
+// 3D
+
+
+std::vector<Colour> readPPM(std::string filename,int* width, int* height){
+    std::ifstream stream;
+    stream.open(filename.c_str(),std::ifstream::in);
+    char encoding[3];
+    stream.getline(encoding,3);
+
+    char comment[256];
+    stream.getline(comment,256);
+    char widthText[256];
+    char heightText[256];
+
+    stream.getline(widthText,256,' ');
+    stream.getline(heightText,256);
+    *width = std::stoi(widthText);
+    *height = std::stoi(heightText);
+
+    char maxValT[256];
+    stream.getline(maxValT,256);
+
+    char r;
+    char g;
+    char b;
+    std::vector<Colour> payload;
+    while(stream.get(r) &&stream.get(g)&& stream.get(b)){
+        payload.push_back(Colour(r,g,b));
+    }
+    stream.clear();
+    stream.close();
+    return payload;
+
+}
+std::map<std::string,Colour> readMTL(std::string filename){
+    std::map<std::string,Colour> colourMap;
+    std::ifstream stream;
+    stream.open(filename,std::ifstream::in);
+
+    char newmtl[256];
+
+    while(stream.getline(newmtl, 256, ' ') && strcmp(newmtl, "newmtl") == 0) {
+        char colourName[256];
+        stream.getline(colourName, 256);
+
+        char mtlProperty[256];
+        char rc[256];
+        char gc[256];
+        char bc[256];
+
+        stream.getline(mtlProperty, 256, ' ');
+        stream.getline(rc, 256, ' ');
+        stream.getline(gc, 256, ' ');
+        stream.getline(bc, 256);
+
+        int r = std::stof(rc) * 255;
+        int g = std::stof(gc) * 255;
+        int b = std::stof(bc) * 255;
+
+        Colour c = Colour(colourName, r, g, b);
+        colourMap[colourName] = c;
+        // colours.push_back(c);
+
+        char newLine[256];
+        stream.getline(newLine, 256);
+    }
+    stream.clear();
+    stream.close();
+    return colourMap;
+}
+std::vector<ModelTriangle> readOBJ(std::string filename,float scale) {
+
+    std::ifstream stream;
+    stream.open(filename + "/" + filename + ".obj",std::ifstream::in);
+    char mtlFile[256];
+    stream.getline(mtlFile,256,' '); //skip the mtllib
+    stream.getline(mtlFile,256);
+
+    std::map<std::string,Colour> colourMap = readMTL(filename + "/" + (std::string)mtlFile);
+
+    std::vector<glm::vec3> vertices;
+    std::vector<ModelTriangle> modelTriangles;
+    char line[256];
+    Colour colour;
+    while(stream.getline(line,256)){
+
+        std::string* contents = split(line,' ');
+        if(line[0] == 'u'){
+            colour = colourMap[contents[1]];
+        }
+        else if(line[0] == 'v'){
+                float x = std::stof(contents[1]) * scale;
+                float y = std::stof(contents[2]) * scale;
+                float z = std::stof(contents[3]) * scale;
+                glm::vec3 v(x,y,z);
+                vertices.push_back(v);
+        }
+        else if(line[0] == 'f'){
+            std::string* indexes1 = split(contents[1],'/');
+            std::string* indexes2 = split(contents[2],'/');
+            std::string* indexes3 = split(contents[3],'/');
+
+            int index1 = std::stoi(indexes1[0]);
+            int index2 = std::stoi(indexes2[0]);
+            int index3 = std::stoi(indexes3[0]);
+
+            ModelTriangle m = ModelTriangle(vertices[index1 -1],
+            vertices[index2 - 1], vertices[index3 -1],colour);
+            modelTriangles.push_back(m);
+        }
+    }
+
+    stream.clear();
+    stream.close();
+    return modelTriangles;
+}
+
+void wireframe(std::string filename, float stepBack, float focalLength) {
+    // stepBack = dv, focalLength = di
+
+    std::vector<ModelTriangle> triangles = readOBJ(filename, 200);
+
+    for (int i = 0; i < triangles.size(); i++) {
+        std::cout << triangles[i] << '\n';
+        glm::vec3 cameraPos = glm::vec3(0, 0, -stepBack);
+        std::vector<CanvasPoint> points;
+        for (int j = 0; j < 3; j++) {
+
+            glm::vec3 wrtCamera = triangles[i].vertices[j] + cameraPos;
+            float ratio = focalLength/(-wrtCamera.z);
+
+            float x = wrtCamera.x * ratio + WIDTH/2;
+            float y = (1-wrtCamera.y) * ratio + HEIGHT/2;
+
+            CanvasPoint point = CanvasPoint(x, y);
+            points.push_back(point);
+        }
+        CanvasTriangle triangle = CanvasTriangle(points[0], points[1], points[2], triangles[i].colour);
+        drawFilledTriangle(triangle);
+    }
+
+}
+
+
+// EVENT HANDLING
+
 
 void handleEvent(SDL_Event event)
 {
@@ -372,7 +474,8 @@ void handleEvent(SDL_Event event)
 
     // start of 3D lab
     else if (event.key.keysym.sym == SDLK_o) {
-        readOBJ("cornell-box");
+        int temp = 500;
+        wireframe("cornell-box", temp, temp/2);
     }
 
     else if(event.key.keysym.sym == SDLK_c){
@@ -382,79 +485,7 @@ void handleEvent(SDL_Event event)
   else if(event.type == SDL_MOUSEBUTTONDOWN) std::cout << "MOUSE CLICKED" << std::endl;
 }
 
-
-void displayPicture(std::vector<Colour> payload,int width,int height){
-    for(int i = 0; i < width; i++){
-        for(int j = 0; j < height; j++){
-            uint32_t colour = payload[i + j * width].packed_colour();
-            window.setPixelColour(i, j, colour);
-        }
-    }
-}
-std::vector<Colour> readPPM(std::string filename,int* width, int* height){
-    std::ifstream stream;
-    stream.open(filename.c_str(),std::ifstream::in);
-    char encoding[3];
-    stream.getline(encoding,3);
-
-    char comment[256];
-    stream.getline(comment,256);
-    char widthText[256];
-    char heightText[256];
-
-    stream.getline(widthText,256,' ');
-    stream.getline(heightText,256);
-    *width = std::stoi(widthText);
-    *height = std::stoi(heightText);
-
-    char maxValT[256];
-    stream.getline(maxValT,256);
-
-    char r;
-    char g;
-    char b;
-    std::vector<Colour> payload;
-    while(stream.get(r) &&stream.get(g)&& stream.get(b)){
-        payload.push_back(Colour(r,g,b));
-    }
-    stream.clear();
-    stream.close();
-    return payload;
-
-}
-
-void readOBJ(std::string filename) {
-    std::vector<Colour> colours;
-    std::ifstream stream;
-    stream.open(filename + "/" + filename + ".mtl",std::ifstream::in);
-
-    char newmtl[256];
-
-    while(stream.getline(newmtl, 256, ' ') && strcmp(newmtl, "newmtl") == 0) {
-        char colourName[256];
-        stream.getline(colourName, 256);
-
-        char mtlProperty[256];
-        char rc[256];
-        char gc[256];
-        char bc[256];
-
-        stream.getline(mtlProperty, 256, ' ');
-        stream.getline(rc, 256, ' ');
-        stream.getline(gc, 256, ' ');
-        stream.getline(bc, 256);
-
-        int r = std::stof(rc) * 255;
-        int g = std::stof(gc) * 255;
-        int b = std::stof(bc) * 255;
-
-        Colour c = Colour(colourName, r, g, b);
-        colours.push_back(c);
-
-        char newLine[256];
-        stream.getline(newLine, 256);
-    }
-
-    stream.clear();
-    stream.close();
+void update()
+{
+  // Function for performing animation (shifting artifacts or moving the camera)
 }

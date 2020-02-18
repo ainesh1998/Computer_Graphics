@@ -223,15 +223,15 @@ void drawFilledTriangle(CanvasTriangle triangle,float depth_buffer[WIDTH][HEIGHT
     for (int y = v1.y; y <= v2.y; y++) {
     //    drawLine(CanvasPoint(curx1, scanlineY), CanvasPoint(curx2, scanlineY),c);
 
-        int x_max = std::max(curx1,curx2);
-        int x_min = std::min(curx1,curx2);
+        float x_max = std::max(curx1,curx2);
+        float x_min = std::min(curx1,curx2);
         float depth = curDepth1;
         float dx = x_max - x_min;
         float d_depth = (curDepth2 - curDepth1)/dx;
         for(int x = x_min; x <= x_max; x++){
             if(depth < depth_buffer[x][y]){
                 depth_buffer[x][y] = depth;
-                window.setPixelColour( x,  y, c.packed_colour());
+                window.setPixelColour((int) x, (int) y, c.packed_colour());
             }
             depth += d_depth;
         }
@@ -255,15 +255,15 @@ void drawFilledTriangle(CanvasTriangle triangle,float depth_buffer[WIDTH][HEIGHT
 
     for (int y = v3.y; y > v2.y; y--)
    {
-       int x_max = std::max(curx3,curx4);
-       int x_min = std::min(curx3,curx4);
+       float x_max = std::max(curx3,curx4);
+       float x_min = std::min(curx3,curx4);
        float depth = curDepth3;
        float dx = x_max - x_min;
        float d_depth = (curDepth3 - curDepth4)/dx;
        for(int x = x_min; x <= x_max; x++){
            if(depth < depth_buffer[x][y]){
                depth_buffer[x][y] = depth;
-               window.setPixelColour( x,  y, c.packed_colour());
+               window.setPixelColour((int) x,  (int) y, c.packed_colour());
            }
            depth += d_depth;
        }
@@ -469,7 +469,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename,float scale) {
     return modelTriangles;
 }
 
-void wireframe(std::string filename, float stepBack, float focalLength) {
+void wireframe(std::string filename, glm::vec3 cameraPos, float focalLength) {
     // stepBack = dv, focalLength = di
 
     float depth_buffer[WIDTH][HEIGHT];
@@ -481,15 +481,14 @@ void wireframe(std::string filename, float stepBack, float focalLength) {
     std::vector<ModelTriangle> triangles = readOBJ(filename, 150);
 
     for (int i = 0; i < (int) triangles.size(); i++) {
-        glm::vec3 cameraPos = glm::vec3(0, 0, -stepBack);
         std::vector<CanvasPoint> points;
         for (int j = 0; j < 3; j++) {
             glm::vec3 wrtCamera = triangles[i].vertices[j] + cameraPos;
             float ratio = focalLength/(-wrtCamera.z);
 
-            float x = wrtCamera.x * ratio + WIDTH/2;
+            int x = wrtCamera.x * ratio + WIDTH/2;
             //Added +60 to try  and centre it
-            float y = (-wrtCamera.y) * ratio + HEIGHT/2 + 60;
+            int y = (-wrtCamera.y) * ratio + HEIGHT/2;
 
             CanvasPoint point = CanvasPoint(x, y,-wrtCamera.z);
             points.push_back(point);
@@ -560,8 +559,8 @@ void handleEvent(SDL_Event event)
 
     // start of 3D lab
     else if (event.key.keysym.sym == SDLK_o) {
-        int temp = 500;
-        wireframe("cornell-box", temp, temp/2);
+        glm::vec3 cameraPos = glm::vec3(0, -360, -300);
+        wireframe("cornell-box", cameraPos, 250);
     }
 
     else if(event.key.keysym.sym == SDLK_c){

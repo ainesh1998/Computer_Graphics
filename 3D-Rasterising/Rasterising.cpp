@@ -217,7 +217,7 @@ void drawFilledTriangle(CanvasTriangle triangle){
     CanvasPoint v4 = CanvasPoint(newX,v2.y);
 
     Colour c = triangle.colour;
-    drawLine(v2,v4,Colour(255,255,255));
+    // drawLine(v2,v4,Colour(255,255,255));
 
     //fill top triangle
     float invslope1 = (v2.x - v1.x) / (v2.y - v1.y);
@@ -230,7 +230,7 @@ void drawFilledTriangle(CanvasTriangle triangle){
         curx1 += invslope1;
         curx2 += invslope2;
     }
-    
+
    //  //fill bottom triangle
     float invslope3 = (v3.x - v2.x) / (v3.y - v2.y);
     float invslope4 = (v3.x - v4.x) / (v3.y - v4.y);
@@ -247,18 +247,31 @@ void drawFilledTriangle(CanvasTriangle triangle){
 
 }
 
-void drawLine(CanvasPoint start,CanvasPoint end,Colour c){
+void drawLine(CanvasPoint start, CanvasPoint end, Colour c){
   float xDiff = end.x - start.x;
   float yDiff = end.y - start.y;
   float numberOfSteps = std::max(abs(xDiff), abs(yDiff));
   float xStepSize = xDiff/numberOfSteps;
   float yStepSize = yDiff/numberOfSteps;
   uint32_t colour = (255<<24) + (int(c.red)<<16) + (int(c.green)<<8) + int(c.blue);
-  for (float i=0.0; i<numberOfSteps; i++) {
-    float x = start.x + (xStepSize*i);
-    float y = start.y + (yStepSize*i);
-    window.setPixelColour(round(x), round(y), colour);
+
+  // std::cout << numberOfSteps << '\n';
+  // std::cout << xStepSize << " " << yStepSize << '\n';
+  // std::cout << start << end << '\n';
+
+  float x = start.x;
+  float y = start.y;
+
+  for (int i = 0; i < numberOfSteps+1; i++) {
+      window.setPixelColour((int) x, (int) y, colour);
+
+      x += xStepSize;
+      y += yStepSize;
+      // std::cout << x << " " << y << '\n';
+
+      // if (x == end.x) std::cout << "hooray" << '\n';
   }
+  // window.setPixelColour((int) end.x, (int) end.y, colour);
 
 }
 
@@ -392,10 +405,9 @@ std::vector<ModelTriangle> readOBJ(std::string filename,float scale) {
 void wireframe(std::string filename, float stepBack, float focalLength) {
     // stepBack = dv, focalLength = di
 
-    std::vector<ModelTriangle> triangles = readOBJ(filename, 200);
+    std::vector<ModelTriangle> triangles = readOBJ(filename, 100);
 
     for (int i = 0; i < triangles.size(); i++) {
-        std::cout << triangles[i] << '\n';
         glm::vec3 cameraPos = glm::vec3(0, 0, -stepBack);
         std::vector<CanvasPoint> points;
         for (int j = 0; j < 3; j++) {

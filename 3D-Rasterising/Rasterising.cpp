@@ -247,9 +247,11 @@ void drawFilledTriangle(CanvasTriangle triangle,float depth_buffer[WIDTH][HEIGHT
         float dx = x_max - x_min;
         float d_depth = (curDepth2 - curDepth1)/dx;
         for(int x = x_min; x <= x_max; x++){
-            if(depth < depth_buffer[x][y]){
-                depth_buffer[x][y] = depth;
-                if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT) window.setPixelColour(x, y, c.packed_colour());
+            if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT && depth > cameraPos.z){
+                if(depth < depth_buffer[x][y]){
+                    depth_buffer[x][y] = depth;
+                    window.setPixelColour(x, y, c.packed_colour());
+                }
             }
             depth += d_depth;
         }
@@ -279,9 +281,12 @@ void drawFilledTriangle(CanvasTriangle triangle,float depth_buffer[WIDTH][HEIGHT
        float dx = x_max - x_min;
        float d_depth = (curDepth3 - curDepth4)/dx;
        for(int x = x_min; x <= x_max; x++){
-           if(depth < depth_buffer[x][y]){
-               depth_buffer[x][y] = depth;
-               if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT) window.setPixelColour(x, y, c.packed_colour());
+           if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
+               if(depth < depth_buffer[x][y] && depth > cameraPos.z){
+                   depth_buffer[x][y] = depth;
+                   // std::cout << depth_buffer[x][y] << '\n';
+                   window.setPixelColour(x, y, c.packed_colour());
+               }
            }
            depth += d_depth;
        }

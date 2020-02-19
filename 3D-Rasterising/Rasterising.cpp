@@ -20,7 +20,7 @@ std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValu
 void drawLine(CanvasPoint start,CanvasPoint end,Colour c);
 void drawTriangle(CanvasTriangle triangle);
 void drawFilledTriangle(CanvasTriangle triangle);
-void drawFilledTriangle(CanvasTriangle triangle, double depth_buffer[WIDTH][HEIGHT]);
+void drawFilledTriangle(CanvasTriangle triangle, double depth_buffer[WIDTH][HEIGHT],double near,double far);
 void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::vector<Colour> payload,int width,int height);
 void displayPicture(std::vector<Colour> payload,int width,int height);
 std::vector<Colour> readPPM(std::string filename,int* width, int* height);
@@ -230,7 +230,7 @@ double compute_depth(double depth){
     z = 1/depth;
     return z;
 }
-void drawFilledTriangle(CanvasTriangle triangle,double depth_buffer[WIDTH][HEIGHT]){
+void drawFilledTriangle(CanvasTriangle triangle,double depth_buffer[WIDTH][HEIGHT],double near,double far){
     order_triangle(&triangle);
 
     CanvasPoint v1 = triangle.vertices[0];
@@ -523,8 +523,8 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
             depth_buffer[x][y] = std::numeric_limits<float>::infinity();
         }
     }
-    float near = infinity;
-    float far = 0;
+    double near = infinity;
+    double far = 0;
     for (int i = 0; i < (int) modelTriangles.size(); i++) {
         std::vector<CanvasPoint> points;
         for (int j = 0; j < 3; j++) {
@@ -550,7 +550,7 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
         triangles.push_back(triangle);
     }
     for(int i = 0; i < (int)triangles.size(); i++){
-        drawFilledTriangle(triangles[i],depth_buffer);
+        drawFilledTriangle(triangles[i],depth_buffer,near,far);
     }
 }
 

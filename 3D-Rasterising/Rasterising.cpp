@@ -215,19 +215,11 @@ void order_triangle(CanvasTriangle *triangle){
     }
 }
 
-double compute_depth(double depth){
-    double near = infinity;
-    double far = 0;
-    // for(int x = 0; x < WIDTH; x++){
-    //     for(int y = 0; y < HEIGHT; y++){
-    //         if(depth_buffer[x][y] > near){
-    //             near = depth_buffer[x][y];
-    //         }
-    //         if(depth_buffer)
-    //     }
-    // }
+double compute_depth(double depth,double near,double far){
+    //saw equation online
     double z = (near + far)/(far - near) + 1/depth * ((-2 * far * near)/(far - near));
-    z = 1/depth;
+    // z = 1/depth;
+    // double z = (1/depth -1/near)/(1/far-1/near);
     return z;
 }
 void drawFilledTriangle(CanvasTriangle triangle,double depth_buffer[WIDTH][HEIGHT],double near,double far){
@@ -236,10 +228,12 @@ void drawFilledTriangle(CanvasTriangle triangle,double depth_buffer[WIDTH][HEIGH
     CanvasPoint v1 = triangle.vertices[0];
     CanvasPoint v2 = triangle.vertices[1];
     CanvasPoint v3 = triangle.vertices[2];
-
+    v1.depth = compute_depth(v1.depth,near,far);
+    v2.depth = compute_depth(v2.depth,near,far);
+    v3.depth = compute_depth(v3.depth,near,far);
     float slope = (v2.y - v1.y)/(v3.y - v1.y);
     int newX = v1.x + slope * (v3.x - v1.x);
-    double newZ = compute_depth(v1.depth) +  (double)slope * (compute_depth(v3.depth) - compute_depth(v1.depth));
+    double newZ = v1.depth +  (double)slope * (v3.depth - v1.depth);
     CanvasPoint v4 = CanvasPoint(newX,v2.y,newZ);
 
     Colour c = triangle.colour;
@@ -248,15 +242,14 @@ void drawFilledTriangle(CanvasTriangle triangle,double depth_buffer[WIDTH][HEIGH
     //fill top triangle
     float invslope1 = (v2.x - v1.x) / (v2.y - v1.y);
     float invslope2 = (v4.x - v1.x) / (v4.y - v1.y);
-    double depthslope1 = (compute_depth(v2.depth) - compute_depth(v1.depth)) / (double)(v2.y - v1.y);
-    double depthslope2 = (v4.depth - compute_depth(v1.depth)) / (double)(v2.y - v1.y);
+    double depthslope1 = (v2.depth - v1.depth) / (double)(v2.y - v1.y);
+    double depthslope2 = (v4.depth - v1.depth) / (double)(v2.y - v1.y);
     float curx1 = v1.x;
     float curx2 = v1.x;
-    double curDepth1 = compute_depth(v1.depth);
-    double curDepth2 = compute_depth(v1.depth);
+    double curDepth1 = v1.depth;
+    double curDepth2 = v1.depth;
 
     for (int y = v1.y; y <= v2.y; y++) {
-    //    drawLine(CanvasPoint(curx1, scanlineY), CanvasPoint(curx2, scanlineY),c);
 
         float x_max = std::max(curx1,curx2);
         float x_min = std::min(curx1,curx2);
@@ -265,10 +258,10 @@ void drawFilledTriangle(CanvasTriangle triangle,double depth_buffer[WIDTH][HEIGH
         double d_depth = (curDepth2 - curDepth1)/dx;
         for(int x = x_min; x <= x_max; x++){
             if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
-                if(depth > depth_buffer[x][y]|| depth_buffer[x][y] == infinity){
+                if(depth < depth_buffer[x][y]|| depth_buffer[x][y] == infinity){
                     depth_buffer[x][y] = depth;
                     window.setPixelColour(x, y, c.packed_colour());
-                    // std::cout << depth << '\n';
+                    std::cout << depth << '\n';
                 }
             }
             depth += d_depth;
@@ -282,14 +275,14 @@ void drawFilledTriangle(CanvasTriangle triangle,double depth_buffer[WIDTH][HEIGH
    //  //fill bottom triangle
     float invslope3 = (v3.x - v2.x) / (v3.y - v2.y);
     float invslope4 = (v3.x - v4.x) / (v3.y - v4.y);
-    double depthslope3 = (compute_depth(v3.depth) - compute_depth(v2.depth)) / (double)(v3.y - v2.y);
-    double depthslope4 = (compute_depth(v3.depth) - v4.depth) / (double)(v3.y - v2.y);
+    double depthslope3 = (v3.depth - v2.depth) / (double)(v3.y - v2.y);
+    double depthslope4 = (v3.depth - v4.depth) / (double)(v3.y - v2.y);
 
     float curx3 = v3.x;
     float curx4 = v3.x;
 
-    double curDepth3 = compute_depth(v3.depth);
-    double curDepth4 = compute_depth(v3.depth);
+    double curDepth3 = v3.depth;
+    double curDepth4 = v3.depth;
     // std::cout << curDepth3 << '\n';
 
     for (int y = v3.y; y > v2.y; y--)
@@ -301,7 +294,7 @@ void drawFilledTriangle(CanvasTriangle triangle,double depth_buffer[WIDTH][HEIGH
        double d_depth = (curDepth3 - curDepth4)/dx;
        for(int x = x_min; x <= x_max; x++){
            if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
-               if(depth > depth_buffer[x][y] || depth_buffer[x][y] == infinity){
+               if(depth < depth_buffer[x][y] || depth_buffer[x][y] == infinity){
                    depth_buffer[x][y] = depth;
                    // std::cout << depth_buffer[x][y] << '\n';
                    window.setPixelColour(x, y, c.packed_colour());
@@ -552,6 +545,8 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
     for(int i = 0; i < (int)triangles.size(); i++){
         drawFilledTriangle(triangles[i],depth_buffer,near,far);
     }
+    // std::cout << near << '\n';
+    // std::cout << far << '\n';
 }
 
 

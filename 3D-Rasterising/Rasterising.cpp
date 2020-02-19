@@ -11,9 +11,10 @@
 
 #define WIDTH 800
 #define HEIGHT 640
+#define FOCALLENGTH 250
 
-void update();
-void handleEvent(SDL_Event event);
+void update(glm::vec3 translation, glm::mat3 rotation);
+void handleEvent(SDL_Event event, glm::vec3* translation, glm::mat3* rotation);
 std::vector<float> interpolate(float start, float end, int noOfValues);
 std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValues);
 void drawLine(CanvasPoint start,CanvasPoint end,Colour c);
@@ -26,25 +27,35 @@ std::vector<Colour> readPPM(std::string filename,int* width, int* height);
 std::map<std::string,Colour> readMTL(std::string filename);
 std::vector<ModelTriangle> readOBJ(std::string filename,float scale);
 void order_triangle(CanvasTriangle *triangle);
-void wireframe(std::string filename, float stepBack, float focalLength);
+void draw(std::vector<ModelTriangle> triangles, glm::vec3 cameraPos, float focalLength);
 
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
+glm::vec3 cameraPos = glm::vec3(0, -360, -300);
+glm::mat3 cameraOrientation = glm::mat3(glm::vec3(0,0,0), glm::vec3(0,0,0), glm::vec3(0,0,0));
 
 int main(int argc, char* argv[])
 {
+    SDL_Event event;
+    std::vector<ModelTriangle> triangles = readOBJ("cornell-box", 50);
 
-  SDL_Event event;
+    while(true)
+    {
+        glm::vec3 translation = glm::vec3(0,0,0);
+        glm::mat3 rotation = glm::mat3(glm::vec3(0,0,0), glm::vec3(0,0,0), glm::vec3(0,0,0));
+        // We MUST poll for events - otherwise the window will freeze !
+        if(window.pollForInputEvents(&event)) {
+            handleEvent(event, &translation, &rotation);
+        }
 
-  while(true)
-  {
+        update(translation, rotation);
 
-    // We MUST poll for events - otherwise the window will freeze !
-    if(window.pollForInputEvents(&event)) handleEvent(event);
-    update();
-    // Need to render the frame at the end, or nothing actually gets shown on the screen !
-    window.renderFrame();
-  }
+        // RENAMED WIREFRAME TO DRAW
+        draw(triangles, cameraPos, FOCALLENGTH);
+
+        // Need to render the frame at the end, or nothing actually gets shown on the screen !
+        window.renderFrame();
+    }
 }
 
 std::vector<float> interpolate(float start, float end, int noOfValues){
@@ -469,8 +480,10 @@ std::vector<ModelTriangle> readOBJ(std::string filename,float scale) {
     return modelTriangles;
 }
 
-void wireframe(std::string filename, glm::vec3 cameraPos, float focalLength) {
+void draw(std::vector<ModelTriangle> triangles, glm::vec3 cameraPos, float focalLength) {
     // stepBack = dv, focalLength = di
+
+    window.clearPixels();
 
     float depth_buffer[WIDTH][HEIGHT];
     for(int x = 0; x < WIDTH; x++){
@@ -478,7 +491,6 @@ void wireframe(std::string filename, glm::vec3 cameraPos, float focalLength) {
             depth_buffer[x][y] = std::numeric_limits<float>::infinity();
         }
     }
-    std::vector<ModelTriangle> triangles = readOBJ(filename, 150);
 
     for (int i = 0; i < (int) triangles.size(); i++) {
         std::vector<CanvasPoint> points;
@@ -496,8 +508,6 @@ void wireframe(std::string filename, glm::vec3 cameraPos, float focalLength) {
 
         CanvasTriangle triangle = CanvasTriangle(points[0], points[1], points[2], triangles[i].colour);
         drawFilledTriangle(triangle,depth_buffer);
-
-
     }
 
 }
@@ -506,71 +516,37 @@ void wireframe(std::string filename, glm::vec3 cameraPos, float focalLength) {
 // EVENT HANDLING
 
 
-void handleEvent(SDL_Event event)
+void handleEvent(SDL_Event event, glm::vec3* translation, glm::mat3* rotation)
 {
-  if(event.type == SDL_KEYDOWN) {
-    if(event.key.keysym.sym == SDLK_LEFT) std::cout << "LEFT" << std::endl;
-    else if(event.key.keysym.sym == SDLK_RIGHT) std::cout << "RIGHT" << std::endl;
-    else if(event.key.keysym.sym == SDLK_UP) std::cout << "UP" << std::endl;
-    else if(event.key.keysym.sym == SDLK_DOWN) std::cout << "DOWN" << std::endl;
-    else if(event.key.keysym.sym == SDLK_u){
-
-      CanvasTriangle triangle = CanvasTriangle(CanvasPoint(rand()%WIDTH,rand()%HEIGHT),
-                                CanvasPoint(rand()%WIDTH,rand()%HEIGHT),
-                              CanvasPoint(rand()%WIDTH,rand()%HEIGHT),Colour(rand()%255,rand()%255,rand()%255));
-      drawTriangle(triangle);
-
-    }
-    else if(event.key.keysym.sym == SDLK_f){
-
-      CanvasTriangle triangle = CanvasTriangle(CanvasPoint(rand()%WIDTH,rand()%HEIGHT),
-                                CanvasPoint(rand()%WIDTH,rand()%HEIGHT),
-                              CanvasPoint(rand()%WIDTH,rand()%HEIGHT),Colour(rand()%255,rand()%255,rand()%255));
-      drawFilledTriangle(triangle);
-
-    }
-    else if(event.key.keysym.sym == SDLK_d){
-        int width;
-        int height;
-        std::vector<Colour> payload = readPPM("texture.ppm",&width,&height);
-
-        CanvasTriangle texture = CanvasTriangle(CanvasPoint(195,5),
-                                  CanvasPoint(395,380),
-                                CanvasPoint(65,330),Colour(0,0,255));
-        displayPicture(payload,width,height);
-        drawTriangle(texture);
-
-    }
-    else if(event.key.keysym.sym == SDLK_g){
-        int width;
-        int height;
-        std::vector<Colour> payload = readPPM("texture.ppm",&width,&height);
-
-        CanvasTriangle triangle = CanvasTriangle(CanvasPoint(160,10),
-                                  CanvasPoint(300,230),
-                                CanvasPoint(10,150));
-
-        CanvasTriangle texture = CanvasTriangle(CanvasPoint(195,5),
-                                  CanvasPoint(395,380),
-                                  CanvasPoint(65,330));
-
-        drawTexturedTriangle(triangle,texture,payload,width,height);
-    }
-
-    // start of 3D lab
-    else if (event.key.keysym.sym == SDLK_o) {
-        glm::vec3 cameraPos = glm::vec3(0, -360, -300);
-        wireframe("cornell-box", cameraPos, 250);
-    }
-
-    else if(event.key.keysym.sym == SDLK_c){
-        window.clearPixels();
-    }
-  }
-  else if(event.type == SDL_MOUSEBUTTONDOWN) std::cout << "MOUSE CLICKED" << std::endl;
+    if(event.type == SDL_KEYDOWN) {
+        if(event.key.keysym.sym == SDLK_LEFT) {
+            translation->x -= 10;
+        }
+        if(event.key.keysym.sym == SDLK_RIGHT) {
+            translation->x += 10;
+        }
+        if(event.key.keysym.sym == SDLK_UP) {
+            translation->y += 10;
+        }
+        if(event.key.keysym.sym == SDLK_DOWN) {
+            translation->y -= 10;
+        }
+        if(event.key.keysym.sym == SDLK_w) {
+            translation->z += 10;
+        }
+        if(event.key.keysym.sym == SDLK_s) {
+            translation->z -= 10;
+        }
+        std::cout << translation->x << " " << translation->y << " " << translation->z << std::endl;
+        }
+    else if(event.type == SDL_MOUSEBUTTONDOWN) std::cout << "MOUSE CLICKED" << std::endl;
 }
 
-void update()
-{
-  // Function for performing animation (shifting artifacts or moving the camera)
+
+// APPLY TRANSFORMATIONS TO CAMERA
+
+
+void update(glm::vec3 translation, glm:: mat3 rotation) {
+    cameraPos += translation;
+    cameraOrientation *= rotation;
 }

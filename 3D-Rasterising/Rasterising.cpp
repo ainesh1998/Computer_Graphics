@@ -13,8 +13,8 @@
 #define HEIGHT 640
 #define FOCALLENGTH 250
 
-void update(glm::vec3 translation, glm::mat3 rotation);
-void handleEvent(SDL_Event event, glm::vec3* translation, glm::mat3* rotation);
+void update(glm::vec3 translation, glm::vec3 rotationAngles);
+void handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAngles);
 std::vector<float> interpolate(float start, float end, int noOfValues);
 std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValues);
 void drawLine(CanvasPoint start,CanvasPoint end,Colour c);
@@ -27,34 +27,41 @@ std::vector<Colour> readPPM(std::string filename,int* width, int* height);
 std::map<std::string,Colour> readMTL(std::string filename);
 std::vector<ModelTriangle> readOBJ(std::string filename,float scale);
 void order_triangle(CanvasTriangle *triangle);
-void draw(std::vector<ModelTriangle> triangles, glm::vec3 cameraPos, float focalLength);
+void draw(std::vector<ModelTriangle> triangles, float focalLength);
 
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
-glm::vec3 cameraPos = glm::vec3(0, -360, -300);
-glm::mat3 cameraOrientation = glm::mat3(glm::vec3(0,0,0), glm::vec3(0,0,0), glm::vec3(0,0,0));
+glm::vec3 cameraPos = glm::vec3(0, 0, 300);
+glm::mat3 cameraOrientation = glm::mat3();
 
 int main(int argc, char* argv[])
 {
     SDL_Event event;
     std::vector<ModelTriangle> triangles = readOBJ("cornell-box", 50);
 
+    draw(triangles, FOCALLENGTH);
+    window.renderFrame();
+
+
     while(true)
     {
         glm::vec3 translation = glm::vec3(0,0,0);
-        glm::mat3 rotation = glm::mat3(glm::vec3(0,0,0), glm::vec3(0,0,0), glm::vec3(0,0,0));
+        glm::vec3 rotationAngles = glm::vec3(0,0,0);
+
         // We MUST poll for events - otherwise the window will freeze !
         if(window.pollForInputEvents(&event)) {
-            handleEvent(event, &translation, &rotation);
+            handleEvent(event, &translation, &rotationAngles);
         }
 
-        update(translation, rotation);
+        if (glm::length(translation) > 0 || glm::length(rotationAngles) > 0) {
+            update(translation, rotationAngles);
 
-        // RENAMED WIREFRAME TO DRAW
-        draw(triangles, cameraPos, FOCALLENGTH);
+            // RENAMED WIREFRAME TO DRAW
+            draw(triangles, FOCALLENGTH);
 
-        // Need to render the frame at the end, or nothing actually gets shown on the screen !
-        window.renderFrame();
+            // Need to render the frame at the end, or nothing actually gets shown on the screen !
+            window.renderFrame();
+        }
     }
 }
 
@@ -242,7 +249,7 @@ void drawFilledTriangle(CanvasTriangle triangle,float depth_buffer[WIDTH][HEIGHT
         for(int x = x_min; x <= x_max; x++){
             if(depth < depth_buffer[x][y]){
                 depth_buffer[x][y] = depth;
-                window.setPixelColour((int) x, (int) y, c.packed_colour());
+                if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT) window.setPixelColour(x, y, c.packed_colour());
             }
             depth += d_depth;
         }
@@ -274,7 +281,7 @@ void drawFilledTriangle(CanvasTriangle triangle,float depth_buffer[WIDTH][HEIGHT
        for(int x = x_min; x <= x_max; x++){
            if(depth < depth_buffer[x][y]){
                depth_buffer[x][y] = depth;
-               window.setPixelColour((int) x,  (int) y, c.packed_colour());
+               if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT) window.setPixelColour(x, y, c.packed_colour());
            }
            depth += d_depth;
        }
@@ -480,7 +487,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename,float scale) {
     return modelTriangles;
 }
 
-void draw(std::vector<ModelTriangle> triangles, glm::vec3 cameraPos, float focalLength) {
+void draw(std::vector<ModelTriangle> triangles, float focalLength) {
     // stepBack = dv, focalLength = di
 
     window.clearPixels();
@@ -495,7 +502,10 @@ void draw(std::vector<ModelTriangle> triangles, glm::vec3 cameraPos, float focal
     for (int i = 0; i < (int) triangles.size(); i++) {
         std::vector<CanvasPoint> points;
         for (int j = 0; j < 3; j++) {
-            glm::vec3 wrtCamera = triangles[i].vertices[j] + cameraPos;
+            glm::vec3 wrtCamera = (triangles[i].vertices[j] - cameraPos) * cameraOrientation;
+            // std::cout << triangles[i].vertices[j].x << " " << triangles[i].vertices[j].y << " " << triangles[i].vertices[j].z << '\n';
+            // std::cout << wrtCamera.x << " " << wrtCamera.y << " " << wrtCamera.z << '\n';
+            // std::cout << '\n';
             float ratio = focalLength/(-wrtCamera.z);
 
             int x = wrtCamera.x * ratio + WIDTH/2;
@@ -505,40 +515,42 @@ void draw(std::vector<ModelTriangle> triangles, glm::vec3 cameraPos, float focal
             CanvasPoint point = CanvasPoint(x, y,-wrtCamera.z);
             points.push_back(point);
         }
-
         CanvasTriangle triangle = CanvasTriangle(points[0], points[1], points[2], triangles[i].colour);
         drawFilledTriangle(triangle,depth_buffer);
     }
-
 }
 
 
 // EVENT HANDLING
 
 
-void handleEvent(SDL_Event event, glm::vec3* translation, glm::mat3* rotation)
+void handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAngles)
 {
     if(event.type == SDL_KEYDOWN) {
-        if(event.key.keysym.sym == SDLK_LEFT) {
-            translation->x -= 10;
-        }
-        if(event.key.keysym.sym == SDLK_RIGHT) {
-            translation->x += 10;
-        }
-        if(event.key.keysym.sym == SDLK_UP) {
-            translation->y += 10;
-        }
-        if(event.key.keysym.sym == SDLK_DOWN) {
-            translation->y -= 10;
-        }
-        if(event.key.keysym.sym == SDLK_w) {
-            translation->z += 10;
-        }
-        if(event.key.keysym.sym == SDLK_s) {
-            translation->z -= 10;
-        }
-        std::cout << translation->x << " " << translation->y << " " << translation->z << std::endl;
-        }
+        // translate left
+        if(event.key.keysym.sym == SDLK_a) translation->x -= 10;
+        // translate right
+        if(event.key.keysym.sym == SDLK_d) translation->x += 10;
+        // translate up
+        if(event.key.keysym.sym == SDLK_w) translation->y += 10;
+        // translate down
+        if(event.key.keysym.sym == SDLK_s) translation->y -= 10;
+        // translate back
+        if(event.key.keysym.sym == SDLK_x) translation->z += 10;
+        // translate front
+        if(event.key.keysym.sym == SDLK_e) translation->z -= 10;
+
+        // rotate left
+        if(event.key.keysym.sym == SDLK_LEFT) rotationAngles->y -= 0.01;
+        // rotate right
+        if(event.key.keysym.sym == SDLK_RIGHT) rotationAngles->y += 0.01;
+        // rotate up
+        if(event.key.keysym.sym == SDLK_UP) rotationAngles->x -= 0.01;
+        // rotate down
+        if(event.key.keysym.sym == SDLK_DOWN) rotationAngles->x += 0.01;
+
+        // std::cout << translation->x << " " << translation->y << " " << translation->z << std::endl;
+    }
     else if(event.type == SDL_MOUSEBUTTONDOWN) std::cout << "MOUSE CLICKED" << std::endl;
 }
 
@@ -546,7 +558,21 @@ void handleEvent(SDL_Event event, glm::vec3* translation, glm::mat3* rotation)
 // APPLY TRANSFORMATIONS TO CAMERA
 
 
-void update(glm::vec3 translation, glm:: mat3 rotation) {
+void update(glm::vec3 translation, glm:: vec3 rotationAngles) {
     cameraPos += translation;
-    cameraOrientation *= rotation;
+
+    glm::mat3 rotationX = glm::mat3(glm::vec3(1, 0, 0),
+                                    glm::vec3(0, cos(rotationAngles.x), -sin(rotationAngles.x)),
+                                    glm::vec3(0, sin(rotationAngles.x), cos(rotationAngles.x)));
+
+    glm::mat3 rotationY = glm::mat3(glm::vec3(cos(rotationAngles.y), 0.0, sin(rotationAngles.y)),
+                                    glm::vec3(0.0, 1.0, 0.0),
+                                    glm::vec3(-sin(rotationAngles.y), 0.0, cos(rotationAngles.y)));
+
+    cameraOrientation *= rotationX;
+    cameraOrientation *= rotationY;
+    // std::cout << glm::row(rotationY, 0).x << " " << glm::row(rotationY, 0).y << " " << glm::row(rotationY, 0).z << '\n';
+    // std::cout << glm::row(rotationY, 1).x << " " << glm::row(rotationY, 1).y << " " << glm::row(rotationY, 1).z << '\n';
+    // std::cout << glm::row(rotationY, 2).x << " " << glm::row(rotationY, 2).y << " " << glm::row(rotationY, 2).z << '\n';
+
 }

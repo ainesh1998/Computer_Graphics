@@ -27,7 +27,7 @@ std::vector<Colour> readPPM(std::string filename,int* width, int* height);
 std::map<std::string,Colour> readMTL(std::string filename);
 std::vector<ModelTriangle> readOBJ(std::string filename,float scale);
 void order_triangle(CanvasTriangle *triangle);
-void draw(std::vector<ModelTriangle> triangles, float focalLength);
+void drawBox(std::vector<ModelTriangle> triangles, float focalLength);
 
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
@@ -39,7 +39,7 @@ int main(int argc, char* argv[])
     SDL_Event event;
     std::vector<ModelTriangle> triangles = readOBJ("cornell-box", 50);
 
-    draw(triangles, FOCALLENGTH);
+    drawBox(triangles, FOCALLENGTH);
     window.renderFrame();
 
 
@@ -57,7 +57,7 @@ int main(int argc, char* argv[])
             update(translation, rotationAngles);
 
             // RENAMED WIREFRAME TO DRAW
-            draw(triangles, FOCALLENGTH);
+            drawBox(triangles, FOCALLENGTH);
 
             // Need to render the frame at the end, or nothing actually gets shown on the screen !
             window.renderFrame();
@@ -251,6 +251,7 @@ void drawFilledTriangle(CanvasTriangle triangle,float depth_buffer[WIDTH][HEIGHT
                 if(depth < depth_buffer[x][y]){
                     depth_buffer[x][y] = depth;
                     window.setPixelColour(x, y, c.packed_colour());
+                    std::cout << depth << '\n';
                 }
             }
             depth += d_depth;
@@ -492,7 +493,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename,float scale) {
     return modelTriangles;
 }
 
-void draw(std::vector<ModelTriangle> triangles, float focalLength) {
+void drawBox(std::vector<ModelTriangle> triangles, float focalLength) {
     // stepBack = dv, focalLength = di
 
     window.clearPixels();

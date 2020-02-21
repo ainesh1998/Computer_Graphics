@@ -20,7 +20,7 @@ std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValu
 void drawLine(CanvasPoint start,CanvasPoint end,Colour c);
 void drawTriangle(CanvasTriangle triangle);
 void drawFilledTriangle(CanvasTriangle triangle);
-void drawFilledTriangle(CanvasTriangle triangle, double depth_buffer[WIDTH][HEIGHT],double near,double far);
+void drawFilledTriangle(CanvasTriangle triangle, double depth_buffer[][HEIGHT],double near,double far);
 void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::vector<Colour> payload,int width,int height);
 void displayPicture(std::vector<Colour> payload,int width,int height);
 std::vector<Colour> readPPM(std::string filename,int* width, int* height);
@@ -34,9 +34,15 @@ DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 glm::vec3 cameraPos = glm::vec3(0, 0, 300);
 glm::mat3 cameraOrientation = glm::mat3();
 float infinity = std::numeric_limits<float>::infinity();;
+double depth_buffer[WIDTH][HEIGHT];
 
 int main(int argc, char* argv[])
 {
+    for(int x = 0; x < WIDTH; x++){
+        for(int y = 0; y < HEIGHT; y++){
+            depth_buffer[x][y] = std::numeric_limits<float>::infinity();
+        }
+    }
     SDL_Event event;
     std::vector<ModelTriangle> triangles = readOBJ("cornell-box", 50);
 
@@ -222,7 +228,7 @@ double compute_depth(double depth,double near,double far){
     // double z = (1/depth -1/near)/(1/far-1/near);
     return z;
 }
-void drawFilledTriangle(CanvasTriangle triangle,double depth_buffer[WIDTH][HEIGHT],double near,double far){
+void drawFilledTriangle(CanvasTriangle triangle,double depth_buffer[][HEIGHT],double near,double far){
     order_triangle(&triangle);
 
     CanvasPoint v1 = triangle.vertices[0];
@@ -258,10 +264,10 @@ void drawFilledTriangle(CanvasTriangle triangle,double depth_buffer[WIDTH][HEIGH
         double d_depth = (curDepth2 - curDepth1)/dx;
         for(int x = x_min; x <= x_max; x++){
             if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
-                if(depth < depth_buffer[x][y]|| depth_buffer[x][y] == infinity){
+                if(depth < depth_buffer[x][y]){
                     depth_buffer[x][y] = depth;
                     window.setPixelColour(x, y, c.packed_colour());
-                    std::cout << depth << '\n';
+                    // std::cout << depth << '\n';
                 }
             }
             depth += d_depth;
@@ -294,7 +300,7 @@ void drawFilledTriangle(CanvasTriangle triangle,double depth_buffer[WIDTH][HEIGH
        double d_depth = (curDepth3 - curDepth4)/dx;
        for(int x = x_min; x <= x_max; x++){
            if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
-               if(depth < depth_buffer[x][y] || depth_buffer[x][y] == infinity){
+               if(depth < depth_buffer[x][y]){
                    depth_buffer[x][y] = depth;
                    // std::cout << depth_buffer[x][y] << '\n';
                    window.setPixelColour(x, y, c.packed_colour());
@@ -529,7 +535,7 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
 
             int x = wrtCamera.x * ratio + WIDTH/2;
             //Added +60 to try  and centre it
-            int y = (-wrtCamera.y) * ratio + HEIGHT/2;
+            int y = (-wrtCamera.y) * ratio + HEIGHT/2 + 60;
             if(-wrtCamera.z > far){
                 far = -wrtCamera.z;
             }

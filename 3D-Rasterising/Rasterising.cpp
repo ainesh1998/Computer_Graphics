@@ -35,9 +35,15 @@ DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 glm::vec3 cameraPos = glm::vec3(0, 0, 300);
 glm::mat3 cameraOrientation = glm::mat3();
 float infinity = std::numeric_limits<float>::infinity();;
+double depth_buffer[WIDTH][HEIGHT];
 
 int main(int argc, char* argv[])
 {
+    for(int x = 0; x < WIDTH; x++){
+        for(int y = 0; y < HEIGHT; y++){
+            depth_buffer[x][y] = std::numeric_limits<float>::infinity();
+        }
+    }
     SDL_Event event;
     std::vector<ModelTriangle> triangles = readOBJ("cornell-box", 50);
 
@@ -263,7 +269,7 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer,double nea
                 if(depth < depth_buffer[x][y]){
                     depth_buffer[x][y] = depth;
                     window.setPixelColour(x, y, c.packed_colour());
-                    std::cout << depth << '\n';
+                    // std::cout << depth << '\n';
                 }
             }
             depth += d_depth;

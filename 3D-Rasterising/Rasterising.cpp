@@ -556,6 +556,7 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
                 near = -wrtCamera.z;
             }
             CanvasPoint point = CanvasPoint(x, y,-wrtCamera.z);
+            // std::cout << modelTriangles[i].vertices[j].z << '\n';
             points.push_back(point);
         }
         CanvasTriangle triangle = CanvasTriangle(points[0], points[1], points[2], modelTriangles[i].colour);
@@ -571,13 +572,12 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
 }
 
 void lookAt(glm::vec3 point) {
-    glm::vec3 forward = glm::normalize(point - cameraPos);
-    glm::vec3 right = glm::normalize(glm::cross(forward, glm::vec3(0, 1, 0)));
+    glm::vec3 forward = glm::normalize(cameraPos - point);
+    glm::vec3 right = glm::normalize(glm::cross(forward, glm::vec3(0, -1, 0)));
     glm::vec3 up = glm::normalize(glm::cross(forward, right));
     // std::cout << up.x << " " << up.y << " " << up.z <<  '\n';
-    cameraOrientation = glm::transpose(glm::mat3(right, up, forward));
-    cameraOrientation = glm::mat3();
-    std::cout << glm::to_string(cameraOrientation) << '\n';
+    cameraOrientation = glm::inverse(glm::transpose(glm::mat3(right, up, forward)));
+    // std::cout << glm::to_string(cameraOrientation) << '\n';
 }
 
 // EVENT HANDLING
@@ -611,8 +611,8 @@ bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAng
         if(event.key.keysym.sym == SDLK_DOWN) rotationAngles->x += 0.1;
 
         // look at
-        if(event.key.keysym.sym == SDLK_l) {
-            lookAt(glm::vec3(-100, 80, 30));
+        if(event.key.keysym.sym == SDLK_SPACE) {
+            lookAt(glm::vec3(-100,30,-100));
             toUpdate = false;
         }
 

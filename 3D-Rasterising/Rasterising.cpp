@@ -31,7 +31,7 @@ void order_triangle(CanvasTriangle *triangle);
 void drawBox(std::vector<ModelTriangle> triangles, float focalLength);
 double **malloc2dArray(int dimX, int dimY);
 void lookAt(glm::vec3 point);
-void orbit(std::vector<ModelTriangle> triangles, int* counter, int* flag);
+void orbit(std::vector<ModelTriangle> triangles, int* counter, int* flag,glm::vec3* translation);
 
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
@@ -69,14 +69,14 @@ int main(int argc, char* argv[])
         }
         // std::cout << orbitFlag << '\n';
         if(true){
-            orbit(triangles,&counter,&flag);
+            orbit(triangles,&counter,&flag,&translation);
         }
         if (isUpdate) {
             update(translation, rotationAngles);
 
 
             // RENAMED WIREFRAME TO DRAW
-            drawBox(triangles, FOCALLENGTH);
+            // drawBox(triangles, FOCALLENGTH);
 
             // Need to render the frame at the end, or nothing actually gets shown on the screen !
             window.renderFrame();
@@ -591,18 +591,18 @@ void lookAt(glm::vec3 point) {
     // std::cout << glm::to_string(cameraOrientation) << '\n';
 }
 
-void orbit(std::vector<ModelTriangle> triangles,int* counter,int* flag){
+void orbit(std::vector<ModelTriangle> triangles,int* counter,int* flag,glm::vec3* translation){
     *counter +=  1;
     // *counter *=  -1;
     if(*counter %  50 == 0) *flag *= -1;
     window.clearPixels();
     // std::cout << std::put_time(nullptr) << '\n';
-    cameraPos.x +=  *flag * 10;
+    translation->x -=  10;
     // cameraPos.y +=  10;
     // cameraPos.x -= 10;
     // cameraPos.z += cos(*counter) * 10;
 
-    std::cout << *counter << '\n';
+    // std::cout << *counter << '\n';
     // cameraPos.y += sin(*counter) * 10;
 
     // cameraPos.z += sin(*counter) * 0;

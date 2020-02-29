@@ -15,7 +15,7 @@
 #define FOCALLENGTH 250
 
 void update(glm::vec3 translation, glm::vec3 rotationAngles);
-bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAngles);
+bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAngles,bool* orbit);
 std::vector<float> interpolate(float start, float end, int noOfValues);
 std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValues);
 void drawLine(CanvasPoint start,CanvasPoint end,Colour c);
@@ -31,12 +31,14 @@ void order_triangle(CanvasTriangle *triangle);
 void drawBox(std::vector<ModelTriangle> triangles, float focalLength);
 double **malloc2dArray(int dimX, int dimY);
 void lookAt(glm::vec3 point);
+void orbit(std::vector<ModelTriangle> triangles, int* counter, int* flag);
 
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 glm::vec3 cameraPos = glm::vec3(0, 0, 300);
 glm::mat3 cameraOrientation = glm::mat3();
-float infinity = std::numeric_limits<float>::infinity();;
+glm::vec3 lookAtPos = glm::vec3(-100,0,-100);
+float infinity = std::numeric_limits<float>::infinity();
 double depth_buffer[WIDTH][HEIGHT];
 
 int main(int argc, char* argv[])
@@ -48,24 +50,30 @@ int main(int argc, char* argv[])
     }
     SDL_Event event;
     std::vector<ModelTriangle> triangles = readOBJ("cornell-box", 50);
-
+    // lookAt(lookAtPos);
     drawBox(triangles, FOCALLENGTH);
     window.renderFrame();
 
-
+    int counter = 1;
+    int flag = 1;
     while(true)
     {
         glm::vec3 translation = glm::vec3(0,0,0);
         glm::vec3 rotationAngles = glm::vec3(0,0,0);
         bool isUpdate = false;
+        bool orbitFlag= false;
 
         // We MUST poll for events - otherwise the window will freeze !
         if(window.pollForInputEvents(&event)) {
-            isUpdate = handleEvent(event, &translation, &rotationAngles);
+            isUpdate = handleEvent(event, &translation, &rotationAngles,&orbitFlag);
         }
-
+        // std::cout << orbitFlag << '\n';
+        if(true){
+            orbit(triangles,&counter,&flag);
+        }
         if (isUpdate) {
             update(translation, rotationAngles);
+
 
             // RENAMED WIREFRAME TO DRAW
             drawBox(triangles, FOCALLENGTH);
@@ -73,6 +81,7 @@ int main(int argc, char* argv[])
             // Need to render the frame at the end, or nothing actually gets shown on the screen !
             window.renderFrame();
         }
+
     }
 }
 
@@ -577,16 +586,39 @@ void lookAt(glm::vec3 point) {
     glm::vec3 up = glm::normalize(glm::cross(forward, right));
     // std::cout << up.x << " " << up.y << " " << up.z <<  '\n';
     cameraOrientation = glm::inverse(glm::transpose(glm::mat3(right, up, forward)));
+    //cameraOrientation = glm::transpose(glm::mat3(right, up, forward));
+
     // std::cout << glm::to_string(cameraOrientation) << '\n';
+}
+
+void orbit(std::vector<ModelTriangle> triangles,int* counter,int* flag){
+    *counter +=  1;
+    // *counter *=  -1;
+    if(*counter %  50 == 0) *flag *= -1;
+    window.clearPixels();
+    // std::cout << std::put_time(nullptr) << '\n';
+    cameraPos.x +=  *flag * 10;
+    // cameraPos.y +=  10;
+    // cameraPos.x -= 10;
+    // cameraPos.z += cos(*counter) * 10;
+
+    std::cout << *counter << '\n';
+    // cameraPos.y += sin(*counter) * 10;
+
+    // cameraPos.z += sin(*counter) * 0;
+    lookAt(glm::vec3(0,0,-300));
+    drawBox(triangles,FOCALLENGTH);
+    window.renderFrame();
+    // std::cout << "orbit test" << '\n';
+
 }
 
 // EVENT HANDLING
 
 
-bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAngles)
+bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAngles, bool* orbit)
 {
     bool toUpdate = true;
-
     if(event.type == SDL_KEYDOWN) {
         // translate left
         if(event.key.keysym.sym == SDLK_a) translation->x -= 10;
@@ -600,7 +632,7 @@ bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAng
         if(event.key.keysym.sym == SDLK_x) translation->z += 10;
         // translate front
         if(event.key.keysym.sym == SDLK_e) translation->z -= 10;
-
+        if(event.key.keysym.sym == SDLK_o) *orbit = true;
         // rotate left
         if(event.key.keysym.sym == SDLK_LEFT) rotationAngles->y -= 0.1;
         // rotate right
@@ -612,7 +644,7 @@ bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAng
 
         // look at
         if(event.key.keysym.sym == SDLK_SPACE) {
-            lookAt(glm::vec3(-100,30,-100));
+            lookAt(glm::vec3(20,0,-20));
             toUpdate = false;
         }
 
@@ -640,11 +672,14 @@ void update(glm::vec3 translation, glm:: vec3 rotationAngles) {
     cameraOrientation *= rotationY;
 
     cameraPos += translation * glm::inverse(cameraOrientation);
+    // lookAtPos.x += 10;
+    // lookAt(lookAtPos);
 
-
+    //
     // std::cout << glm::row(rotationY, 0).x << " " << glm::row(rotationY, 0).y << " " << glm::row(rotationY, 0).z << '\n';
     // std::cout << glm::row(rotationY, 1).x << " " << glm::row(rotationY, 1).y << " " << glm::row(rotationY, 1).z << '\n';
     // std::cout << glm::row(rotationY, 2).x << " " << glm::row(rotationY, 2).y << " " << glm::row(rotationY, 2).z << '\n';
+    // std::cout << "" << '\n';
 
 }
 

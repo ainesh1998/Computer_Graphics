@@ -245,9 +245,14 @@ glm::vec3 computeRay(int x,int y,float fov){
     float screen_x = 2*ndc_x -1;
     float screen_y = 1 - 2*ndc_y; //as y axis is flipped
     float aspectRatio = WIDTH/HEIGHT;
-    float camera_x = (2*screen_x - 1) * aspectRatio;
-    float camera_y = 1-2*screen_y ;
-    glm::vec3 rayDirection = vec3(camera_x,-camera_y,-1); //the ray origin is (0,0,0)
+    //tan(..) defines the scale
+    float camera_x = (2*screen_x - 1) * aspectRatio * tan((fov/2 * M_PI/180));
+    // std::cout << tan(fov * M_PI/180/2) << '\n';
+    float camera_y = 1-2*screen_y * tan((fov/2 * M_PI/180));
+    glm::vec3 rayOriginWorld = (vec3(0,0,0)-cameraPos) * cameraOrientation;
+    glm:: vec3 rayPWorld = (vec3(camera_x,-camera_y,-1) - cameraPos) * cameraOrientation;
+    // glm::vec3 rayDirection = vec3(camera_x,-camera_y,-1); //the ray origin is (0,0,0)
+    glm::vec3 rayDirection = rayPWorld - rayOriginWorld;
     rayDirection = glm::normalize(rayDirection);
     // std::cout << ndc_x << " "<< ndc_y<< '\n';
     return rayDirection;
@@ -256,18 +261,12 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles, float focalLength){
     for (size_t x = 0; x < WIDTH; x++) {
         for (size_t y = 0; y < HEIGHT; y++) {
             float minDist = infinity;
-            vec3 ray = computeRay(x,y,180);
+            vec3 ray = computeRay(x,y,90);
             // glm::vec3 ray = glm::normalize(glm::vec3(x-cameraPos.x,(y-cameraPos.y),-cameraPos.z));
             for (size_t i = 0; i < triangles.size(); i++) {
                 RayTriangleIntersection intersection = getClosestIntersection(ray,triangles[i]);
 
                 if(isIntersection(intersection)){
-                    // if(i < 10){
-                    //     std::cout << intersection.intersectionPoint.x << '\n';
-                    //     std::cout << intersection.intersectionPoint.y << '\n';
-                    //     std::cout << intersection.intersectionPoint.z << '\n';
-                    //     std::cout  << '\n';
-                    // }
                     float distance = intersection.distanceFromCamera;
                     // glm::vec3 point = cameraPos + ray * distance;
                     // point.x += WIDTH/2;

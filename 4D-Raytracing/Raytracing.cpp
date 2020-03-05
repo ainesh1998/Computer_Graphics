@@ -1,6 +1,7 @@
 #include <ModelTriangle.h>
 #include <CanvasTriangle.h>
 #include <DrawingWindow.h>
+#include <RayTriangleIntersection.h>
 #include <Utils.h>
 #include <glm/glm.hpp>
 #include <fstream>
@@ -21,6 +22,8 @@ std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValu
 void drawLine(CanvasPoint start,CanvasPoint end,Colour c);
 void drawTriangle(CanvasTriangle triangle);
 void drawFilledTriangle(CanvasTriangle triangle);
+RayTriangleIntersection getClosestIntersection(glm::vec3 ray,std::vector<ModelTriangle> modelTriangles);
+void drawRaytracedTriangle(CanvasTriangle triangle);
 void drawFilledTriangle(CanvasTriangle triangle, double** depth_buffer,double near,double far);
 void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::vector<Colour> payload,int width,int height);
 void displayPicture(std::vector<Colour> payload,int width,int height);
@@ -29,6 +32,7 @@ std::map<std::string,Colour> readMTL(std::string filename);
 std::vector<ModelTriangle> readOBJ(std::string filename,float scale);
 void order_triangle(CanvasTriangle *triangle);
 void drawBox(std::vector<ModelTriangle> triangles, float focalLength);
+void drawBoxRayTraced(std::vector<ModelTriangle> triangles, float focalLength);
 double **malloc2dArray(int dimX, int dimY);
 void lookAt(glm::vec3 point);
 
@@ -48,8 +52,10 @@ int main(int argc, char* argv[])
     }
     SDL_Event event;
     std::vector<ModelTriangle> triangles = readOBJ("cornell-box", 50);
-
+    // glm::mat3 test = glm::mat3(glm::vec3(1,1,1),glm::vec3(2,2,2),glm::vec3(3,3,3));
+    // std::cout << glm::row(test,0).x << glm::row(test,0).y << glm::row(test,0).z <<'\n';
     drawBox(triangles, FOCALLENGTH);
+   // drawBoxRayTraced(triangles,FOCALLENGTH);
     window.renderFrame();
 
 
@@ -211,6 +217,43 @@ void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::ve
   }
 }
 
+RayTriangleIntersection getClosestIntersection(glm::vec3 ray,ModelTriangle triangle){
+    glm::vec3 e0 = triangle.vertices[1] - triangle.vertices[0];
+    glm::vec3 e1 = triangle.vertices[2] - triangle.vertices[0];
+    glm::vec3 SPVector = cameraPos-triangle.vertices[0];
+    glm::mat3 DEMatrix(-ray, e0, e1);
+    glm::vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
+    RayTriangleIntersection r = RayTriangleIntersection(possibleSolution,possibleSolution.x,triangle);
+    return r;
+}
+//check whether Intersection passes constraints
+bool isIntersection(RayTriangleIntersection r){
+    return (r.intersectionPoint.x >= 0)
+    && (r.intersectionPoint.y) >= 0
+    &&  (r.intersectionPoint.y) <= 1
+    && (r.intersectionPoint.z) >= 0
+    &&  (r.intersectionPoint.z) <= 1
+    && (r.intersectionPoint.z + r.intersectionPoint.y) <= 1;
+}
+
+void drawBoxRayTraced(std::vector<ModelTriangle> triangles, float focalLength){
+    for (size_t x = 0; x < WIDTH; x++) {
+        for (size_t y = 0; y < HEIGHT; y++) {
+            float minDist = infinity;
+            glm::vec3 ray = glm::vec3(x-cameraPos.x,y-cameraPos.y,-cameraPos.z);
+            for (size_t i = 0; i < triangles.size(); i++) {
+                RayTriangleIntersection intersection = getClosestIntersection(ray,triangles[i]);
+                if(isIntersection(intersection)){
+                    float distance = intersection.intersectionPoint.x;
+                    if(distance< minDist){
+                        window.setPixelColour(x,y,triangles[i].colour.packed_colour());
+                        minDist = distance;
+                    }
+                }
+            }
+        }
+    }
+}
 //sort triangle vertices in ascending order accroding to y
 void order_triangle(CanvasTriangle *triangle){
     if(triangle->vertices[1].y < triangle->vertices[0].y){
@@ -576,7 +619,7 @@ void lookAt(glm::vec3 point) {
     glm::vec3 right = glm::normalize(glm::cross(forward, glm::vec3(0, -1, 0)));
     glm::vec3 up = glm::normalize(glm::cross(forward, right));
     // std::cout << up.x << " " << up.y << " " << up.z <<  '\n';
-    cameraOrientation = glm::inverse(glm::transpose(glm::mat3(right, up, forward)));
+    cameraOrientation = glm::inverse((glm::mat3(right, up, forward)));
     // std::cout << glm::to_string(cameraOrientation) << '\n';
 }
 
@@ -628,13 +671,13 @@ bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAng
 
 
 void update(glm::vec3 translation, glm:: vec3 rotationAngles) {
-    glm::mat3 rotationX = glm::mat3(glm::vec3(1, 0, 0),
+    glm::mat3 rotationX = glm::transpose(glm::mat3(glm::vec3(1, 0, 0),
                                     glm::vec3(0, cos(rotationAngles.x), -sin(rotationAngles.x)),
-                                    glm::vec3(0, sin(rotationAngles.x), cos(rotationAngles.x)));
+                                    glm::vec3(0, sin(rotationAngles.x), cos(rotationAngles.x))));
 
-    glm::mat3 rotationY = glm::mat3(glm::vec3(cos(rotationAngles.y), 0.0, sin(rotationAngles.y)),
+    glm::mat3 rotationY = glm::transpose(glm::mat3(glm::vec3(cos(rotationAngles.y), 0.0, sin(rotationAngles.y)),
                                     glm::vec3(0.0, 1.0, 0.0),
-                                    glm::vec3(-sin(rotationAngles.y), 0.0, cos(rotationAngles.y)));
+                                    glm::vec3(-sin(rotationAngles.y), 0.0, cos(rotationAngles.y))));
 
     cameraOrientation *= rotationX;
     cameraOrientation *= rotationY;
@@ -642,9 +685,9 @@ void update(glm::vec3 translation, glm:: vec3 rotationAngles) {
     cameraPos += translation * glm::inverse(cameraOrientation);
 
 
-    // std::cout << glm::row(rotationY, 0).x << " " << glm::row(rotationY, 0).y << " " << glm::row(rotationY, 0).z << '\n';
-    // std::cout << glm::row(rotationY, 1).x << " " << glm::row(rotationY, 1).y << " " << glm::row(rotationY, 1).z << '\n';
-    // std::cout << glm::row(rotationY, 2).x << " " << glm::row(rotationY, 2).y << " " << glm::row(rotationY, 2).z << '\n';
+    // std::cout << glm::row(rotationX, 0).x << " " << glm::row(rotationX, 0).y << " " << glm::row(rotationX, 0).z << '\n';
+    // std::cout << glm::row(rotationX, 1).x << " " << glm::row(rotationX, 1).y << " " << glm::row(rotationX, 1).z << '\n';
+    // std::cout << glm::row(rotationX, 2).x << " " << glm::row(rotationX, 2).y << " " << glm::row(rotationX, 2).z << '\n';
 
 }
 

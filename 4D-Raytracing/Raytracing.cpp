@@ -35,6 +35,7 @@ void drawBox(std::vector<ModelTriangle> triangles, float focalLength);
 void drawBoxRayTraced(std::vector<ModelTriangle> triangles, float focalLength);
 double **malloc2dArray(int dimX, int dimY);
 void lookAt(glm::vec3 point);
+using glm::vec3;
 
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
@@ -54,8 +55,8 @@ int main(int argc, char* argv[])
     std::vector<ModelTriangle> triangles = readOBJ("cornell-box", 50);
     // glm::mat3 test = glm::mat3(glm::vec3(1,1,1),glm::vec3(2,2,2),glm::vec3(3,3,3));
     // std::cout << glm::row(test,0).x << glm::row(test,0).y << glm::row(test,0).z <<'\n';
-    drawBox(triangles, FOCALLENGTH);
-   // drawBoxRayTraced(triangles,FOCALLENGTH);
+    // drawBox(triangles, FOCALLENGTH);
+   drawBoxRayTraced(triangles,FOCALLENGTH);
     window.renderFrame();
 
 
@@ -74,7 +75,7 @@ int main(int argc, char* argv[])
             update(translation, rotationAngles);
 
             // RENAMED WIREFRAME TO DRAW
-            drawBox(triangles, FOCALLENGTH);
+            // drawBox(triangles, FOCALLENGTH);
 
             // Need to render the frame at the end, or nothing actually gets shown on the screen !
             window.renderFrame();
@@ -228,23 +229,49 @@ RayTriangleIntersection getClosestIntersection(glm::vec3 ray,ModelTriangle trian
 }
 //check whether Intersection passes constraints
 bool isIntersection(RayTriangleIntersection r){
-    return (r.intersectionPoint.x >= 0)
-    && (r.intersectionPoint.y) >= 0
+    return (r.intersectionPoint.y) >= 0
     &&  (r.intersectionPoint.y) <= 1
     && (r.intersectionPoint.z) >= 0
     &&  (r.intersectionPoint.z) <= 1
-    && (r.intersectionPoint.z + r.intersectionPoint.y) <= 1;
+    && (r.intersectionPoint.y + r.intersectionPoint.z) <= 1;
 }
 
+glm::vec3 computeRay(int x,int y,float fov){
+    //code adapted form scratch a pixel tutorial
+    // https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-generating-camera-rays/generating-camera-rays
+    //0.5 added as ray goes through centre of pixel
+    float ndc_x = (x + 0.5)/WIDTH;
+    float ndc_y = (y + 0.5)/HEIGHT;
+    float screen_x = 2*ndc_x -1;
+    float screen_y = 1 - 2*ndc_y; //as y axis is flipped
+    float aspectRatio = WIDTH/HEIGHT;
+    float camera_x = (2*screen_x - 1) * aspectRatio;
+    float camera_y = 1-2*screen_y ;
+    glm::vec3 rayDirection = vec3(camera_x,-camera_y,-1); //the ray origin is (0,0,0)
+    rayDirection = glm::normalize(rayDirection);
+    // std::cout << ndc_x << " "<< ndc_y<< '\n';
+    return rayDirection;
+}
 void drawBoxRayTraced(std::vector<ModelTriangle> triangles, float focalLength){
     for (size_t x = 0; x < WIDTH; x++) {
         for (size_t y = 0; y < HEIGHT; y++) {
             float minDist = infinity;
-            glm::vec3 ray = glm::vec3(x-cameraPos.x,y-cameraPos.y,-cameraPos.z);
+            vec3 ray = computeRay(x,y,180);
+            // glm::vec3 ray = glm::normalize(glm::vec3(x-cameraPos.x,(y-cameraPos.y),-cameraPos.z));
             for (size_t i = 0; i < triangles.size(); i++) {
                 RayTriangleIntersection intersection = getClosestIntersection(ray,triangles[i]);
+
                 if(isIntersection(intersection)){
-                    float distance = intersection.intersectionPoint.x;
+                    // if(i < 10){
+                    //     std::cout << intersection.intersectionPoint.x << '\n';
+                    //     std::cout << intersection.intersectionPoint.y << '\n';
+                    //     std::cout << intersection.intersectionPoint.z << '\n';
+                    //     std::cout  << '\n';
+                    // }
+                    float distance = intersection.distanceFromCamera;
+                    // glm::vec3 point = cameraPos + ray * distance;
+                    // point.x += WIDTH/2;
+                    // point.y += HEIGHT/2;
                     if(distance< minDist){
                         window.setPixelColour(x,y,triangles[i].colour.packed_colour());
                         minDist = distance;

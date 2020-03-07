@@ -33,7 +33,7 @@ std::map<std::string,Colour> readMTL(std::string filename);
 std::vector<ModelTriangle> readOBJ(std::string filename,float scale);
 void order_triangle(CanvasTriangle *triangle);
 void drawBox(std::vector<ModelTriangle> triangles, float focalLength);
-void drawBoxRayTraced(std::vector<ModelTriangle> triangles, float focalLength);
+void drawBoxRayTraced(std::vector<ModelTriangle> triangles);
 double **malloc2dArray(int dimX, int dimY);
 void lookAt(glm::vec3 point);
 using glm::vec3;
@@ -44,6 +44,7 @@ glm::vec3 cameraPos = glm::vec3(0, 0, 300);
 glm::mat3 cameraOrientation = glm::mat3();
 float infinity = std::numeric_limits<float>::infinity();;
 double depth_buffer[WIDTH][HEIGHT];
+int mode = 1;
 
 int main(int argc, char* argv[])
 {
@@ -54,10 +55,11 @@ int main(int argc, char* argv[])
     }
     SDL_Event event;
     std::vector<ModelTriangle> triangles = readOBJ("cornell-box", 50);
-    // glm::mat3 test = glm::mat3(glm::vec3(1,1,1),glm::vec3(2,2,2),glm::vec3(3,3,3));
-    // std::cout << glm::row(test,0).x << glm::row(test,0).y << glm::row(test,0).z <<'\n';
-    // drawBox(triangles, FOCALLENGTH);
-   drawBoxRayTraced(triangles,FOCALLENGTH);
+
+    if (mode == 1 || mode == 2) drawBox(triangles, FOCALLENGTH);
+    else drawBoxRayTraced(triangles);
+
+   // drawBoxRayTraced(triangles,FOCALLENGTH);
     window.renderFrame();
 
 
@@ -76,7 +78,8 @@ int main(int argc, char* argv[])
             update(translation, rotationAngles);
 
             // RENAMED WIREFRAME TO DRAW
-            // drawBox(triangles, FOCALLENGTH);
+            if (mode == 1 || mode == 2) drawBox(triangles, FOCALLENGTH);
+            else drawBoxRayTraced(triangles);
 
             // Need to render the frame at the end, or nothing actually gets shown on the screen !
             window.renderFrame();
@@ -251,15 +254,18 @@ glm::vec3 computeRay(int x,int y,float fov){
     float camera_x = screen_x * aspectRatio * tan((fov/2 * M_PI/180));
     // std::cout << tan(fov * M_PI/180/2) << '\n';
     float camera_y = screen_y * tan((fov/2 * M_PI/180));
-    glm::vec3 rayOriginWorld = (vec3(0,0,0)-cameraPos) * cameraOrientation;
-    glm:: vec3 rayPWorld = (vec3(camera_x,camera_y,-1) - cameraPos) * cameraOrientation;
+    glm::vec3 rayOriginWorld = (vec3(0,0,0)-cameraPos) * glm::inverse(cameraOrientation);
+    glm:: vec3 rayPWorld = (vec3(camera_x,camera_y,-1) - cameraPos) * glm::inverse(cameraOrientation);
     // glm::vec3 rayDirection = vec3(camera_x,-camera_y,-1); //the ray origin is (0,0,0)
     glm::vec3 rayDirection = rayPWorld - rayOriginWorld;
     rayDirection = glm::normalize(rayDirection);
     // std::cout << ndc_x << " "<< ndc_y<< '\n';
     return rayDirection;
 }
-void drawBoxRayTraced(std::vector<ModelTriangle> triangles, float focalLength){
+
+void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
+    window.clearPixels();
+
     for (size_t x = 0; x < WIDTH; x++) {
         for (size_t y = 0; y < HEIGHT; y++) {
             float minDist = infinity;
@@ -449,7 +455,7 @@ void drawLine(CanvasPoint start, CanvasPoint end, Colour c){
   float y = start.y;
 
   for (int i = 0; i < numberOfSteps+1; i++) {
-      window.setPixelColour((int) x, (int) y, colour);
+      if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT) window.setPixelColour((int) x, (int) y, colour);
 
       x += xStepSize;
       y += yStepSize;
@@ -635,7 +641,11 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
     }
 
     for(int i = 0; i < (int)triangles.size(); i++){
-        drawFilledTriangle(triangles[i],depth_buffer,near,far);
+        if (mode == 2) drawFilledTriangle(triangles[i],depth_buffer,near,far);
+        else if (mode == 1) {
+            triangles[i].colour = Colour(255, 255, 255);
+            drawTriangle(triangles[i]);
+        }
     }
     free(depth_buffer);
     // std::cout << near << '\n';
@@ -687,9 +697,23 @@ bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAng
             toUpdate = false;
         }
 
+        if(event.key.keysym.sym == SDLK_1) {
+            mode = 1;
+            std::cout << "Switched to wireframe mode" << '\n';
+        }
+        if(event.key.keysym.sym == SDLK_2) {
+            mode = 2;
+            std::cout << "Switched to rasteriser mode" << '\n';
+        }
+        if(event.key.keysym.sym == SDLK_3) {
+            mode = 3;
+            std::cout << "Switched to raytracer mode" << '\n';
+        }
+
         // std::cout << translation->x << " " << translation->y << " " << translation->z << std::endl;
     }
     else if(event.type == SDL_MOUSEBUTTONDOWN) std::cout << "MOUSE CLICKED" << std::endl;
+    else toUpdate = false;
 
     return toUpdate;
 }

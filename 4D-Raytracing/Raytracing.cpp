@@ -10,33 +10,44 @@
 #include <glm/gtx/string_cast.hpp>
 
 
-
 #define WIDTH 800
 #define HEIGHT 640
 #define FOCALLENGTH 250
 #define FOV 90
 
-void update(glm::vec3 translation, glm::vec3 rotationAngles);
-bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAngles);
+// helper functions
+double **malloc2dArray(int dimX, int dimY);
+void order_triangle(CanvasTriangle *triangle);
 std::vector<float> interpolate(float start, float end, int noOfValues);
 std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValues);
-void drawLine(CanvasPoint start,CanvasPoint end,Colour c);
-void drawTriangle(CanvasTriangle triangle);
-void drawFilledTriangle(CanvasTriangle triangle);
-RayTriangleIntersection getClosestIntersection(glm::vec3 ray,std::vector<ModelTriangle> modelTriangles);
-void drawRaytracedTriangle(CanvasTriangle triangle);
-void drawFilledTriangle(CanvasTriangle triangle, double** depth_buffer,double near,double far);
-void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::vector<Colour> payload,int width,int height);
-void displayPicture(std::vector<Colour> payload,int width,int height);
+
+// file readers
 std::vector<Colour> readPPM(std::string filename,int* width, int* height);
 std::map<std::string,Colour> readMTL(std::string filename);
 std::vector<ModelTriangle> readOBJ(std::string filename,float scale);
-void order_triangle(CanvasTriangle *triangle);
+void displayPicture(std::vector<Colour> payload,int width,int height);
+
+// rasteriser
+void drawLine(CanvasPoint start,CanvasPoint end,Colour c);
+void drawTriangle(CanvasTriangle triangle);
+void drawFilledTriangle(CanvasTriangle triangle);
+void drawFilledTriangle(CanvasTriangle triangle, double** depth_buffer,double near,double far);
+void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::vector<Colour> payload,int width,int height);
 void drawBox(std::vector<ModelTriangle> triangles, float focalLength);
+
+// raytracer
+RayTriangleIntersection getClosestIntersection(glm::vec3 ray,std::vector<ModelTriangle> modelTriangles);
 void drawBoxRayTraced(std::vector<ModelTriangle> triangles);
-double **malloc2dArray(int dimX, int dimY);
+
+// event handling
 void lookAt(glm::vec3 point);
+bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAngles);
+void update(glm::vec3 translation, glm::vec3 rotationAngles);
+
 using glm::vec3;
+
+
+// GLOBAL VARIABLES //
 
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
@@ -45,6 +56,7 @@ glm::mat3 cameraOrientation = glm::mat3();
 float infinity = std::numeric_limits<float>::infinity();;
 double depth_buffer[WIDTH][HEIGHT];
 int mode = 1;
+
 
 int main(int argc, char* argv[])
 {
@@ -87,6 +99,21 @@ int main(int argc, char* argv[])
     }
 }
 
+
+// HELPER FUNCTIONS //
+
+
+double **malloc2dArray(int dimX, int dimY)
+{
+    int i;
+    double **array = (double **) malloc(dimX * sizeof(double *));
+
+    for (i = 0; i < dimX; i++) {
+        array[i] = (double *) malloc(dimY * sizeof(double));
+    }
+    return array;
+}
+
 std::vector<float> interpolate(float start, float end, int noOfValues){
   std::vector<float> vals;
   float stepVal = (end - start)/(noOfValues - 1);
@@ -115,6 +142,171 @@ std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValu
     return vals;
 }
 
+//sort triangle vertices in ascending order accroding to y
+void order_triangle(CanvasTriangle *triangle){
+    if(triangle->vertices[1].y < triangle->vertices[0].y){
+        std::swap(triangle->vertices[0],triangle->vertices[1]);
+    }
+
+    if(triangle->vertices[2].y < triangle->vertices[1].y){
+        std::swap(triangle->vertices[1],triangle->vertices[2]);
+        if(triangle->vertices[1].y < triangle->vertices[0].y){
+            std::swap(triangle->vertices[1],triangle->vertices[0]);
+        }
+    }
+}
+
+
+// FILE READING //
+
+
+std::vector<Colour> readPPM(std::string filename,int* width, int* height){
+    std::ifstream stream;
+    stream.open(filename.c_str(),std::ifstream::in);
+    char encoding[3];
+    stream.getline(encoding,3);
+
+    char comment[256];
+    stream.getline(comment,256);
+    char widthText[256];
+    char heightText[256];
+
+    stream.getline(widthText,256,' ');
+    stream.getline(heightText,256);
+    *width = std::stoi(widthText);
+    *height = std::stoi(heightText);
+
+    char maxValT[256];
+    stream.getline(maxValT,256);
+
+    char r;
+    char g;
+    char b;
+    std::vector<Colour> payload;
+    while(stream.get(r) &&stream.get(g)&& stream.get(b)){
+        payload.push_back(Colour(r,g,b));
+    }
+    stream.clear();
+    stream.close();
+    return payload;
+
+}
+
+std::map<std::string,Colour> readMTL(std::string filename){
+    std::map<std::string,Colour> colourMap;
+    std::ifstream stream;
+    stream.open(filename,std::ifstream::in);
+
+    char newmtl[256];
+
+    while(stream.getline(newmtl, 256, ' ') && strcmp(newmtl, "newmtl") == 0) {
+        char colourName[256];
+        stream.getline(colourName, 256);
+
+        char mtlProperty[256];
+        char rc[256];
+        char gc[256];
+        char bc[256];
+
+        stream.getline(mtlProperty, 256, ' ');
+        stream.getline(rc, 256, ' ');
+        stream.getline(gc, 256, ' ');
+        stream.getline(bc, 256);
+
+        int r = std::stof(rc) * 255;
+        int g = std::stof(gc) * 255;
+        int b = std::stof(bc) * 255;
+
+        Colour c = Colour(colourName, r, g, b);
+        colourMap[colourName] = c;
+        // colours.push_back(c);
+
+        char newLine[256];
+        stream.getline(newLine, 256);
+    }
+    stream.clear();
+    stream.close();
+    return colourMap;
+}
+
+std::vector<ModelTriangle> readOBJ(std::string filename,float scale) {
+
+    std::ifstream stream;
+    stream.open(filename + "/" + filename + ".obj",std::ifstream::in);
+    char mtlFile[256];
+    stream.getline(mtlFile,256,' '); //skip the mtllib
+    stream.getline(mtlFile,256);
+
+    std::map<std::string,Colour> colourMap = readMTL(filename + "/" + (std::string)mtlFile);
+
+    std::vector<glm::vec3> vertices;
+    std::vector<ModelTriangle> modelTriangles;
+    char line[256];
+    Colour colour;
+    while(stream.getline(line,256)){
+
+        std::string* contents = split(line,' ');
+        if(line[0] == 'u'){
+            colour = colourMap[contents[1]];
+        }
+        else if(line[0] == 'v'){
+                float x = std::stof(contents[1]) * scale;
+                float y = std::stof(contents[2]) * scale;
+                float z = std::stof(contents[3]) * scale;
+                glm::vec3 v(x,y,z);
+                vertices.push_back(v);
+        }
+        else if(line[0] == 'f'){
+            std::string* indexes1 = split(contents[1],'/');
+            std::string* indexes2 = split(contents[2],'/');
+            std::string* indexes3 = split(contents[3],'/');
+
+            int index1 = std::stoi(indexes1[0]);
+            int index2 = std::stoi(indexes2[0]);
+            int index3 = std::stoi(indexes3[0]);
+
+            ModelTriangle m = ModelTriangle(vertices[index1 -1],
+            vertices[index2 - 1], vertices[index3 -1],colour);
+            modelTriangles.push_back(m);
+        }
+    }
+
+    stream.clear();
+    stream.close();
+    return modelTriangles;
+}
+
+void displayPicture(std::vector<Colour> payload,int width,int height){
+    for(int i = 0; i < width; i++){
+        for(int j = 0; j < height; j++){
+            uint32_t colour = payload[i + j * width].packed_colour();
+            window.setPixelColour(i, j, colour);
+        }
+    }
+}
+
+
+// RASTERISING //
+
+
+void drawLine(CanvasPoint start, CanvasPoint end, Colour c){
+  float xDiff = end.x - start.x;
+  float yDiff = end.y - start.y;
+  float numberOfSteps = std::max(abs(xDiff), abs(yDiff));
+  float xStepSize = xDiff/numberOfSteps;
+  float yStepSize = yDiff/numberOfSteps;
+  uint32_t colour = (255<<24) + (int(c.red)<<16) + (int(c.green)<<8) + int(c.blue);
+
+  float x = start.x;
+  float y = start.y;
+
+  for (int i = 0; i < numberOfSteps+1; i++) {
+      if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT) window.setPixelColour((int) x, (int) y, colour);
+
+      x += xStepSize;
+      y += yStepSize;
+  }
+}
 
 void drawTriangle(CanvasTriangle triangle){
   Colour c = triangle.colour;
@@ -125,9 +317,8 @@ void drawTriangle(CanvasTriangle triangle){
 
 
 void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::vector<Colour> payload,int width,int height){
-    //sort vertices in order (y position)
-
     order_triangle(&triangle);
+
     CanvasPoint v1 = triangle.vertices[0];
     CanvasPoint v2 = triangle.vertices[1];
     CanvasPoint v3 = triangle.vertices[2];
@@ -222,84 +413,45 @@ void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::ve
   }
 }
 
-RayTriangleIntersection getClosestIntersection(glm::vec3 ray,ModelTriangle triangle){
-    glm::vec3 e0 = triangle.vertices[1] - triangle.vertices[0];
-    glm::vec3 e1 = triangle.vertices[2] - triangle.vertices[0];
-    glm::vec3 SPVector = cameraPos-triangle.vertices[0];
-    glm::mat3 DEMatrix(-ray, e0, e1);
-    glm::vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
-    RayTriangleIntersection r = RayTriangleIntersection(possibleSolution,possibleSolution.x,triangle);
-    return r;
-}
-//check whether Intersection passes constraints
-bool isIntersection(RayTriangleIntersection r){
-    return (r.intersectionPoint.y) >= 0
-    &&  (r.intersectionPoint.y) <= 1
-    && (r.intersectionPoint.z) >= 0
-    &&  (r.intersectionPoint.z) <= 1
-    && (r.intersectionPoint.y + r.intersectionPoint.z) <= 1;
-}
+void drawFilledTriangle(CanvasTriangle triangle){
+    //sort vertices in order (y position)
+    order_triangle(&triangle);
+    CanvasPoint v1 = triangle.vertices[0];
+    CanvasPoint v2 = triangle.vertices[1];
+    CanvasPoint v3 = triangle.vertices[2];
+    float slope = (v2.y - v1.y)/(v3.y - v1.y);
+    int newX = v1.x + slope * (v3.x - v1.x);
+    CanvasPoint v4 = CanvasPoint(newX,v2.y);
 
-glm::vec3 computeRay(int x,int y,float fov){
-    //code adapted form scratch a pixel tutorial
-    // https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-generating-camera-rays/generating-camera-rays
-    //0.5 added as ray goes through centre of pixel
-    float ndc_x = (x + 0.5)/WIDTH;
-    float ndc_y = (y + 0.5)/HEIGHT;
-    float screen_x = 2*ndc_x -1;
-    float screen_y = 1 - 2*ndc_y; //as y axis is flipped
-    float aspectRatio = (float) WIDTH/ (float) HEIGHT;
-    // std::cout << aspectRatio << '\n';
-    //tan(..) defines the scale
-    float camera_x = screen_x * aspectRatio * tan((fov/2 * M_PI/180));
-    // std::cout << tan(fov * M_PI/180/2) << '\n';
-    float camera_y = screen_y * tan((fov/2 * M_PI/180));
-    glm::vec3 rayOriginWorld = (vec3(0,0,0)-cameraPos) * glm::inverse(cameraOrientation);
-    glm:: vec3 rayPWorld = (vec3(camera_x,camera_y,-1) - cameraPos) * glm::inverse(cameraOrientation);
-    // glm::vec3 rayDirection = vec3(camera_x,-camera_y,-1); //the ray origin is (0,0,0)
-    glm::vec3 rayDirection = rayPWorld - rayOriginWorld;
-    rayDirection = glm::normalize(rayDirection);
-    // std::cout << ndc_x << " "<< ndc_y<< '\n';
-    return rayDirection;
-}
+    Colour c = triangle.colour;
+    // drawLine(v2,v4,Colour(255,255,255));
 
-void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
-    window.clearPixels();
+    //fill top triangle
+    float invslope1 = (v2.x - v1.x) / (v2.y - v1.y);
+    float invslope2 = (v4.x - v1.x) / (v4.y - v1.y);
+    float curx1 = v1.x;
+    float curx2 = v1.x;
 
-    for (size_t x = 0; x < WIDTH; x++) {
-        for (size_t y = 0; y < HEIGHT; y++) {
-            float minDist = infinity;
-            vec3 ray = computeRay(x,y,FOV);
-            // glm::vec3 ray = glm::normalize(glm::vec3(x-cameraPos.x,(y-cameraPos.y),-cameraPos.z));
-            for (size_t i = 0; i < triangles.size(); i++) {
-                RayTriangleIntersection intersection = getClosestIntersection(ray,triangles[i]);
-
-                if(isIntersection(intersection)){
-                    float distance = intersection.distanceFromCamera;
-                    // glm::vec3 point = cameraPos + ray * distance;
-                    // point.x += WIDTH/2;
-                    // point.y += HEIGHT/2;
-                    if(distance< minDist){
-                        window.setPixelColour(x,y,triangles[i].colour.packed_colour());
-                        minDist = distance;
-                    }
-                }
-            }
-        }
-    }
-}
-//sort triangle vertices in ascending order accroding to y
-void order_triangle(CanvasTriangle *triangle){
-    if(triangle->vertices[1].y < triangle->vertices[0].y){
-        std::swap(triangle->vertices[0],triangle->vertices[1]);
+    for (int scanlineY = v1.y; scanlineY <= v2.y; scanlineY++) {
+        drawLine(CanvasPoint(curx1, scanlineY), CanvasPoint(curx2, scanlineY),c);
+        curx1 += invslope1;
+        curx2 += invslope2;
     }
 
-    if(triangle->vertices[2].y < triangle->vertices[1].y){
-        std::swap(triangle->vertices[1],triangle->vertices[2]);
-        if(triangle->vertices[1].y < triangle->vertices[0].y){
-            std::swap(triangle->vertices[1],triangle->vertices[0]);
-        }
-    }
+   //  //fill bottom triangle
+    float invslope3 = (v3.x - v2.x) / (v3.y - v2.y);
+    float invslope4 = (v3.x - v4.x) / (v3.y - v4.y);
+
+    float curx3 = v3.x;
+    float curx4 = v3.x;
+
+    for (int scanlineY = v3.y; scanlineY > v2.y; scanlineY--)
+   {
+     drawLine(CanvasPoint(curx3, scanlineY), CanvasPoint(curx4, scanlineY),c);
+     curx3 -= invslope3;
+     curx4 -= invslope4;
+   }
+
 }
 
 double compute_depth(double depth,double near,double far){
@@ -309,6 +461,7 @@ double compute_depth(double depth,double near,double far){
     // double z = (1/depth -1/near)/(1/far-1/near);
     return z;
 }
+
 void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer,double near,double far){
     order_triangle(&triangle);
 
@@ -398,201 +551,7 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer,double nea
      curDepth4 -= depthslope4;
    }
 }
-void drawFilledTriangle(CanvasTriangle triangle){
-    //sort vertices in order (y position)
-    order_triangle(&triangle);
-    CanvasPoint v1 = triangle.vertices[0];
-    CanvasPoint v2 = triangle.vertices[1];
-    CanvasPoint v3 = triangle.vertices[2];
-    float slope = (v2.y - v1.y)/(v3.y - v1.y);
-    int newX = v1.x + slope * (v3.x - v1.x);
-    CanvasPoint v4 = CanvasPoint(newX,v2.y);
 
-    Colour c = triangle.colour;
-    // drawLine(v2,v4,Colour(255,255,255));
-
-    //fill top triangle
-    float invslope1 = (v2.x - v1.x) / (v2.y - v1.y);
-    float invslope2 = (v4.x - v1.x) / (v4.y - v1.y);
-    float curx1 = v1.x;
-    float curx2 = v1.x;
-
-    for (int scanlineY = v1.y; scanlineY <= v2.y; scanlineY++) {
-        drawLine(CanvasPoint(curx1, scanlineY), CanvasPoint(curx2, scanlineY),c);
-        curx1 += invslope1;
-        curx2 += invslope2;
-    }
-
-   //  //fill bottom triangle
-    float invslope3 = (v3.x - v2.x) / (v3.y - v2.y);
-    float invslope4 = (v3.x - v4.x) / (v3.y - v4.y);
-
-    float curx3 = v3.x;
-    float curx4 = v3.x;
-
-    for (int scanlineY = v3.y; scanlineY > v2.y; scanlineY--)
-   {
-     drawLine(CanvasPoint(curx3, scanlineY), CanvasPoint(curx4, scanlineY),c);
-     curx3 -= invslope3;
-     curx4 -= invslope4;
-   }
-
-}
-
-void drawLine(CanvasPoint start, CanvasPoint end, Colour c){
-  float xDiff = end.x - start.x;
-  float yDiff = end.y - start.y;
-  float numberOfSteps = std::max(abs(xDiff), abs(yDiff));
-  float xStepSize = xDiff/numberOfSteps;
-  float yStepSize = yDiff/numberOfSteps;
-  uint32_t colour = (255<<24) + (int(c.red)<<16) + (int(c.green)<<8) + int(c.blue);
-
-  // std::cout << numberOfSteps << '\n';
-  // std::cout << xStepSize << " " << yStepSize << '\n';
-  // std::cout << start << end << '\n';
-
-  float x = start.x;
-  float y = start.y;
-
-  for (int i = 0; i < numberOfSteps+1; i++) {
-      if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT) window.setPixelColour((int) x, (int) y, colour);
-
-      x += xStepSize;
-      y += yStepSize;
-      // std::cout << x << " " << y << '\n';
-
-      // if (x == end.x) std::cout << "hooray" << '\n';
-  }
-  // window.setPixelColour((int) end.x, (int) end.y, colour);
-
-}
-
-void displayPicture(std::vector<Colour> payload,int width,int height){
-    for(int i = 0; i < width; i++){
-        for(int j = 0; j < height; j++){
-            uint32_t colour = payload[i + j * width].packed_colour();
-            window.setPixelColour(i, j, colour);
-        }
-    }
-}
-
-
-// 3D
-
-
-std::vector<Colour> readPPM(std::string filename,int* width, int* height){
-    std::ifstream stream;
-    stream.open(filename.c_str(),std::ifstream::in);
-    char encoding[3];
-    stream.getline(encoding,3);
-
-    char comment[256];
-    stream.getline(comment,256);
-    char widthText[256];
-    char heightText[256];
-
-    stream.getline(widthText,256,' ');
-    stream.getline(heightText,256);
-    *width = std::stoi(widthText);
-    *height = std::stoi(heightText);
-
-    char maxValT[256];
-    stream.getline(maxValT,256);
-
-    char r;
-    char g;
-    char b;
-    std::vector<Colour> payload;
-    while(stream.get(r) &&stream.get(g)&& stream.get(b)){
-        payload.push_back(Colour(r,g,b));
-    }
-    stream.clear();
-    stream.close();
-    return payload;
-
-}
-std::map<std::string,Colour> readMTL(std::string filename){
-    std::map<std::string,Colour> colourMap;
-    std::ifstream stream;
-    stream.open(filename,std::ifstream::in);
-
-    char newmtl[256];
-
-    while(stream.getline(newmtl, 256, ' ') && strcmp(newmtl, "newmtl") == 0) {
-        char colourName[256];
-        stream.getline(colourName, 256);
-
-        char mtlProperty[256];
-        char rc[256];
-        char gc[256];
-        char bc[256];
-
-        stream.getline(mtlProperty, 256, ' ');
-        stream.getline(rc, 256, ' ');
-        stream.getline(gc, 256, ' ');
-        stream.getline(bc, 256);
-
-        int r = std::stof(rc) * 255;
-        int g = std::stof(gc) * 255;
-        int b = std::stof(bc) * 255;
-
-        Colour c = Colour(colourName, r, g, b);
-        colourMap[colourName] = c;
-        // colours.push_back(c);
-
-        char newLine[256];
-        stream.getline(newLine, 256);
-    }
-    stream.clear();
-    stream.close();
-    return colourMap;
-}
-std::vector<ModelTriangle> readOBJ(std::string filename,float scale) {
-
-    std::ifstream stream;
-    stream.open(filename + "/" + filename + ".obj",std::ifstream::in);
-    char mtlFile[256];
-    stream.getline(mtlFile,256,' '); //skip the mtllib
-    stream.getline(mtlFile,256);
-
-    std::map<std::string,Colour> colourMap = readMTL(filename + "/" + (std::string)mtlFile);
-
-    std::vector<glm::vec3> vertices;
-    std::vector<ModelTriangle> modelTriangles;
-    char line[256];
-    Colour colour;
-    while(stream.getline(line,256)){
-
-        std::string* contents = split(line,' ');
-        if(line[0] == 'u'){
-            colour = colourMap[contents[1]];
-        }
-        else if(line[0] == 'v'){
-                float x = std::stof(contents[1]) * scale;
-                float y = std::stof(contents[2]) * scale;
-                float z = std::stof(contents[3]) * scale;
-                glm::vec3 v(x,y,z);
-                vertices.push_back(v);
-        }
-        else if(line[0] == 'f'){
-            std::string* indexes1 = split(contents[1],'/');
-            std::string* indexes2 = split(contents[2],'/');
-            std::string* indexes3 = split(contents[3],'/');
-
-            int index1 = std::stoi(indexes1[0]);
-            int index2 = std::stoi(indexes2[0]);
-            int index3 = std::stoi(indexes3[0]);
-
-            ModelTriangle m = ModelTriangle(vertices[index1 -1],
-            vertices[index2 - 1], vertices[index3 -1],colour);
-            modelTriangles.push_back(m);
-        }
-    }
-
-    stream.clear();
-    stream.close();
-    return modelTriangles;
-}
 
 void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
     // stepBack = dv, focalLength = di
@@ -652,17 +611,89 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
     // std::cout << far << '\n';
 }
 
+
+// RAYTRACING //
+
+
+RayTriangleIntersection getClosestIntersection(glm::vec3 ray,ModelTriangle triangle){
+    glm::vec3 e0 = triangle.vertices[1] - triangle.vertices[0];
+    glm::vec3 e1 = triangle.vertices[2] - triangle.vertices[0];
+    glm::vec3 SPVector = cameraPos-triangle.vertices[0];
+    glm::mat3 DEMatrix(-ray, e0, e1);
+    glm::vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
+    RayTriangleIntersection r = RayTriangleIntersection(possibleSolution,possibleSolution.x,triangle);
+    return r;
+}
+//check whether Intersection passes constraints
+bool isIntersection(RayTriangleIntersection r){
+    return (r.intersectionPoint.y) >= 0
+    &&  (r.intersectionPoint.y) <= 1
+    && (r.intersectionPoint.z) >= 0
+    &&  (r.intersectionPoint.z) <= 1
+    && (r.intersectionPoint.y + r.intersectionPoint.z) <= 1;
+}
+
+glm::vec3 computeRay(int x,int y,float fov){
+    //code adapted form scratch a pixel tutorial
+    // https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-generating-camera-rays/generating-camera-rays
+    //0.5 added as ray goes through centre of pixel
+    float ndc_x = (x + 0.5)/WIDTH;
+    float ndc_y = (y + 0.5)/HEIGHT;
+    float screen_x = 2*ndc_x -1;
+    float screen_y = 1 - 2*ndc_y; //as y axis is flipped
+    float aspectRatio = (float) WIDTH/ (float) HEIGHT;
+    // std::cout << aspectRatio << '\n';
+    //tan(..) defines the scale
+    float camera_x = screen_x * aspectRatio * tan((fov/2 * M_PI/180));
+    // std::cout << tan(fov * M_PI/180/2) << '\n';
+    float camera_y = screen_y * tan((fov/2 * M_PI/180));
+    glm::vec3 rayOriginWorld = (vec3(0,0,0)-cameraPos) * glm::inverse(cameraOrientation);
+    glm:: vec3 rayPWorld = (vec3(camera_x,camera_y,-1) - cameraPos) * glm::inverse(cameraOrientation);
+    // glm::vec3 rayDirection = vec3(camera_x,-camera_y,-1); //the ray origin is (0,0,0)
+    glm::vec3 rayDirection = rayPWorld - rayOriginWorld;
+    rayDirection = glm::normalize(rayDirection);
+    // std::cout << ndc_x << " "<< ndc_y<< '\n';
+    return rayDirection;
+}
+
+void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
+    window.clearPixels();
+
+    for (size_t x = 0; x < WIDTH; x++) {
+        for (size_t y = 0; y < HEIGHT; y++) {
+            float minDist = infinity;
+            vec3 ray = computeRay(x,y,FOV);
+            // glm::vec3 ray = glm::normalize(glm::vec3(x-cameraPos.x,(y-cameraPos.y),-cameraPos.z));
+            for (size_t i = 0; i < triangles.size(); i++) {
+                RayTriangleIntersection intersection = getClosestIntersection(ray,triangles[i]);
+
+                if(isIntersection(intersection)){
+                    float distance = intersection.distanceFromCamera;
+                    // glm::vec3 point = cameraPos + ray * distance;
+                    // point.x += WIDTH/2;
+                    // point.y += HEIGHT/2;
+                    if(distance< minDist){
+                        window.setPixelColour(x,y,triangles[i].colour.packed_colour());
+                        minDist = distance;
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+// EVENT HANDLING //
+
+
 void lookAt(glm::vec3 point) {
     glm::vec3 forward = glm::normalize(cameraPos - point);
     glm::vec3 right = glm::normalize(glm::cross(forward, glm::vec3(0, -1, 0)));
     glm::vec3 up = glm::normalize(glm::cross(forward, right));
     // std::cout << up.x << " " << up.y << " " << up.z <<  '\n';
-    cameraOrientation = glm::inverse((glm::mat3(right, up, forward)));
+    cameraOrientation = ((glm::mat3(right, up, forward)));
     // std::cout << glm::to_string(cameraOrientation) << '\n';
 }
-
-// EVENT HANDLING
-
 
 bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAngles)
 {
@@ -693,8 +724,8 @@ bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAng
 
         // look at
         if(event.key.keysym.sym == SDLK_SPACE) {
-            lookAt(glm::vec3(-100,30,-100));
-            toUpdate = false;
+            lookAt(glm::vec3(0, 0, 0));
+            // toUpdate = false;
         }
 
         if(event.key.keysym.sym == SDLK_1) {
@@ -719,7 +750,7 @@ bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAng
 }
 
 
-// APPLY TRANSFORMATIONS TO CAMERA
+// APPLY TRANSFORMATIONS TO CAMERA //
 
 
 void update(glm::vec3 translation, glm:: vec3 rotationAngles) {
@@ -735,21 +766,4 @@ void update(glm::vec3 translation, glm:: vec3 rotationAngles) {
     cameraOrientation *= rotationY;
 
     cameraPos += translation * glm::inverse(cameraOrientation);
-
-
-    // std::cout << glm::row(rotationX, 0).x << " " << glm::row(rotationX, 0).y << " " << glm::row(rotationX, 0).z << '\n';
-    // std::cout << glm::row(rotationX, 1).x << " " << glm::row(rotationX, 1).y << " " << glm::row(rotationX, 1).z << '\n';
-    // std::cout << glm::row(rotationX, 2).x << " " << glm::row(rotationX, 2).y << " " << glm::row(rotationX, 2).z << '\n';
-
-}
-
-double **malloc2dArray(int dimX, int dimY)
-{
-    int i;
-    double **array = (double **) malloc(dimX * sizeof(double *));
-
-    for (i = 0; i < dimX; i++) {
-        array[i] = (double *) malloc(dimY * sizeof(double));
-    }
-    return array;
 }

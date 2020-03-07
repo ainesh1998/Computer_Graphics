@@ -68,7 +68,7 @@ int main(int argc, char* argv[])
             isUpdate = handleEvent(event, &translation, &rotationAngles,&orbitFlag);
         }
         // std::cout << orbitFlag << '\n';
-        if(true){
+        if(orbitFlag){
             orbit(triangles,&counter,&flag,&translation);
         }
         if (isUpdate) {

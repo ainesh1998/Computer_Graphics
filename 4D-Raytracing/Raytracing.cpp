@@ -42,13 +42,14 @@ void drawBox(std::vector<ModelTriangle> triangles, float focalLength);
 // raytracer
 RayTriangleIntersection getClosestIntersection(glm::vec3 ray,std::vector<ModelTriangle> modelTriangles);
 void drawBoxRayTraced(std::vector<ModelTriangle> triangles);
-float calcProximity(vec3 point);
 
 // event handling
 void lookAt(glm::vec3 point);
 bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAngles);
 void update(glm::vec3 translation, glm::vec3 rotationAngles);
 
+// lighting
+float calcProximity(vec3 point);
 
 
 // GLOBAL VARIABLES //

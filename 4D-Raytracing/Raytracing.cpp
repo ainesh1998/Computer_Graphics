@@ -14,7 +14,7 @@
 #define HEIGHT 640
 #define FOCALLENGTH 250
 #define FOV 90
-#define INTENSITY 1000000
+#define INTENSITY 1
 
 using glm::vec3;
 
@@ -641,6 +641,7 @@ bool isIntersection(RayTriangleIntersection r){
 }
 
 float calcProximity(glm::vec3 point){
+    vec3 lightDir = lightPos - point;
     float distance = glm::distance(lightPos,point);
     float brightness = (float) INTENSITY * (1/(4*M_PI* distance * distance));
     // std::cout << brightness << '\n';
@@ -702,7 +703,8 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
             colours[i][j].blue = 0;
         }
     }
-
+    double bright_min = infinity;
+    double bright_max = 0;
     for (size_t x = 0; x < WIDTH; x++) {
         for (size_t y = 0; y < HEIGHT; y++) {
             float minDist = infinity;
@@ -724,6 +726,12 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                         colours[x][y].red = triangles[i].colour.red;
                         colours[x][y].green = triangles[i].colour.green;
                         colours[x][y].blue = triangles[i].colour.blue;
+                        if(brightness_buffer[x][y] < bright_min){
+                            bright_min = brightness_buffer[x][y];
+                        }
+                        if(brightness_buffer[x][y] < bright_max){
+                            bright_max = brightness_buffer[x][y];
+                        }
                         // colours[x][y] = triangles[i].colour;
                         // window.setPixelColour(x,y,triangles[i].colour.packed_colour());
                         minDist = distance;
@@ -734,6 +742,10 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
     }
     for (size_t x = 0; x < WIDTH; x++) {
         for (size_t y = 0; y < HEIGHT; y++) {
+            float brightness = (brightness_buffer[x][y]-bright_min)/(bright_max - bright_min);
+            colours[x][y].red *= brightness;
+            colours[x][y].blue *= brightness;
+            colours[x][y].green *= brightness;
             window.setPixelColour(x,y,colours[x][y].packed_colour());
         }
     }

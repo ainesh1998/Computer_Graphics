@@ -49,7 +49,8 @@ bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAng
 void update(glm::vec3 translation, glm::vec3 rotationAngles);
 
 // lighting
-float calcProximity(vec3 point);
+vec3 computenorm(ModelTriangle t);
+float calcProximity(vec3 point,ModelTriangle t);
 
 
 // GLOBAL VARIABLES //
@@ -677,7 +678,7 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                 if(isIntersection(intersection)){
                     float distance = intersection.distanceFromCamera;
                     glm::vec3 point = cameraPos + ray * distance;
-                    float brightness = calcProximity(point);
+                    float brightness = calcProximity(point,triangles[i]);
 
                     vec3 lightColourCorrected = lightColour * brightness;
                     // std::cout << "lightColour " << lightColour.x << " " << lightColour.y << " " << lightColour.z << '\n';
@@ -713,13 +714,22 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
 
 
 // LIGHTING //
+vec3 computenorm(ModelTriangle t){
+    vec3 norm = glm::cross((t.vertices[1] - t.vertices[0]),(t.vertices[2] - t.vertices[0]));
+    norm = glm::normalize(norm);
+    return norm;
+}
 
-
-float calcProximity(glm::vec3 point){
+float calcProximity(glm::vec3 point,ModelTriangle t){
     vec3 lightDir = lightPos - point;
+    lightDir = glm::normalize(lightDir);
+    vec3 norm = computenorm(t);
+    float dot_product = glm::dot(lightDir,norm);
+
     float distance = glm::distance(lightPos,point);
-    float brightness = (float) INTENSITY * (1/(2*M_PI* distance * distance));
+    float brightness = (float) INTENSITY * std::max(0.f,dot_product)*(1/(2*M_PI* distance * distance));
     if (brightness > 1) brightness = 1;
+    else if (brightness < 0.2) brightness = 0.2;
     // std::cout << brightness << '\n';
     return brightness;
 }

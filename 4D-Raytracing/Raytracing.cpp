@@ -14,7 +14,7 @@
 #define HEIGHT 640
 #define FOCALLENGTH 250
 #define FOV 90
-#define INTENSITY 100000
+#define INTENSITY 300000
 #define AMBIENCE 0.4
 
 using glm::vec3;
@@ -698,18 +698,21 @@ glm::vec3 computeRay(int x,int y,float fov){
 
 void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
     window.clearPixels();
-
     for (size_t x = 0; x < WIDTH; x++) {
         for (size_t y = 0; y < HEIGHT; y++) {
             float minDist = infinity;
             vec3 ray = computeRay(x,y,FOV);
+            RayTriangleIntersection final_intersection;
+            final_intersection.distanceFromCamera = infinity;
+            glm::vec3 point;
+
             for (size_t i = 0; i < triangles.size(); i++) {
                 RayTriangleIntersection intersection = getIntersection(ray,triangles[i]);
                 float distance = intersection.distanceFromCamera;
-
                 //this is valid as you are setting distance to infinity if it's invalid
                 if(distance < minDist){
-                    glm::vec3 point = cameraPos + ray * distance;
+                    final_intersection = intersection;
+                    point = cameraPos + ray * distance;
                     float brightness = calcProximity(point,triangles[i]);
 
                     vec3 lightColourCorrected = lightColour * brightness;
@@ -722,12 +725,39 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                     newColour = newColour/maxVal;
 
                     Colour c = Colour(newColour.x * brightness * 255, newColour.y * brightness * 255, newColour.z * brightness * 255);
-
-                    window.setPixelColour(x,y,c.packed_colour());
+                    final_intersection.intersectedTriangle.colour = c;
+                    // std::cout << intersection.intersectedTriangle.colour << '\n';
+                    // window.setPixelColour(x,y,c.packed_colour());
                     minDist = distance;
                 }
             }
+            // std::cout << final_intersection.intersectedTriangle.colour << '\n';
+            //valid intersection
+            if(final_intersection.distanceFromCamera != infinity){
+                vec3 new_point = cameraPos + ray * final_intersection.distanceFromCamera;
+                vec3 shadowRay = glm::normalize(lightPos - new_point);
+                bool isShadow = false;
+                for (size_t i = 0; i < triangles.size(); i++) {
+                    RayTriangleIntersection shadowIntersection = getIntersection(shadowRay,triangles[i]);
+                    if(shadowIntersection.intersectionPoint.y != -1){
+                        isShadow = true;
+                        break;
+                    }
+                }
+                if(!isShadow){
+                    window.setPixelColour(x,y,final_intersection.intersectedTriangle.colour.packed_colour());
+                }else{
+                    window.setPixelColour(x,y,0);
+                }
+                // window.setPixelColour(x,y,final_intersection.intersectedTriangle.colour.packed_colour());
+
+
+            }
+        // std::cout << intersection.intersectedTriangle.colour << '\n';
+            // if(final_intersection.distanceFromCamera != infinity){
+            // }
         }
+
     }
 }
 

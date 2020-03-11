@@ -23,7 +23,6 @@ double **malloc2dArray(int dimX, int dimY);
 void order_triangle(CanvasTriangle *triangle);
 std::vector<float> interpolate(float start, float end, int noOfValues);
 std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValues);
-CanvasPoint **malloc2dArrayPoint(int dimX, int dimY);
 
 
 // file readers
@@ -58,6 +57,7 @@ void update(glm::vec3 translation, glm::vec3 rotationAngles);
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 glm::vec3 cameraPos = glm::vec3(0, 0, 300);
 glm::vec3 lightPos = glm::vec3(-0.2,5.2185,-3.043);
+glm::vec3 lightColour = glm::vec3(255,255,255);
 glm::mat3 cameraOrientation = glm::mat3();
 float infinity = std::numeric_limits<float>::infinity();;
 double depth_buffer[WIDTH][HEIGHT];
@@ -640,14 +640,6 @@ bool isIntersection(RayTriangleIntersection r){
     && (r.intersectionPoint.y + r.intersectionPoint.z) <= 1;
 }
 
-float calcProximity(glm::vec3 point){
-    vec3 lightDir = lightPos - point;
-    float distance = glm::distance(lightPos,point);
-    float brightness = (float) INTENSITY * (1/(4*M_PI* distance * distance));
-    if (brightness > 1) brightness = 1;
-    // std::cout << brightness << '\n';
-    return brightness;
-}
 glm::vec3 computeRay(int x,int y,float fov){
     //code adapted form scratch a pixel tutorial
     // https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-generating-camera-rays/generating-camera-rays
@@ -671,69 +663,43 @@ glm::vec3 computeRay(int x,int y,float fov){
     return rayDirection;
 }
 
-CanvasPoint **malloc2dArrayPoint(int dimX, int dimY)
-{
-    int i;
-    CanvasPoint **array = (CanvasPoint **) malloc(dimX * sizeof(CanvasPoint *));
-
-    for (i = 0; i < dimX; i++) {
-        array[i] = (CanvasPoint *) malloc(dimY * sizeof(CanvasPoint));
-    }
-    return array;
-}
-
-Colour **malloc2dArrayColour(int dimX, int dimY)
-{
-    int i;
-    Colour **array = (Colour **) malloc(dimX * sizeof(Colour *));
-
-    for (i = 0; i < dimX; i++) {
-        array[i] = (Colour *) malloc(dimY * sizeof(Colour));
-    }
-    return array;
-}
 void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
     window.clearPixels();
-    // Colour** colours = malloc2dArrayColour(WIDTH,HEIGHT);
-    // double** brightness_buffer = malloc2dArray(WIDTH,HEIGHT);
-    // for (size_t i = 0; i < WIDTH; i++) {
-    //     for (size_t j = 0; j < HEIGHT; j++) {
-    //         brightness_buffer[i][j] = 0;
-    //         colours[i][j].red = 0;
-    //         colours[i][j].green = 0;
-    //         colours[i][j].blue = 0;
-    //     }
-    // }
-    // double bright_min = infinity;
-    // double bright_max = 0;
+
     for (size_t x = 0; x < WIDTH; x++) {
         for (size_t y = 0; y < HEIGHT; y++) {
             float minDist = infinity;
             vec3 ray = computeRay(x,y,FOV);
             for (size_t i = 0; i < triangles.size(); i++) {
                 RayTriangleIntersection intersection = getClosestIntersection(ray,triangles[i]);
-                // std::cout << intersection.intersectedTriangle << '\n';
+
                 if(isIntersection(intersection)){
                     float distance = intersection.distanceFromCamera;
                     glm::vec3 point = cameraPos + ray * distance;
                     float brightness = calcProximity(point);
 
-                    // point.x += WIDTH/2;
-                    // point.y += HEIGHT/2;
-                    if(distance< minDist){
-                        // brightness_buffer[x][y] = brightness;
-                        // colours[x][y].red = triangles[i].colour.red;
-                        // colours[x][y].green = triangles[i].colour.green;
-                        // colours[x][y].blue = triangles[i].colour.blue;
-                        // if(brightness_buffer[x][y] < bright_min){
-                        //     bright_min = brightness_buffer[x][y];
-                        // }
-                        // if(brightness_buffer[x][y] < bright_max){
-                        //     bright_max = brightness_buffer[x][y];
-                        // }
-                        // colours[x][y] = triangles[i].colour;
+                    vec3 lightColourCorrected = lightColour * brightness;
+                    // std::cout << "lightColour " << lightColour.x << " " << lightColour.y << " " << lightColour.z << '\n';
 
-                        Colour c = Colour(triangles[i].colour.red * brightness, triangles[i].colour.green * brightness, triangles[i].colour.blue * brightness);
+                    if(distance< minDist){
+                        vec3 oldColour = vec3(triangles[i].colour.red, triangles[i].colour.green, triangles[i].colour.blue);
+                        vec3 newColour = lightColourCorrected + oldColour;
+                        // if (newColour.x > 255) newColour.x = 255;
+                        // if (newColour.y > 255) newColour.y = 255;
+                        // if (newColour.z > 255) newColour.z = 255;
+
+                        // std::cout << "newColour " << newColour.x << " " << newColour.y << " " << newColour.z << '\n';
+
+                        float maxVal = std::max({newColour.x, newColour.y, newColour.z});
+
+                        newColour = newColour/maxVal;
+
+                        // std::cout << "newColour norm " << newColour.x*255 << " " << newColour.y*255 << " " << newColour.z*255 << '\n';
+
+
+                        // float maxVal = (newColour.red > newColour.green && newColour.red > newColour.blue) ? newColour.red : ()
+                        Colour c = Colour(newColour.x * brightness * 255, newColour.y * brightness * 255, newColour.z * brightness * 255);
+                        // Colour c = Colour(triangles[i].colour.red * brightness, triangles[i].colour.green * brightness, triangles[i].colour.blue * brightness);
 
                         window.setPixelColour(x,y,c.packed_colour());
                         minDist = distance;
@@ -742,15 +708,19 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
             }
         }
     }
-    // for (size_t x = 0; x < WIDTH; x++) {
-    //     for (size_t y = 0; y < HEIGHT; y++) {
-    //         float brightness = (brightness_buffer[x][y]-bright_min)/(bright_max - bright_min);
-    //         colours[x][y].red *= brightness;
-    //         colours[x][y].blue *= brightness;
-    //         colours[x][y].green *= brightness;
-    //         window.setPixelColour(x,y,colours[x][y].packed_colour());
-    //     }
-    // }
+}
+
+
+// LIGHTING //
+
+
+float calcProximity(glm::vec3 point){
+    vec3 lightDir = lightPos - point;
+    float distance = glm::distance(lightPos,point);
+    float brightness = (float) INTENSITY * (1/(2*M_PI* distance * distance));
+    if (brightness > 1) brightness = 1;
+    // std::cout << brightness << '\n';
+    return brightness;
 }
 
 

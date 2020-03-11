@@ -634,19 +634,29 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
 DEMatrix * (t,u,v)= SPVector
 Cramer's rule is a way to find (t,u,v)
 info found here:
-https://www.purplemath.com/modules/cramers.htm*/
+https://www.purplemath.com/modules/cramers.html*/
 vec3 cramer_rule(glm::mat3 DEMatrix,vec3 SPVector){
     glm::vec3 negRay = glm::column(DEMatrix,0);
     glm::vec3 e0 = glm::column(DEMatrix,1);
     glm::vec3 e1 = glm::column(DEMatrix,2);
     float determinant = glm::determinant(DEMatrix);
     float determinant_x =glm::determinant(glm::mat3(SPVector,e0,e1));
-    float determinant_y =glm::determinant(glm::mat3(negRay,SPVector,e1));
-    float determinant_z =glm::determinant(glm::mat3(negRay,e0,SPVector));
+
     float t = determinant_x/determinant;
-    float u = determinant_y/determinant;
-    float v = determinant_z/determinant;
-    return glm::vec3(t,u,v);
+    if(t >=0){
+        float determinant_y =glm::determinant(glm::mat3(negRay,SPVector,e1));
+        float u = determinant_y/determinant;
+        if(u >= 0 && u <=1){
+            float determinant_z =glm::determinant(glm::mat3(negRay,e0,SPVector));
+            float v = determinant_z/determinant;
+            if(v >= 0 && v<= 1){
+                if(u+v<=1){
+                    return vec3(t,u,v);
+                }
+            }
+        }
+    }
+    return glm::vec3(infinity,-1,-1);
 }
 
 RayTriangleIntersection getIntersection(glm::vec3 ray,ModelTriangle triangle){
@@ -701,27 +711,26 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
             vec3 ray = computeRay(x,y,FOV);
             for (size_t i = 0; i < triangles.size(); i++) {
                 RayTriangleIntersection intersection = getIntersection(ray,triangles[i]);
+                float distance = intersection.distanceFromCamera;
 
-                if(isIntersection(intersection)){
-                    float distance = intersection.distanceFromCamera;
+                //this is valid as you are setting distance to infinity if it's invalid
+                if(distance < minDist){
                     glm::vec3 point = cameraPos + ray * distance;
                     float brightness = calcProximity(point,triangles[i]);
 
                     vec3 lightColourCorrected = lightColour * brightness;
 
-                    if(distance< minDist){
-                        vec3 oldColour = vec3(triangles[i].colour.red, triangles[i].colour.green, triangles[i].colour.blue);
-                        vec3 newColour = lightColourCorrected + oldColour;
+                    vec3 oldColour = vec3(triangles[i].colour.red, triangles[i].colour.green, triangles[i].colour.blue);
+                    vec3 newColour = lightColourCorrected + oldColour;
 
-                        float maxVal = std::max({newColour.x, newColour.y, newColour.z});
+                    float maxVal = std::max({newColour.x, newColour.y, newColour.z});
 
-                        newColour = newColour/maxVal;
+                    newColour = newColour/maxVal;
 
-                        Colour c = Colour(newColour.x * brightness * 255, newColour.y * brightness * 255, newColour.z * brightness * 255);
+                    Colour c = Colour(newColour.x * brightness * 255, newColour.y * brightness * 255, newColour.z * brightness * 255);
 
-                        window.setPixelColour(x,y,c.packed_colour());
-                        minDist = distance;
-                    }
+                    window.setPixelColour(x,y,c.packed_colour());
+                    minDist = distance;
                 }
             }
         }

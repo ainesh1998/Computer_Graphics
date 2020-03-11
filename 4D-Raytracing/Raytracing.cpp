@@ -14,7 +14,7 @@
 #define HEIGHT 640
 #define FOCALLENGTH 250
 #define FOV 90
-#define INTENSITY 1
+#define INTENSITY 100000
 
 using glm::vec3;
 
@@ -644,6 +644,7 @@ float calcProximity(glm::vec3 point){
     vec3 lightDir = lightPos - point;
     float distance = glm::distance(lightPos,point);
     float brightness = (float) INTENSITY * (1/(4*M_PI* distance * distance));
+    if (brightness > 1) brightness = 1;
     // std::cout << brightness << '\n';
     return brightness;
 }
@@ -693,18 +694,18 @@ Colour **malloc2dArrayColour(int dimX, int dimY)
 }
 void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
     window.clearPixels();
-    Colour** colours = malloc2dArrayColour(WIDTH,HEIGHT);
-    double** brightness_buffer = malloc2dArray(WIDTH,HEIGHT);
-    for (size_t i = 0; i < WIDTH; i++) {
-        for (size_t j = 0; j < HEIGHT; j++) {
-            brightness_buffer[i][j] = 0;
-            colours[i][j].red = 0;
-            colours[i][j].green = 0;
-            colours[i][j].blue = 0;
-        }
-    }
-    double bright_min = infinity;
-    double bright_max = 0;
+    // Colour** colours = malloc2dArrayColour(WIDTH,HEIGHT);
+    // double** brightness_buffer = malloc2dArray(WIDTH,HEIGHT);
+    // for (size_t i = 0; i < WIDTH; i++) {
+    //     for (size_t j = 0; j < HEIGHT; j++) {
+    //         brightness_buffer[i][j] = 0;
+    //         colours[i][j].red = 0;
+    //         colours[i][j].green = 0;
+    //         colours[i][j].blue = 0;
+    //     }
+    // }
+    // double bright_min = infinity;
+    // double bright_max = 0;
     for (size_t x = 0; x < WIDTH; x++) {
         for (size_t y = 0; y < HEIGHT; y++) {
             float minDist = infinity;
@@ -716,39 +717,40 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                     float distance = intersection.distanceFromCamera;
                     glm::vec3 point = cameraPos + ray * distance;
                     float brightness = calcProximity(point);
-                    // triangles[i].colour.red *= brightness;
-                    // triangles[i].colour.blue *= brightness;
-                    // triangles[i].colour.green *= brightness;
+
                     // point.x += WIDTH/2;
                     // point.y += HEIGHT/2;
                     if(distance< minDist){
-                        brightness_buffer[x][y] = brightness;
-                        colours[x][y].red = triangles[i].colour.red;
-                        colours[x][y].green = triangles[i].colour.green;
-                        colours[x][y].blue = triangles[i].colour.blue;
-                        if(brightness_buffer[x][y] < bright_min){
-                            bright_min = brightness_buffer[x][y];
-                        }
-                        if(brightness_buffer[x][y] < bright_max){
-                            bright_max = brightness_buffer[x][y];
-                        }
+                        // brightness_buffer[x][y] = brightness;
+                        // colours[x][y].red = triangles[i].colour.red;
+                        // colours[x][y].green = triangles[i].colour.green;
+                        // colours[x][y].blue = triangles[i].colour.blue;
+                        // if(brightness_buffer[x][y] < bright_min){
+                        //     bright_min = brightness_buffer[x][y];
+                        // }
+                        // if(brightness_buffer[x][y] < bright_max){
+                        //     bright_max = brightness_buffer[x][y];
+                        // }
                         // colours[x][y] = triangles[i].colour;
-                        // window.setPixelColour(x,y,triangles[i].colour.packed_colour());
+
+                        Colour c = Colour(triangles[i].colour.red * brightness, triangles[i].colour.green * brightness, triangles[i].colour.blue * brightness);
+
+                        window.setPixelColour(x,y,c.packed_colour());
                         minDist = distance;
                     }
                 }
             }
         }
     }
-    for (size_t x = 0; x < WIDTH; x++) {
-        for (size_t y = 0; y < HEIGHT; y++) {
-            float brightness = (brightness_buffer[x][y]-bright_min)/(bright_max - bright_min);
-            colours[x][y].red *= brightness;
-            colours[x][y].blue *= brightness;
-            colours[x][y].green *= brightness;
-            window.setPixelColour(x,y,colours[x][y].packed_colour());
-        }
-    }
+    // for (size_t x = 0; x < WIDTH; x++) {
+    //     for (size_t y = 0; y < HEIGHT; y++) {
+    //         float brightness = (brightness_buffer[x][y]-bright_min)/(bright_max - bright_min);
+    //         colours[x][y].red *= brightness;
+    //         colours[x][y].blue *= brightness;
+    //         colours[x][y].green *= brightness;
+    //         window.setPixelColour(x,y,colours[x][y].packed_colour());
+    //     }
+    // }
 }
 
 

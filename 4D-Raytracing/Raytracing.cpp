@@ -14,12 +14,17 @@
 #define HEIGHT 640
 #define FOCALLENGTH 250
 #define FOV 90
+#define INTENSITY 1000000
+
+using glm::vec3;
 
 // helper functions
 double **malloc2dArray(int dimX, int dimY);
 void order_triangle(CanvasTriangle *triangle);
 std::vector<float> interpolate(float start, float end, int noOfValues);
 std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValues);
+CanvasPoint **malloc2dArrayPoint(int dimX, int dimY);
+
 
 // file readers
 std::vector<Colour> readPPM(std::string filename,int* width, int* height);
@@ -38,13 +43,13 @@ void drawBox(std::vector<ModelTriangle> triangles, float focalLength);
 // raytracer
 RayTriangleIntersection getClosestIntersection(glm::vec3 ray,std::vector<ModelTriangle> modelTriangles);
 void drawBoxRayTraced(std::vector<ModelTriangle> triangles);
+float calcProximity(vec3 point);
 
 // event handling
 void lookAt(glm::vec3 point);
 bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAngles);
 void update(glm::vec3 translation, glm::vec3 rotationAngles);
 
-using glm::vec3;
 
 
 // GLOBAL VARIABLES //
@@ -52,6 +57,7 @@ using glm::vec3;
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 glm::vec3 cameraPos = glm::vec3(0, 0, 300);
+glm::vec3 lightPos = glm::vec3(-0.2,5.2185,-3.043);
 glm::mat3 cameraOrientation = glm::mat3();
 float infinity = std::numeric_limits<float>::infinity();;
 double depth_buffer[WIDTH][HEIGHT];
@@ -270,6 +276,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename,float scale) {
             modelTriangles.push_back(m);
         }
     }
+    lightPos *= scale;
 
     stream.clear();
     stream.close();
@@ -633,6 +640,12 @@ bool isIntersection(RayTriangleIntersection r){
     && (r.intersectionPoint.y + r.intersectionPoint.z) <= 1;
 }
 
+float calcProximity(glm::vec3 point){
+    float distance = glm::distance(lightPos,point);
+    float brightness = (float) INTENSITY * (1/(4*M_PI* distance * distance));
+    // std::cout << brightness << '\n';
+    return brightness;
+}
 glm::vec3 computeRay(int x,int y,float fov){
     //code adapted form scratch a pixel tutorial
     // https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-generating-camera-rays/generating-camera-rays
@@ -656,28 +669,72 @@ glm::vec3 computeRay(int x,int y,float fov){
     return rayDirection;
 }
 
+CanvasPoint **malloc2dArrayPoint(int dimX, int dimY)
+{
+    int i;
+    CanvasPoint **array = (CanvasPoint **) malloc(dimX * sizeof(CanvasPoint *));
+
+    for (i = 0; i < dimX; i++) {
+        array[i] = (CanvasPoint *) malloc(dimY * sizeof(CanvasPoint));
+    }
+    return array;
+}
+
+Colour **malloc2dArrayColour(int dimX, int dimY)
+{
+    int i;
+    Colour **array = (Colour **) malloc(dimX * sizeof(Colour *));
+
+    for (i = 0; i < dimX; i++) {
+        array[i] = (Colour *) malloc(dimY * sizeof(Colour));
+    }
+    return array;
+}
 void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
     window.clearPixels();
+    Colour** colours = malloc2dArrayColour(WIDTH,HEIGHT);
+    double** brightness_buffer = malloc2dArray(WIDTH,HEIGHT);
+    for (size_t i = 0; i < WIDTH; i++) {
+        for (size_t j = 0; j < HEIGHT; j++) {
+            brightness_buffer[i][j] = 0;
+            colours[i][j].red = 0;
+            colours[i][j].green = 0;
+            colours[i][j].blue = 0;
+        }
+    }
 
     for (size_t x = 0; x < WIDTH; x++) {
         for (size_t y = 0; y < HEIGHT; y++) {
             float minDist = infinity;
             vec3 ray = computeRay(x,y,FOV);
-            // glm::vec3 ray = glm::normalize(glm::vec3(x-cameraPos.x,(y-cameraPos.y),-cameraPos.z));
             for (size_t i = 0; i < triangles.size(); i++) {
                 RayTriangleIntersection intersection = getClosestIntersection(ray,triangles[i]);
-
+                // std::cout << intersection.intersectedTriangle << '\n';
                 if(isIntersection(intersection)){
                     float distance = intersection.distanceFromCamera;
-                    // glm::vec3 point = cameraPos + ray * distance;
+                    glm::vec3 point = cameraPos + ray * distance;
+                    float brightness = calcProximity(point);
+                    // triangles[i].colour.red *= brightness;
+                    // triangles[i].colour.blue *= brightness;
+                    // triangles[i].colour.green *= brightness;
                     // point.x += WIDTH/2;
                     // point.y += HEIGHT/2;
                     if(distance< minDist){
-                        window.setPixelColour(x,y,triangles[i].colour.packed_colour());
+                        brightness_buffer[x][y] = brightness;
+                        colours[x][y].red = triangles[i].colour.red;
+                        colours[x][y].green = triangles[i].colour.green;
+                        colours[x][y].blue = triangles[i].colour.blue;
+                        // colours[x][y] = triangles[i].colour;
+                        // window.setPixelColour(x,y,triangles[i].colour.packed_colour());
                         minDist = distance;
                     }
                 }
             }
+        }
+    }
+    for (size_t x = 0; x < WIDTH; x++) {
+        for (size_t y = 0; y < HEIGHT; y++) {
+            window.setPixelColour(x,y,colours[x][y].packed_colour());
         }
     }
 }
@@ -743,7 +800,10 @@ bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAng
 
         // std::cout << translation->x << " " << translation->y << " " << translation->z << std::endl;
     }
-    else if(event.type == SDL_MOUSEBUTTONDOWN) std::cout << "MOUSE CLICKED" << std::endl;
+    else if(event.type == SDL_MOUSEBUTTONDOWN) {
+        std::cout << "MOUSE CLICKED" << std::endl;
+        toUpdate = false;
+    }
     else toUpdate = false;
 
     return toUpdate;

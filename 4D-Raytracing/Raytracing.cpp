@@ -58,7 +58,7 @@ float calcProximity(vec3 point,ModelTriangle t);
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 glm::vec3 cameraPos = glm::vec3(0, 0, 300);
-glm::vec3 lightPos = glm::vec3(-0.2,5.2185,-3.043);
+glm::vec3 lightPos = glm::vec3(-0.2,4.8,-3.043);
 glm::vec3 lightColour = glm::vec3(255,255,255);
 glm::mat3 cameraOrientation = glm::mat3();
 float infinity = std::numeric_limits<float>::infinity();;

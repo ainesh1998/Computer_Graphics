@@ -40,7 +40,7 @@ void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::ve
 void drawBox(std::vector<ModelTriangle> triangles, float focalLength);
 
 // raytracer
-RayTriangleIntersection getClosestIntersection(glm::vec3 ray,std::vector<ModelTriangle> modelTriangles);
+RayTriangleIntersection getIntersection(glm::vec3 ray,std::vector<ModelTriangle> modelTriangles);
 void drawBoxRayTraced(std::vector<ModelTriangle> triangles);
 
 // event handling
@@ -99,7 +99,14 @@ int main(int argc, char* argv[])
 
             // RENAMED WIREFRAME TO DRAW
             if (mode == 1 || mode == 2) drawBox(triangles, FOCALLENGTH);
-            else drawBoxRayTraced(triangles);
+            else{
+                time_t tic;
+                time(&tic);
+                drawBoxRayTraced(triangles);
+                time_t toc;
+                time(&toc);
+                std::cout << "runtime: " << toc-tic << " seconds" << '\n';
+            }
 
             // Need to render the frame at the end, or nothing actually gets shown on the screen !
             window.renderFrame();
@@ -623,13 +630,32 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
 
 // RAYTRACING //
 
+/*
+DEMatrix * (t,u,v)= SPVector
+Cramer's rule is a way to find (t,u,v)
+info found here:
+https://www.purplemath.com/modules/cramers.htm*/
+vec3 cramer_rule(glm::mat3 DEMatrix,vec3 SPVector){
+    glm::vec3 negRay = glm::column(DEMatrix,0);
+    glm::vec3 e0 = glm::column(DEMatrix,1);
+    glm::vec3 e1 = glm::column(DEMatrix,2);
+    float determinant = glm::determinant(DEMatrix);
+    float determinant_x =glm::determinant(glm::mat3(SPVector,e0,e1));
+    float determinant_y =glm::determinant(glm::mat3(negRay,SPVector,e1));
+    float determinant_z =glm::determinant(glm::mat3(negRay,e0,SPVector));
+    float t = determinant_x/determinant;
+    float u = determinant_y/determinant;
+    float v = determinant_z/determinant;
+    return glm::vec3(t,u,v);
+}
 
-RayTriangleIntersection getClosestIntersection(glm::vec3 ray,ModelTriangle triangle){
+RayTriangleIntersection getIntersection(glm::vec3 ray,ModelTriangle triangle){
     glm::vec3 e0 = triangle.vertices[1] - triangle.vertices[0];
     glm::vec3 e1 = triangle.vertices[2] - triangle.vertices[0];
     glm::vec3 SPVector = cameraPos-triangle.vertices[0];
-    glm::mat3 DEMatrix(-ray, e0, e1);
-    glm::vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
+    glm::vec3 negRay = -ray;
+    glm::mat3 DEMatrix(negRay, e0, e1);
+    glm::vec3 possibleSolution = cramer_rule(DEMatrix,SPVector);
     RayTriangleIntersection r = RayTriangleIntersection(possibleSolution,possibleSolution.x,triangle);
     return r;
 }
@@ -656,8 +682,9 @@ glm::vec3 computeRay(int x,int y,float fov){
     float camera_x = screen_x * aspectRatio * tan((fov/2 * M_PI/180));
     // std::cout << tan(fov * M_PI/180/2) << '\n';
     float camera_y = screen_y * tan((fov/2 * M_PI/180));
-    glm::vec3 rayOriginWorld = (vec3(0,0,0)-cameraPos) * glm::inverse(cameraOrientation);
-    glm:: vec3 rayPWorld = (vec3(camera_x,camera_y,-1) - cameraPos) * glm::inverse(cameraOrientation);
+    glm::mat3 inv_camera = glm::inverse(cameraOrientation);
+    glm::vec3 rayOriginWorld = (vec3(0,0,0)-cameraPos) * inv_camera;
+    glm:: vec3 rayPWorld = (vec3(camera_x,camera_y,-1) - cameraPos) * inv_camera;
     // glm::vec3 rayDirection = vec3(camera_x,-camera_y,-1); //the ray origin is (0,0,0)
     glm::vec3 rayDirection = rayPWorld - rayOriginWorld;
     rayDirection = glm::normalize(rayDirection);
@@ -673,7 +700,7 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
             float minDist = infinity;
             vec3 ray = computeRay(x,y,FOV);
             for (size_t i = 0; i < triangles.size(); i++) {
-                RayTriangleIntersection intersection = getClosestIntersection(ray,triangles[i]);
+                RayTriangleIntersection intersection = getIntersection(ray,triangles[i]);
 
                 if(isIntersection(intersection)){
                     float distance = intersection.distanceFromCamera;
@@ -681,27 +708,16 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                     float brightness = calcProximity(point,triangles[i]);
 
                     vec3 lightColourCorrected = lightColour * brightness;
-                    // std::cout << "lightColour " << lightColour.x << " " << lightColour.y << " " << lightColour.z << '\n';
 
                     if(distance< minDist){
                         vec3 oldColour = vec3(triangles[i].colour.red, triangles[i].colour.green, triangles[i].colour.blue);
                         vec3 newColour = lightColourCorrected + oldColour;
-                        // if (newColour.x > 255) newColour.x = 255;
-                        // if (newColour.y > 255) newColour.y = 255;
-                        // if (newColour.z > 255) newColour.z = 255;
-
-                        // std::cout << "newColour " << newColour.x << " " << newColour.y << " " << newColour.z << '\n';
 
                         float maxVal = std::max({newColour.x, newColour.y, newColour.z});
 
                         newColour = newColour/maxVal;
 
-                        // std::cout << "newColour norm " << newColour.x*255 << " " << newColour.y*255 << " " << newColour.z*255 << '\n';
-
-
-                        // float maxVal = (newColour.red > newColour.green && newColour.red > newColour.blue) ? newColour.red : ()
                         Colour c = Colour(newColour.x * brightness * 255, newColour.y * brightness * 255, newColour.z * brightness * 255);
-                        // Colour c = Colour(triangles[i].colour.red * brightness, triangles[i].colour.green * brightness, triangles[i].colour.blue * brightness);
 
                         window.setPixelColour(x,y,c.packed_colour());
                         minDist = distance;

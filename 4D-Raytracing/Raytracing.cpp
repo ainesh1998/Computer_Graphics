@@ -23,6 +23,7 @@ double **malloc2dArray(int dimX, int dimY);
 void order_triangle(CanvasTriangle *triangle);
 std::vector<float> interpolate(float start, float end, int noOfValues);
 std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValues);
+vec3 cramer_rule(glm::mat3 DEMatrix,vec3 SPVector);
 
 
 // file readers
@@ -668,14 +669,6 @@ RayTriangleIntersection getIntersection(glm::vec3 ray,ModelTriangle triangle){
     glm::vec3 possibleSolution = cramer_rule(DEMatrix,SPVector);
     RayTriangleIntersection r = RayTriangleIntersection(possibleSolution,possibleSolution.x,triangle);
     return r;
-}
-//check whether Intersection passes constraints
-bool isIntersection(RayTriangleIntersection r){
-    return (r.intersectionPoint.y) >= 0
-    &&  (r.intersectionPoint.y) <= 1
-    && (r.intersectionPoint.z) >= 0
-    &&  (r.intersectionPoint.z) <= 1
-    && (r.intersectionPoint.y + r.intersectionPoint.z) <= 1;
 }
 
 glm::vec3 computeRay(int x,int y,float fov){

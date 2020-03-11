@@ -15,6 +15,7 @@
 #define FOCALLENGTH 250
 #define FOV 90
 #define INTENSITY 100000
+#define AMBIENCE 0.4
 
 using glm::vec3;
 
@@ -747,7 +748,7 @@ float calcProximity(glm::vec3 point,ModelTriangle t){
     float distance = glm::distance(lightPos,point);
     float brightness = (float) INTENSITY * std::max(0.f,dot_product)*(1/(2*M_PI* distance * distance));
     if (brightness > 1) brightness = 1;
-    else if (brightness < 0.2) brightness = 0.2;
+    else if (brightness < AMBIENCE) brightness = AMBIENCE;
     // std::cout << brightness << '\n';
     return brightness;
 }

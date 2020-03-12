@@ -61,7 +61,7 @@ float calcProximity(vec3 point,ModelTriangle t);
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 glm::vec3 cameraPos = glm::vec3(0, 0, 300);
 glm::vec3 lightPos = glm::vec3(-0.2,4.8,-3.043);
-glm::vec3 lightColour = glm::vec3(255,255,255);
+glm::vec3 lightColour = glm::vec3(1,1,1);
 glm::mat3 cameraOrientation = glm::mat3();
 float infinity = std::numeric_limits<float>::infinity();;
 double depth_buffer[WIDTH][HEIGHT];
@@ -718,13 +718,13 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                     vec3 lightColourCorrected = lightColour * brightness;
 
                     vec3 oldColour = vec3(triangles[i].colour.red, triangles[i].colour.green, triangles[i].colour.blue);
-                    vec3 newColour = lightColourCorrected + oldColour;
+                    vec3 newColour = lightColourCorrected * oldColour;
 
-                    float maxVal = std::max({newColour.x, newColour.y, newColour.z});
+                    // float maxVal = std::max({newColour.x, newColour.y, newColour.z});
+                    //
+                    // newColour = newColour/maxVal;
 
-                    newColour = newColour/maxVal;
-
-                    Colour c = Colour(newColour.x * brightness * 255, newColour.y * brightness * 255, newColour.z * brightness * 255);
+                    Colour c = Colour(newColour.x, newColour.y, newColour.z);
                     final_intersection.intersectedTriangle.colour = c;
                     // std::cout << intersection.intersectedTriangle.colour << '\n';
                     // window.setPixelColour(x,y,c.packed_colour());
@@ -744,13 +744,12 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                         break;
                     }
                 }
-                if(!isShadow){
-                    window.setPixelColour(x,y,final_intersection.intersectedTriangle.colour.packed_colour());
-                }else{
-                    window.setPixelColour(x,y,0);
-                }
-                // window.setPixelColour(x,y,final_intersection.intersectedTriangle.colour.packed_colour());
-
+                // if(!isShadow){
+                //     window.setPixelColour(x,y,final_intersection.intersectedTriangle.colour.packed_colour());
+                // }else{
+                //     window.setPixelColour(x,y,0);
+                // }
+                window.setPixelColour(x,y,final_intersection.intersectedTriangle.colour.packed_colour());
 
             }
         // std::cout << intersection.intersectedTriangle.colour << '\n';
@@ -778,7 +777,7 @@ float calcProximity(glm::vec3 point,ModelTriangle t){
     float distance = glm::distance(lightPos,point);
     float brightness = (float) INTENSITY * std::max(0.f,dot_product)*(1/(2*M_PI* distance * distance));
     if (brightness > 1) brightness = 1;
-    else if (brightness < AMBIENCE) brightness = AMBIENCE;
+    if (brightness < AMBIENCE) brightness = AMBIENCE;
     // std::cout << brightness << '\n';
     return brightness;
 }

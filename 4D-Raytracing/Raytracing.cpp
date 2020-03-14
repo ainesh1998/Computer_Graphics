@@ -54,6 +54,10 @@ void update(glm::vec3 translation, glm::vec3 rotationAngles);
 vec3 computenorm(ModelTriangle t);
 float calcProximity(vec3 point,ModelTriangle t);
 
+// generative geometry
+void diamondSquare(double** pointHeights, int width, int currentSize);
+void generateGeometry(double** pointHeights, int width);
+
 
 // GLOBAL VARIABLES //
 
@@ -78,10 +82,13 @@ int main(int argc, char* argv[])
     SDL_Event event;
     std::vector<ModelTriangle> triangles = readOBJ("cornell-box", 50);
 
-    if (mode == 1 || mode == 2) drawBox(triangles, FOCALLENGTH);
-    else drawBoxRayTraced(triangles);
+    int width = 200;
+    double** grid = malloc2dArray(width, width);
 
-   // drawBoxRayTraced(triangles,FOCALLENGTH);
+    generateGeometry(grid, width);
+    // if (mode == 1 || mode == 2) drawBox(triangles, FOCALLENGTH);
+    // else drawBoxRayTraced(triangles);
+
     window.renderFrame();
 
 
@@ -744,12 +751,12 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                         break;
                     }
                 }
-                // if(!isShadow){
-                //     window.setPixelColour(x,y,final_intersection.intersectedTriangle.colour.packed_colour());
-                // }else{
-                //     window.setPixelColour(x,y,0);
-                // }
-                window.setPixelColour(x,y,final_intersection.intersectedTriangle.colour.packed_colour());
+                if(!isShadow){
+                    window.setPixelColour(x,y,final_intersection.intersectedTriangle.colour.packed_colour());
+                }else{
+                    window.setPixelColour(x,y,0);
+                }
+                // window.setPixelColour(x,y,final_intersection.intersectedTriangle.colour.packed_colour());
 
             }
         // std::cout << intersection.intersectedTriangle.colour << '\n';
@@ -780,6 +787,90 @@ float calcProximity(glm::vec3 point,ModelTriangle t){
     if (brightness < AMBIENCE) brightness = AMBIENCE;
     // std::cout << brightness << '\n';
     return brightness;
+}
+
+
+// GENERATIVE GEOMETRY //
+
+
+double squareStep(double** pointHeights, int centreX, int centreY, int distFromCentre, bool isEven) {
+    int rightX = isEven ? centreX + distFromCentre-1 : centreX + distFromCentre;
+    int bottomY = isEven ? centreY + distFromCentre-1 : centreY + distFromCentre;
+
+    double topLeft = pointHeights[centreX-distFromCentre][centreY-distFromCentre];
+    double topRight = pointHeights[rightX][centreY-distFromCentre];
+    double bottomLeft = pointHeights[centreX-distFromCentre][bottomY];
+    double bottomRight = pointHeights[rightX][bottomY];
+    // std::cout << centreX-distFromCentre << " " << centreY-distFromCentre << " " << rightX << " " << bottomY<< '\n';
+
+    return (topLeft + topRight + bottomLeft + bottomRight)/4;
+}
+
+double diamondStep(double** pointHeights, int width, int centreX, int centreY, int distFromCentre, bool isEven) {
+    int count = 4;
+
+    int rightX = isEven ? centreX + distFromCentre-1 : centreX + distFromCentre;
+    int bottomY = isEven ? centreY + distFromCentre-1 : centreY + distFromCentre;
+
+    double left = centreX == 0 ? 0 : pointHeights[centreX-distFromCentre][centreY];
+    double right = centreX == width-1 ? 0 : pointHeights[rightX][centreY];
+    // std::cout << centreY << '\n';
+
+    double top = centreY == 0 ? 0 : pointHeights[centreX][centreY-distFromCentre];
+    double bottom = centreY == width-1 ? 0 : pointHeights[centreX][bottomY];
+
+    // there will only be at most one point outside the grid
+    if (centreX == 0 || centreY == 0 || centreX == width || centreY == width) {
+        count -= 1;
+    }
+
+    // std::cout << left << " " << right << " " << top << " " << bottom << '\n';
+
+    return (left + right + top + bottom)/count;
+
+}
+
+void diamondSquare(double** pointHeights, int width, int currentSize) {
+    int half = currentSize/2;
+    if (half < 1) return;
+
+    // square step
+    for (int x = 0; x < width; x += currentSize) {
+        for (int y = 0; y < width; y += currentSize) {
+            int centreX = x + half;
+            int centreY = y + half;
+            pointHeights[centreX][centreY] = squareStep(pointHeights, centreX, centreY, half, currentSize%2 == 0);
+        }
+    }
+
+    // diamond step
+    bool isSide = true;
+    for (int x = 0; x <= width; x += half) {
+        if (isSide) {
+            for (int y = half; y <= width-half; y += currentSize) {
+                pointHeights[x][y] = diamondStep(pointHeights, width, x, y, half, currentSize%2 == 0);
+            }
+        }
+        else {
+            for (int y = 0; y <= width; y += currentSize) {
+                pointHeights[x][y] = diamondStep(pointHeights, width, x, y, half, currentSize%2 == 0);
+            }
+        }
+
+        isSide = !isSide;
+    }
+
+    diamondSquare(pointHeights, width, currentSize/2);
+}
+
+void generateGeometry(double** pointHeights, int width) {
+    for (int x = 0; x < width; x++) {
+        for (int y = 0; y < width; y++) {
+            double temp = rand()%width;
+            pointHeights[x][y] = temp;
+        }
+    }
+    diamondSquare(pointHeights, width, width);
 }
 
 

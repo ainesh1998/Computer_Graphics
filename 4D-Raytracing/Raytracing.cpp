@@ -55,8 +55,8 @@ vec3 computenorm(ModelTriangle t);
 float calcProximity(vec3 point,ModelTriangle t);
 
 // generative geometry
-void diamondSquare(double** pointHeights, int width, int currentSize);
-void generateGeometry(double** pointHeights, int width);
+void diamondSquare(double** pointHeights, int width, double currentSize);
+std::vector<CanvasPoint> generateGeometry(double** pointHeights, int width, int scale);
 
 
 // GLOBAL VARIABLES //
@@ -85,9 +85,9 @@ int main(int argc, char* argv[])
     int width = 200;
     double** grid = malloc2dArray(width, width);
 
-    generateGeometry(grid, width);
-    // if (mode == 1 || mode == 2) drawBox(triangles, FOCALLENGTH);
-    // else drawBoxRayTraced(triangles);
+    generateGeometry(grid, width-1, 50);
+
+    drawBox(triangles, FOCALLENGTH);
 
     window.renderFrame();
 
@@ -108,13 +108,17 @@ int main(int argc, char* argv[])
 
             // RENAMED WIREFRAME TO DRAW
             if (mode == 1 || mode == 2) drawBox(triangles, FOCALLENGTH);
-            else{
+            else if (mode == 3) {
                 time_t tic;
                 time(&tic);
                 drawBoxRayTraced(triangles);
                 time_t toc;
                 time(&toc);
                 std::cout << "runtime: " << toc-tic << " seconds" << '\n';
+            }
+
+            else if (mode == 4) {
+
             }
 
             // Need to render the frame at the end, or nothing actually gets shown on the screen !
@@ -793,15 +797,16 @@ float calcProximity(glm::vec3 point,ModelTriangle t){
 // GENERATIVE GEOMETRY //
 
 
-double squareStep(double** pointHeights, int centreX, int centreY, int distFromCentre, bool isEven) {
-    int rightX = isEven ? centreX + distFromCentre-1 : centreX + distFromCentre;
-    int bottomY = isEven ? centreY + distFromCentre-1 : centreY + distFromCentre;
+double squareStep(double** pointHeights, double centreX, double centreY, double distFromCentre, bool isEven) {
+    int rightX = centreX + distFromCentre;
+    int bottomY = centreY + distFromCentre;
+    int leftX = centreX - distFromCentre;
+    int topY = centreY - distFromCentre;
 
-    double topLeft = pointHeights[centreX-distFromCentre][centreY-distFromCentre];
-    double topRight = pointHeights[rightX][centreY-distFromCentre];
-    double bottomLeft = pointHeights[centreX-distFromCentre][bottomY];
+    double topLeft = pointHeights[leftX][topY];
+    double topRight = pointHeights[rightX][topY];
+    double bottomLeft = pointHeights[rightX][bottomY];
     double bottomRight = pointHeights[rightX][bottomY];
-    // std::cout << centreX-distFromCentre << " " << centreY-distFromCentre << " " << rightX << " " << bottomY<< '\n';
 
     return (topLeft + topRight + bottomLeft + bottomRight)/4;
 }
@@ -809,15 +814,17 @@ double squareStep(double** pointHeights, int centreX, int centreY, int distFromC
 double diamondStep(double** pointHeights, int width, int centreX, int centreY, int distFromCentre, bool isEven) {
     int count = 4;
 
-    int rightX = isEven ? centreX + distFromCentre-1 : centreX + distFromCentre;
-    int bottomY = isEven ? centreY + distFromCentre-1 : centreY + distFromCentre;
+    int rightX = centreX + distFromCentre;
+    int bottomY = centreY + distFromCentre;
+    int leftX = centreX - distFromCentre;
+    int topY = centreY - distFromCentre;
 
-    double left = centreX == 0 ? 0 : pointHeights[centreX-distFromCentre][centreY];
-    double right = centreX == width-1 ? 0 : pointHeights[rightX][centreY];
+    double left = centreX <= 0 ? 0 : pointHeights[leftX][centreY];
+    double right = centreX >= width ? 0 : pointHeights[rightX][centreY];
     // std::cout << centreY << '\n';
 
-    double top = centreY == 0 ? 0 : pointHeights[centreX][centreY-distFromCentre];
-    double bottom = centreY == width-1 ? 0 : pointHeights[centreX][bottomY];
+    double top = centreY <= 0 ? 0 : pointHeights[centreX][topY];
+    double bottom = centreY >= width-1 ? 0 : pointHeights[centreX][bottomY];
 
     // there will only be at most one point outside the grid
     if (centreX == 0 || centreY == 0 || centreX == width || centreY == width) {
@@ -830,40 +837,50 @@ double diamondStep(double** pointHeights, int width, int centreX, int centreY, i
 
 }
 
-void diamondSquare(double** pointHeights, int width, int currentSize) {
-    int half = currentSize/2;
+void diamondSquare(double** pointHeights, int width, double currentSize) {
+    double half = (double) (currentSize)/2;
     if (half < 1) return;
+    // std::cout << currentSize << '\n';
 
     // square step
-    for (int x = 0; x < width; x += currentSize) {
-        for (int y = 0; y < width; y += currentSize) {
-            int centreX = x + half;
-            int centreY = y + half;
-            pointHeights[centreX][centreY] = squareStep(pointHeights, centreX, centreY, half, currentSize%2 == 0);
+    for (double x = 0; x < width; x += currentSize) {
+        for (double y = 0; y < width; y += currentSize) {
+            double centreX = x + half;
+            double centreY = y + half;
+            // std::cout << centreX << " " << centreY << '\n';
+            pointHeights[(int) centreX][(int) centreY] = squareStep(pointHeights, centreX, centreY, half, true);
         }
     }
 
     // diamond step
     bool isSide = true;
-    for (int x = 0; x <= width; x += half) {
+    // int x = 0;
+    for (double x = 0; x <= width; x += half) {
+    // while (x < width) {
+        // std::cout << x << '\n';
         if (isSide) {
-            for (int y = half; y <= width-half; y += currentSize) {
-                pointHeights[x][y] = diamondStep(pointHeights, width, x, y, half, currentSize%2 == 0);
+            for (double y = half; y <= width-half; y += currentSize) {
+                pointHeights[(int) x][(int) y] = diamondStep(pointHeights, width, x, y, half, true);
+                // std::cout << x << " " << y << '\n';
             }
         }
         else {
-            for (int y = 0; y <= width; y += currentSize) {
-                pointHeights[x][y] = diamondStep(pointHeights, width, x, y, half, currentSize%2 == 0);
+            for (double y = 0; y <= width; y += currentSize) {
+            // while (y < width) {
+                pointHeights[(int) x][(int) y] = diamondStep(pointHeights, width, x, y, half, true);
+                // y = (y+currentSize == width) ? y+currentSize-1 : y+currentSize;
             }
         }
+
+        // x = (x+half == width) ? x+half-1 : x+half;
 
         isSide = !isSide;
     }
 
-    diamondSquare(pointHeights, width, currentSize/2);
+    diamondSquare(pointHeights, width, half);
 }
 
-void generateGeometry(double** pointHeights, int width) {
+std::vector<CanvasPoint> generateGeometry(double** pointHeights, int width, int scale) {
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < width; y++) {
             double temp = rand()%width;
@@ -871,6 +888,16 @@ void generateGeometry(double** pointHeights, int width) {
         }
     }
     diamondSquare(pointHeights, width, width);
+
+    std::vector<CanvasPoint> generatedPoints;
+
+    for (int x = 0; x < width; x++) {
+        for (int y = 0; y < width; y++) {
+            double depth = pointHeights[x][y];
+            generatedPoints.push_back(CanvasPoint(x * scale, y * scale, depth * scale));
+        }
+    }
+    return generatedPoints;
 }
 
 
@@ -930,6 +957,10 @@ bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAng
         if(event.key.keysym.sym == SDLK_3) {
             mode = 3;
             std::cout << "Switched to raytracer mode" << '\n';
+        }
+        if(event.key.keysym.sym == SDLK_4) {
+            mode = 4;
+            std::cout << "Testing generated geometry" << '\n';
         }
 
         // std::cout << translation->x << " " << translation->y << " " << translation->z << std::endl;

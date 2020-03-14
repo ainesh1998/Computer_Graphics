@@ -839,7 +839,6 @@ double diamondStep(double** pointHeights, int width, int centreX, int centreY, i
 void diamondSquare(double** pointHeights, int width, double currentSize) {
     double half = (double) (currentSize)/2;
     if (half < 1) return;
-    std::cout << currentSize << '\n';
 
     // square step
     for (double x = half; x < width; x += currentSize) {
@@ -870,6 +869,7 @@ void diamondSquare(double** pointHeights, int width, double currentSize) {
 }
 
 std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, int scale) {
+    // initialise grid with random values
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < width; y++) {
             double temp = rand()%width;
@@ -877,25 +877,24 @@ std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, in
         }
     }
 
+    // run algorithm
     diamondSquare(pointHeights, width, width-1);
 
+    // convert points into triangles to display
     std::vector<ModelTriangle> generatedTriangles;
 
-    for (int x = 0; x < width; x++) {
-        for (int y = 0; y < width; y++) {
-            std::cout << pointHeights[x][y] << '\n';
-            if (x >= 1 && y >= 1) {
-                vec3 v1 = vec3((x-1) * scale, pointHeights[x-1][y-1] * scale, -(y-1) * scale);
-                vec3 v2 = vec3((x) * scale, pointHeights[x][y-1] * scale, -(y-1) * scale);
-                vec3 v3 = vec3((x-1) * scale, pointHeights[x-1][y] * scale, -(y) * scale);
-                vec3 v4 = vec3((x) * scale, pointHeights[x][y] * scale,  -(y) * scale);
+    for (int x = 1; x < width; x++) {
+        for (int y = 1; y < width; y++) {
+            vec3 v1 = vec3((x-1) * scale, pointHeights[x-1][y-1] * scale, -(y-1) * scale);
+            vec3 v2 = vec3((x) * scale, pointHeights[x][y-1] * scale, -(y-1) * scale);
+            vec3 v3 = vec3((x-1) * scale, pointHeights[x-1][y] * scale, -(y) * scale);
+            vec3 v4 = vec3((x) * scale, pointHeights[x][y] * scale,  -(y) * scale);
 
-                ModelTriangle t1 = ModelTriangle(v1, v2, v3, Colour(255, 255, 255));
-                ModelTriangle t2 = ModelTriangle(v2, v3, v4, Colour(255, 255, 255));
+            ModelTriangle t1 = ModelTriangle(v1, v2, v3, Colour(255, 255, 255));
+            ModelTriangle t2 = ModelTriangle(v2, v3, v4, Colour(255, 255, 255));
 
-                generatedTriangles.push_back(t1);
-                generatedTriangles.push_back(t2);
-            }
+            generatedTriangles.push_back(t1);
+            generatedTriangles.push_back(t2);
         }
     }
     return generatedTriangles;

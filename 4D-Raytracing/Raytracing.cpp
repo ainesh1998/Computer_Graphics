@@ -82,7 +82,7 @@ int main(int argc, char* argv[])
     SDL_Event event;
     std::vector<ModelTriangle> triangles = readOBJ("cornell-box", 50);
 
-    int width = 3;
+    int width = 5;
     double** grid = malloc2dArray(width, width);
 
     std::vector<ModelTriangle> generatedTriangles = generateGeometry(grid, width, 50);
@@ -809,6 +809,8 @@ double squareStep(double** pointHeights, double centreX, double centreY, double 
     double bottomLeft = pointHeights[rightX][bottomY];
     double bottomRight = pointHeights[rightX][bottomY];
 
+    // std::cout << rightX << " " << bottomY << " " << leftX << " " << topY << '\n';
+
     return (topLeft + topRight + bottomLeft + bottomRight)/4;
 }
 
@@ -821,18 +823,14 @@ double diamondStep(double** pointHeights, int width, int centreX, int centreY, i
     int topY = centreY - distFromCentre;
 
     double left = centreX <= 0 ? 0 : pointHeights[leftX][centreY];
-    double right = centreX >= width ? 0 : pointHeights[rightX][centreY];
-    // std::cout << centreY << '\n';
-
+    double right = centreX >= width-1 ? 0 : pointHeights[rightX][centreY];
     double top = centreY <= 0 ? 0 : pointHeights[centreX][topY];
     double bottom = centreY >= width-1 ? 0 : pointHeights[centreX][bottomY];
 
     // there will only be at most one point outside the grid
-    if (centreX == 0 || centreY == 0 || centreX == width || centreY == width) {
+    if (centreX == 0 || centreY == 0 || centreX == width-1 || centreY == width-1) {
         count -= 1;
     }
-
-    // std::cout << left << " " << right << " " << top << " " << bottom << '\n';
 
     return (left + right + top + bottom)/count;
 
@@ -841,40 +839,30 @@ double diamondStep(double** pointHeights, int width, int centreX, int centreY, i
 void diamondSquare(double** pointHeights, int width, double currentSize) {
     double half = (double) (currentSize)/2;
     if (half < 1) return;
-    // std::cout << currentSize << '\n';
+    std::cout << currentSize << '\n';
 
     // square step
-    for (double x = 0; x < width; x += currentSize) {
-        for (double y = 0; y < width; y += currentSize) {
-            double centreX = x + half;
-            double centreY = y + half;
-            // std::cout << centreX << " " << centreY << '\n';
-            pointHeights[(int) centreX][(int) centreY] = squareStep(pointHeights, centreX, centreY, half, true);
+    for (double x = half; x < width; x += currentSize) {
+        for (double y = half; y < width; y += currentSize) {
+            // std::cout << x << " " << y << '\n';
+            pointHeights[(int) x][(int) y] = squareStep(pointHeights, x, y, half, true);
         }
     }
 
     // diamond step
     bool isSide = true;
-    // int x = 0;
-    for (double x = 0; x <= width; x += half) {
-    // while (x < width) {
-        // std::cout << x << '\n';
+    for (double x = 0; x <= width-1; x += half) {
         if (isSide) {
             for (double y = half; y <= width-half; y += currentSize) {
-                pointHeights[(int) x][(int) y] = diamondStep(pointHeights, width, x, y, half, true);
                 // std::cout << x << " " << y << '\n';
+                pointHeights[(int) x][(int) y] = diamondStep(pointHeights, width, x, y, half, true);
             }
         }
         else {
             for (double y = 0; y <= width; y += currentSize) {
-            // while (y < width) {
                 pointHeights[(int) x][(int) y] = diamondStep(pointHeights, width, x, y, half, true);
-                // y = (y+currentSize == width) ? y+currentSize-1 : y+currentSize;
             }
         }
-
-        // x = (x+half == width) ? x+half-1 : x+half;
-
         isSide = !isSide;
     }
 
@@ -886,15 +874,10 @@ std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, in
         for (int y = 0; y < width; y++) {
             double temp = rand()%width;
             pointHeights[x][y] = temp;
-            std::cout << temp << '\n';
         }
     }
 
-    std::cout << "/* message */" << '\n';
-
-
     diamondSquare(pointHeights, width, width-1);
-
 
     std::vector<ModelTriangle> generatedTriangles;
 
@@ -910,18 +893,11 @@ std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, in
                 ModelTriangle t1 = ModelTriangle(v1, v2, v3, Colour(255, 255, 255));
                 ModelTriangle t2 = ModelTriangle(v2, v3, v4, Colour(255, 255, 255));
 
-                // std::cout << t1 << '\n';
-                // std::cout << t2 << '\n';
-                //
                 generatedTriangles.push_back(t1);
                 generatedTriangles.push_back(t2);
             }
-
-            // std::cout << pointHeights[x][y] << '\n';
         }
     }
-
-    // generatedTriangles.push_back(ModelTriangle(vec3(0, 0, 0), vec3(100, 0, 0), vec3(100, 100, 0), Colour(255,255,255)));
     return generatedTriangles;
 }
 

@@ -56,7 +56,7 @@ float calcProximity(vec3 point,ModelTriangle t);
 
 // generative geometry
 void diamondSquare(double** pointHeights, int width, double currentSize);
-std::vector<CanvasPoint> generateGeometry(double** pointHeights, int width, int scale);
+std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, int scale);
 
 
 // GLOBAL VARIABLES //
@@ -82,10 +82,10 @@ int main(int argc, char* argv[])
     SDL_Event event;
     std::vector<ModelTriangle> triangles = readOBJ("cornell-box", 50);
 
-    int width = 200;
+    int width = 3;
     double** grid = malloc2dArray(width, width);
 
-    generateGeometry(grid, width-1, 50);
+    std::vector<ModelTriangle> generatedTriangles = generateGeometry(grid, width, 50);
 
     drawBox(triangles, FOCALLENGTH);
 
@@ -118,7 +118,7 @@ int main(int argc, char* argv[])
             }
 
             else if (mode == 4) {
-
+                drawBox(generatedTriangles, FOCALLENGTH);
             }
 
             // Need to render the frame at the end, or nothing actually gets shown on the screen !
@@ -605,6 +605,7 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
     for (int i = 0; i < (int) modelTriangles.size(); i++) {
         std::vector<CanvasPoint> points;
         for (int j = 0; j < 3; j++) {
+            // std::cout << modelTriangles[i].vertices[j].x << '\n';
             glm::vec3 wrtCamera = (modelTriangles[i].vertices[j] - cameraPos) * cameraOrientation;
             // std::cout << triangles[i].vertices[j].x << " " << triangles[i].vertices[j].y << " " << triangles[i].vertices[j].z << '\n';
             // std::cout << wrtCamera.x << " " << wrtCamera.y << " " << wrtCamera.z << '\n';
@@ -629,7 +630,7 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
     }
 
     for(int i = 0; i < (int)triangles.size(); i++){
-        if (mode == 2) drawFilledTriangle(triangles[i],depth_buffer,near,far);
+        if (mode == 2 || mode == 4) drawFilledTriangle(triangles[i],depth_buffer,near,far);
         else if (mode == 1) {
             triangles[i].colour = Colour(255, 255, 255);
             drawTriangle(triangles[i]);
@@ -880,24 +881,48 @@ void diamondSquare(double** pointHeights, int width, double currentSize) {
     diamondSquare(pointHeights, width, half);
 }
 
-std::vector<CanvasPoint> generateGeometry(double** pointHeights, int width, int scale) {
+std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, int scale) {
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < width; y++) {
             double temp = rand()%width;
             pointHeights[x][y] = temp;
+            std::cout << temp << '\n';
         }
     }
-    diamondSquare(pointHeights, width, width);
 
-    std::vector<CanvasPoint> generatedPoints;
+    std::cout << "/* message */" << '\n';
+
+
+    diamondSquare(pointHeights, width, width-1);
+
+
+    std::vector<ModelTriangle> generatedTriangles;
 
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < width; y++) {
-            double depth = pointHeights[x][y];
-            generatedPoints.push_back(CanvasPoint(x * scale, y * scale, depth * scale));
+            std::cout << pointHeights[x][y] << '\n';
+            if (x >= 1 && y >= 1) {
+                vec3 v1 = vec3((x-1) * scale, pointHeights[x-1][y-1] * scale, -(y-1) * scale);
+                vec3 v2 = vec3((x) * scale, pointHeights[x][y-1] * scale, -(y-1) * scale);
+                vec3 v3 = vec3((x-1) * scale, pointHeights[x-1][y] * scale, -(y) * scale);
+                vec3 v4 = vec3((x) * scale, pointHeights[x][y] * scale,  -(y) * scale);
+
+                ModelTriangle t1 = ModelTriangle(v1, v2, v3, Colour(255, 255, 255));
+                ModelTriangle t2 = ModelTriangle(v2, v3, v4, Colour(255, 255, 255));
+
+                // std::cout << t1 << '\n';
+                // std::cout << t2 << '\n';
+                //
+                generatedTriangles.push_back(t1);
+                generatedTriangles.push_back(t2);
+            }
+
+            // std::cout << pointHeights[x][y] << '\n';
         }
     }
-    return generatedPoints;
+
+    // generatedTriangles.push_back(ModelTriangle(vec3(0, 0, 0), vec3(100, 0, 0), vec3(100, 100, 0), Colour(255,255,255)));
+    return generatedTriangles;
 }
 
 

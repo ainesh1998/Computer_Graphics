@@ -753,7 +753,7 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                 // std::cout << lightPos.x << " " << lightPos.y << " " << lightPos.z << '\n';
                 // new_point = (new_point - cameraPos) * glm::inverse(cameraOrientation);
                 vec3 shadowRay = lightPos - point;
-                float dist = glm::distance(lightPos,point);
+                float dist = glm::length(shadowRay);
                 shadowRay = glm::normalize(shadowRay);
                 // vec3 shadowRay = glm::normalize(lightPos - new_point);
                 bool isShadow = false;

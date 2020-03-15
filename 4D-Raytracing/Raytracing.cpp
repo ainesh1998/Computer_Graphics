@@ -42,7 +42,7 @@ void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::ve
 void drawBox(std::vector<ModelTriangle> triangles, float focalLength);
 
 // raytracer
-RayTriangleIntersection getIntersection(glm::vec3 ray,std::vector<ModelTriangle> modelTriangles);
+RayTriangleIntersection getIntersection(glm::vec3 ray,std::vector<ModelTriangle> modelTriangles,vec3 origin);
 void drawBoxRayTraced(std::vector<ModelTriangle> triangles);
 
 // event handling
@@ -660,7 +660,7 @@ vec3 cramer_rule(glm::mat3 DEMatrix,vec3 SPVector){
     if(t >=0){
         float determinant_y =glm::determinant(glm::mat3(negRay,SPVector,e1));
         float u = determinant_y/determinant;
-        if(u >= 0 && u <=1){
+        if(u >= 0 && u <= 1){
             float determinant_z =glm::determinant(glm::mat3(negRay,e0,SPVector));
             float v = determinant_z/determinant;
             if(v >= 0 && v<= 1){
@@ -673,10 +673,10 @@ vec3 cramer_rule(glm::mat3 DEMatrix,vec3 SPVector){
     return glm::vec3(infinity,-1,-1);
 }
 
-RayTriangleIntersection getIntersection(glm::vec3 ray,ModelTriangle triangle){
+RayTriangleIntersection getIntersection(glm::vec3 ray,ModelTriangle triangle,vec3 origin){
     glm::vec3 e0 = triangle.vertices[1] - triangle.vertices[0];
     glm::vec3 e1 = triangle.vertices[2] - triangle.vertices[0];
-    glm::vec3 SPVector = cameraPos-triangle.vertices[0];
+    glm::vec3 SPVector = origin-triangle.vertices[0];
     glm::vec3 negRay = -ray;
     glm::mat3 DEMatrix(negRay, e0, e1);
     glm::vec3 possibleSolution = cramer_rule(DEMatrix,SPVector);
@@ -693,7 +693,6 @@ glm::vec3 computeRay(int x,int y,float fov){
     float screen_x = 2*ndc_x -1;
     float screen_y = 1 - 2*ndc_y; //as y axis is flipped
     float aspectRatio = (float) WIDTH/ (float) HEIGHT;
-    // std::cout << aspectRatio << '\n';
     //tan(..) defines the scale
     float camera_x = screen_x * aspectRatio * tan((fov/2 * M_PI/180));
     // std::cout << tan(fov * M_PI/180/2) << '\n';
@@ -707,6 +706,11 @@ glm::vec3 computeRay(int x,int y,float fov){
     // std::cout << ndc_x << " "<< ndc_y<< '\n';
     return rayDirection;
 }
+bool isEqualTriangle(ModelTriangle t1,ModelTriangle t2){
+    return (t1.vertices[0] == t2.vertices[0]
+            && t1.vertices[1] == t2.vertices[1]
+            && t1.vertices[2] == t2.vertices[2]);
+}
 
 void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
     window.clearPixels();
@@ -719,7 +723,7 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
             glm::vec3 point;
 
             for (size_t i = 0; i < triangles.size(); i++) {
-                RayTriangleIntersection intersection = getIntersection(ray,triangles[i]);
+                RayTriangleIntersection intersection = getIntersection(ray,triangles[i],cameraPos);
                 float distance = intersection.distanceFromCamera;
                 //this is valid as you are setting distance to infinity if it's invalid
                 if(distance < minDist){
@@ -732,10 +736,6 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                     vec3 oldColour = vec3(triangles[i].colour.red, triangles[i].colour.green, triangles[i].colour.blue);
                     vec3 newColour = lightColourCorrected * oldColour;
 
-                    // float maxVal = std::max({newColour.x, newColour.y, newColour.z});
-                    //
-                    // newColour = newColour/maxVal;
-
                     Colour c = Colour(newColour.x, newColour.y, newColour.z);
                     final_intersection.intersectedTriangle.colour = c;
                     // std::cout << intersection.intersectedTriangle.colour << '\n';
@@ -747,11 +747,18 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
             //valid intersection
             if(final_intersection.distanceFromCamera != infinity){
                 vec3 new_point = cameraPos + ray * final_intersection.distanceFromCamera;
-                vec3 shadowRay = glm::normalize(lightPos - new_point);
+                // new_point.z *= -1;
+                // new_point.z -= 100;
+                // std::cout << new_point.x << " " << new_point.y << " " << new_point.z << '\n';
+                // std::cout << lightPos.x << " " << lightPos.y << " " << lightPos.z << '\n';
+                // new_point = (new_point - cameraPos) * glm::inverse(cameraOrientation);
+                vec3 shadowRay = lightPos - new_point;
+                shadowRay = glm::normalize(shadowRay);
+                // vec3 shadowRay = glm::normalize(lightPos - new_point);
                 bool isShadow = false;
                 for (size_t i = 0; i < triangles.size(); i++) {
-                    RayTriangleIntersection shadowIntersection = getIntersection(shadowRay,triangles[i]);
-                    if(shadowIntersection.intersectionPoint.y != -1){
+                    RayTriangleIntersection shadowIntersection = getIntersection(shadowRay,triangles[i],new_point);
+                    if(shadowIntersection.intersectionPoint.x != infinity && !isEqualTriangle(shadowIntersection.intersectedTriangle,final_intersection.intersectedTriangle)){
                         isShadow = true;
                         break;
                     }
@@ -762,13 +769,11 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                     window.setPixelColour(x,y,0);
                 }
                 // window.setPixelColour(x,y,final_intersection.intersectedTriangle.colour.packed_colour());
-
             }
         // std::cout << intersection.intersectedTriangle.colour << '\n';
             // if(final_intersection.distanceFromCamera != infinity){
             // }
         }
-
     }
 }
 
@@ -990,5 +995,5 @@ void update(glm::vec3 translation, glm:: vec3 rotationAngles) {
     cameraOrientation *= rotationX;
     cameraOrientation *= rotationY;
 
-    cameraPos += translation * glm::inverse(cameraOrientation);
+    cameraPos += translation;
 }

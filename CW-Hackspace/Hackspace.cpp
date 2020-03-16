@@ -16,6 +16,7 @@
 #define FOV 90
 #define INTENSITY 300000
 #define AMBIENCE 0.4
+#define WORKING_DIRECTORY "cornell-box/"
 
 using glm::vec3;
 
@@ -80,7 +81,7 @@ int main(int argc, char* argv[])
         }
     }
     SDL_Event event;
-    std::vector<ModelTriangle> triangles = readOBJ("cornell-box", 50);
+    std::vector<ModelTriangle> triangles = readOBJ("cornell-box.obj", 50);
 
     int width = 5;
     double** grid = malloc2dArray(width, width);
@@ -260,12 +261,12 @@ std::map<std::string,Colour> readMTL(std::string filename){
 std::vector<ModelTriangle> readOBJ(std::string filename,float scale) {
 
     std::ifstream stream;
-    stream.open(filename + "/" + filename + ".obj",std::ifstream::in);
+    stream.open(WORKING_DIRECTORY + filename,std::ifstream::in);
     char mtlFile[256];
     stream.getline(mtlFile,256,' '); //skip the mtllib
     stream.getline(mtlFile,256);
 
-    std::map<std::string,Colour> colourMap = readMTL(filename + "/" + (std::string)mtlFile);
+    std::map<std::string,Colour> colourMap = readMTL(WORKING_DIRECTORY + (std::string)mtlFile);
 
     std::vector<glm::vec3> vertices;
     std::vector<ModelTriangle> modelTriangles;

@@ -16,7 +16,9 @@
 #define FOV 90
 #define INTENSITY 300000
 #define AMBIENCE 0.4
-#define WORKING_DIRECTORY "cornell-box/"
+#define WORKING_DIRECTORY "HackspaceLogo/"
+#define BOX_SCALE 50
+#define LOGO_SCALE 0.5
 
 using glm::vec3;
 
@@ -81,7 +83,8 @@ int main(int argc, char* argv[])
         }
     }
     SDL_Event event;
-    std::vector<ModelTriangle> triangles = readOBJ("cornell-box.obj", 50);
+    std::vector<ModelTriangle> triangles = readOBJ("logo.obj", LOGO_SCALE );
+    std::cout << "Read in file" << '\n';
 
     int width = 5;
     double** grid = malloc2dArray(width, width);
@@ -255,6 +258,7 @@ std::map<std::string,Colour> readMTL(std::string filename){
     }
     stream.clear();
     stream.close();
+    // std::cout << "finished mtl file" << '\n';
     return colourMap;
 }
 
@@ -262,11 +266,15 @@ std::vector<ModelTriangle> readOBJ(std::string filename,float scale) {
 
     std::ifstream stream;
     stream.open(WORKING_DIRECTORY + filename,std::ifstream::in);
+    // std::cout << WORKING_DIRECTORY + filename << '\n';
+
     char mtlFile[256];
     stream.getline(mtlFile,256,' '); //skip the mtllib
     stream.getline(mtlFile,256);
 
     std::map<std::string,Colour> colourMap = readMTL(WORKING_DIRECTORY + (std::string)mtlFile);
+    // std::cout << WORKING_DIRECTORY + (std::string)mtlFile << '\n';
+
 
     std::vector<glm::vec3> vertices;
     std::vector<ModelTriangle> modelTriangles;
@@ -275,7 +283,10 @@ std::vector<ModelTriangle> readOBJ(std::string filename,float scale) {
     while(stream.getline(line,256)){
 
         std::string* contents = split(line,' ');
-        if(line[0] == 'u'){
+        if(line[0] == 'v' && line[1] == 't'){
+            // std::cout << "not handled" << '\n';
+        }
+        else if(line[0] == 'u'){
             colour = colourMap[contents[1]];
         }
         else if(line[0] == 'v'){
@@ -284,6 +295,8 @@ std::vector<ModelTriangle> readOBJ(std::string filename,float scale) {
                 float z = std::stof(contents[3]) * scale;
                 glm::vec3 v(x,y,z);
                 vertices.push_back(v);
+                // std::cout << "vertice" << '\n';
+
         }
         else if(line[0] == 'f'){
             std::string* indexes1 = split(contents[1],'/');
@@ -297,12 +310,15 @@ std::vector<ModelTriangle> readOBJ(std::string filename,float scale) {
             ModelTriangle m = ModelTriangle(vertices[index1 -1],
             vertices[index2 - 1], vertices[index3 -1],colour);
             modelTriangles.push_back(m);
+            // std::cout << "face" << '\n';
         }
     }
     lightPos *= scale;
 
     stream.clear();
     stream.close();
+    
+    // std::cout << "finished reading obj" << '\n';
     return modelTriangles;
 }
 

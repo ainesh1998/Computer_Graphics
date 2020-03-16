@@ -680,7 +680,8 @@ RayTriangleIntersection getIntersection(glm::vec3 ray,ModelTriangle triangle,vec
     glm::vec3 negRay = -ray;
     glm::mat3 DEMatrix(negRay, e0, e1);
     glm::vec3 possibleSolution = cramer_rule(DEMatrix,SPVector);
-    RayTriangleIntersection r = RayTriangleIntersection(possibleSolution,possibleSolution.x,triangle);
+    glm::vec3 point = origin + ray*possibleSolution.x;
+    RayTriangleIntersection r = RayTriangleIntersection(point,possibleSolution.x,triangle);
     return r;
 }
 
@@ -695,15 +696,13 @@ glm::vec3 computeRay(int x,int y,float fov){
     float aspectRatio = (float) WIDTH/ (float) HEIGHT;
     //tan(..) defines the scale
     float camera_x = screen_x * aspectRatio * tan((fov/2 * M_PI/180));
-    // std::cout << tan(fov * M_PI/180/2) << '\n';
     float camera_y = screen_y * tan((fov/2 * M_PI/180));
     glm::mat3 inv_camera = glm::inverse(cameraOrientation);
     glm::vec3 rayOriginWorld = (vec3(0,0,0)-cameraPos) * inv_camera;
     glm:: vec3 rayPWorld = (vec3(camera_x,camera_y,-1) - cameraPos) * inv_camera;
-    // glm::vec3 rayDirection = vec3(camera_x,-camera_y,-1); //the ray origin is (0,0,0)
+    //the ray origin is (0,0,0)
     glm::vec3 rayDirection = rayPWorld - rayOriginWorld;
     rayDirection = glm::normalize(rayDirection);
-    // std::cout << ndc_x << " "<< ndc_y<< '\n';
     return rayDirection;
 }
 bool isEqualTriangle(ModelTriangle t1,ModelTriangle t2){
@@ -728,7 +727,7 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                 //this is valid as you are setting distance to infinity if it's invalid
                 if(distance < minDist){
                     final_intersection = intersection;
-                    point = cameraPos + ray * distance;
+                    point = intersection.intersectionPoint;
                     float brightness = calcProximity(point,triangles[i]);
 
                     vec3 lightColourCorrected = lightColour * brightness;
@@ -738,28 +737,19 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
 
                     Colour c = Colour(newColour.x, newColour.y, newColour.z);
                     final_intersection.intersectedTriangle.colour = c;
-                    // std::cout << intersection.intersectedTriangle.colour << '\n';
-                    // window.setPixelColour(x,y,c.packed_colour());
+
                     minDist = distance;
                 }
             }
-            // std::cout << final_intersection.intersectedTriangle.colour << '\n';
             //valid intersection
             if(final_intersection.distanceFromCamera != infinity){
-                vec3 new_point = cameraPos + ray * final_intersection.distanceFromCamera;
-                // new_point.z *= -1;
-                // new_point.z -= 100;
-                // std::cout << new_point.x << " " << new_point.y << " " << new_point.z << '\n';
-                // std::cout << lightPos.x << " " << lightPos.y << " " << lightPos.z << '\n';
-                // new_point = (new_point - cameraPos) * glm::inverse(cameraOrientation);
                 vec3 shadowRay = lightPos - point;
                 float dist = glm::length(shadowRay);
                 shadowRay = glm::normalize(shadowRay);
-                // vec3 shadowRay = glm::normalize(lightPos - new_point);
                 bool isShadow = false;
                 for (size_t i = 0; i < triangles.size(); i++) {
                     RayTriangleIntersection shadowIntersection = getIntersection(shadowRay,triangles[i],point);
-                    if(shadowIntersection.intersectionPoint.x < dist && !isEqualTriangle(shadowIntersection.intersectedTriangle,final_intersection.intersectedTriangle)){
+                    if(shadowIntersection.distanceFromCamera < dist && !isEqualTriangle(shadowIntersection.intersectedTriangle,final_intersection.intersectedTriangle)){
                         isShadow = true;
                         break;
                     }
@@ -771,9 +761,7 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                 }
                 // window.setPixelColour(x,y,final_intersection.intersectedTriangle.colour.packed_colour());
             }
-        // std::cout << intersection.intersectedTriangle.colour << '\n';
-            // if(final_intersection.distanceFromCamera != infinity){
-            // }
+
         }
     }
 }

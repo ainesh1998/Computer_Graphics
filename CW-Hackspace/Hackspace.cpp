@@ -16,7 +16,7 @@
 #define FOV 90
 #define INTENSITY 300000
 #define AMBIENCE 0.4
-#define WORKING_DIRECTORY "HackspaceLogo/"
+#define WORKING_DIRECTORY "cornell-box/"
 #define BOX_SCALE 50
 #define LOGO_SCALE 0.5
 
@@ -67,8 +67,9 @@ std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, in
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 glm::vec3 cameraPos = glm::vec3(0, 0, 300);
-//  box_lighPos = glm::vec3(-0.2,4.8,-3.043)
-glm::vec3 lightPos = glm::vec3(300,59,15);
+glm::vec3 box_lightPos = glm::vec3(-0.2,4.8,-3.043);
+glm::vec3 logo_lightPos = glm::vec3(300,59,15);
+glm::vec3 lightPos = box_lightPos;
 glm::vec3 lightColour = glm::vec3(1,1,1);
 glm::mat3 cameraOrientation = glm::mat3();
 float infinity = std::numeric_limits<float>::infinity();;
@@ -84,7 +85,7 @@ int main(int argc, char* argv[])
         }
     }
     SDL_Event event;
-    std::vector<ModelTriangle> triangles = readOBJ("logo.obj", LOGO_SCALE );
+    std::vector<ModelTriangle> triangles = readOBJ("cornell-box.obj", BOX_SCALE );
     std::cout << "Read in file" << '\n';
 
     int width = 5;
@@ -767,12 +768,12 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                         break;
                     }
                 }
-                // if(!isShadow){
-                //     window.setPixelColour(x,y,final_intersection.intersectedTriangle.colour.packed_colour());
-                // }else{
-                //     window.setPixelColour(x,y,0);
-                // }
-                window.setPixelColour(x,y,final_intersection.intersectedTriangle.colour.packed_colour());
+                if(!isShadow){
+                    window.setPixelColour(x,y,final_intersection.intersectedTriangle.colour.packed_colour());
+                }else{
+                    window.setPixelColour(x,y,0);
+                }
+                // window.setPixelColour(x,y,final_intersection.intersectedTriangle.colour.packed_colour());
             }
 
         }

@@ -56,8 +56,8 @@ void update(glm::vec3 translation, glm::vec3 rotationAngles);
 
 // lighting
 vec3 computenorm(ModelTriangle t);
-float calcProximity(vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles);
-
+float calcProximity(vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos);
+float calcBrightness(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,std::vector<vec3> light_positions);
 // generative geometry
 void diamondSquare(double** pointHeights, int width, double currentSize);
 std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, int scale);
@@ -68,9 +68,11 @@ std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, in
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 glm::vec3 cameraPos = glm::vec3(0, 0, 300);
-glm::vec3 box_lightPos = glm::vec3(-0.2,4.8,-3.043);
+glm::vec3 box_lightPos = glm::vec3(-2,4.8,-3.043);
+glm::vec3 box_lightPos1 = glm::vec3(2,4.8,-3.043);
 glm::vec3 logo_lightPos = glm::vec3(300,59,15);
-glm::vec3 lightPos = box_lightPos;
+glm::vec3 lightPos = box_lightPos1;
+std::vector<vec3> light_positions;
 glm::vec3 lightColour = glm::vec3(1,1,1);
 
 glm::mat3 cameraOrientation = glm::mat3();
@@ -78,7 +80,11 @@ float infinity = std::numeric_limits<float>::infinity();;
 double depth_buffer[WIDTH][HEIGHT];
 int mode = 1;
 
-
+void print_vec3(vec3 point){
+    std::cout << "("<< point.x << " " <<
+    point.y << " " << point.z << ")" <<
+     '\n';
+}
 int main(int argc, char* argv[])
 {
     for(int x = 0; x < WIDTH; x++){
@@ -87,11 +93,18 @@ int main(int argc, char* argv[])
         }
     }
     SDL_Event event;
+    for (float i = -2; i <= 2; i+=0.5) {
+        // std::cout << i << '\n';
+        vec3 lightPos = vec3(i,4.8,-3.043);
+        print_vec3(lightPos);
+        light_positions.push_back(lightPos);
+    }
     std::vector<ModelTriangle> triangles = readOBJ("cornell-box.obj", BOX_SCALE );
     std::cout << "Read in file" << '\n';
 
     int width = 5;
     double** grid = malloc2dArray(width, width);
+
 
     std::vector<ModelTriangle> generatedTriangles = generateGeometry(grid, width, 50);
 
@@ -313,7 +326,9 @@ std::vector<ModelTriangle> readOBJ(std::string filename,float scale) {
             modelTriangles.push_back(m);
         }
     }
-    lightPos *= scale;
+    for (size_t i = 0; i < light_positions.size(); i++) {
+        light_positions[i] *= scale;
+    }
 
     stream.clear();
     stream.close();
@@ -744,9 +759,9 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                 if(distance < minDist){
                     final_intersection = intersection;
                     point = intersection.intersectionPoint;
-                    float brightness = calcProximity(point,triangles[i],triangles);
-                    brightness += 0.5f;
-                    if(brightness > 1) brightness = 1;
+                    float brightness = calcBrightness(point,triangles[i],triangles,light_positions);
+                    // brightness += 0.5f;
+                    // if(brightness > 1) brightness = 1;
                     vec3 lightColourCorrected = lightColour * brightness;
 
                     vec3 oldColour = vec3(triangles[i].colour.red, triangles[i].colour.green, triangles[i].colour.blue);
@@ -772,7 +787,7 @@ vec3 computenorm(ModelTriangle t){
     return norm;
 }
 
-float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles){
+float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos){
     vec3 lightDir = lightPos - point;
     float dist = glm::length(lightDir);
     lightDir = glm::normalize(lightDir);
@@ -795,6 +810,16 @@ float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> t
     }
     if(isShadow) brightness = 0;
     // std::cout << brightness << '\n';
+    return brightness;
+}
+float calcBrightness(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,std::vector<vec3> light_positions){
+    float brightness = 0.f;
+    for (size_t i = 0; i < light_positions.size(); i++) {
+        brightness += calcProximity(point,t,triangles,light_positions[i]);
+        // std::cout << light_positions[i].x<<" "<<light_positions[i].y << " " << light_positions[i].z<<'\n';
+    }
+    // if(brightness < 0.2) brightness =0.2;
+    if(brightness > 1) brightness = 1;
     return brightness;
 }
 

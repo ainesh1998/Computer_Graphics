@@ -33,6 +33,8 @@ bool isEqualTriangle(ModelTriangle t1,ModelTriangle t2);
 
 // file readers
 std::vector<Colour> readPPM(std::string filename,int* width, int* height);
+//given filename and dimensions create a ppm file
+void writePPM(std::string filename,int width, int height, std::vector<Colour> colours);
 std::map<std::string,Colour> readMTL(std::string filename);
 std::vector<ModelTriangle> readOBJ(std::string filename,float scale);
 void displayPicture(std::vector<Colour> payload,int width,int height);
@@ -68,11 +70,11 @@ std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, in
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 glm::vec3 cameraPos = glm::vec3(0, 0, 300);
-glm::vec3 box_lightPos = glm::vec3(-2,4.8,-3.043);
+glm::vec3 box_lightPos = glm::vec3(-0.2,4.8,-3.043);
 glm::vec3 box_lightPos1 = glm::vec3(2,4.8,-3.043);
 glm::vec3 logo_lightPos = glm::vec3(300,59,15);
 glm::vec3 lightPos = box_lightPos1;
-std::vector<vec3> light_positions;
+std::vector<vec3> light_positions = {box_lightPos};
 glm::vec3 lightColour = glm::vec3(1,1,1);
 
 glm::mat3 cameraOrientation = glm::mat3();
@@ -93,14 +95,17 @@ int main(int argc, char* argv[])
         }
     }
     SDL_Event event;
-    for (float i = -2; i <= 2; i+=0.5) {
-        // std::cout << i << '\n';
-        vec3 lightPos = vec3(i,4.8,-3.043);
-        print_vec3(lightPos);
-        light_positions.push_back(lightPos);
-    }
+    // for (float i = -2; i <= 2; i+=0.5) {
+    //     // std::cout << i << '\n';
+    //     vec3 lightPos = vec3(i,4.8,-3.043);
+    //     print_vec3(lightPos);
+    //     light_positions.push_back(lightPos);
+    // }
+    int width1;
+    int height;
+    std::vector<Colour> colours = readPPM("texture.ppm",&width1,&height);
+    writePPM("test.ppm",width1,height,colours);
     std::vector<ModelTriangle> triangles = readOBJ("cornell-box.obj", BOX_SCALE );
-    std::cout << "Read in file" << '\n';
 
     int width = 5;
     double** grid = malloc2dArray(width, width);
@@ -233,12 +238,37 @@ std::vector<Colour> readPPM(std::string filename,int* width, int* height){
     char b;
     std::vector<Colour> payload;
     while(stream.get(r) &&stream.get(g)&& stream.get(b)){
-        payload.push_back(Colour(r,g,b));
+        unsigned char r1 = r;
+        unsigned char g1 = g;
+        unsigned char b1 = b;
+        // std::cout << "reading" <<Colour(r,g,b) << '\n';
+        payload.push_back(Colour(r1,g1,b1));
     }
     stream.clear();
     stream.close();
     return payload;
+}
 
+void writePPM(std::string filename,int width, int height, std::vector<Colour> colours){
+    std::ofstream afile(filename, std::ios::out);
+
+    if (afile.is_open()) {
+        afile << "P3\n";
+        afile << "# Comment to match GIMP\n";
+        afile << width << " " << height << "\n";
+        afile << "255\n";
+        for (size_t i = 0; i < colours.size(); i++) {
+            char line[256];
+            Colour c = colours[i];
+            unsigned char r = c.red;
+            unsigned char g  = c.green;
+            unsigned char b = c.blue;
+            sprintf(line, "%d %d %d\n",r,g,b);
+            afile<<line;
+
+        }
+        afile.close();
+    }
 }
 
 std::map<std::string,Colour> readMTL(std::string filename){

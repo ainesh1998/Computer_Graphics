@@ -28,6 +28,7 @@ void order_triangle(CanvasTriangle *triangle);
 std::vector<float> interpolate(float start, float end, int noOfValues);
 std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValues);
 vec3 cramer_rule(glm::mat3 DEMatrix,vec3 SPVector);
+bool isEqualTriangle(ModelTriangle t1,ModelTriangle t2);
 
 
 // file readers
@@ -55,7 +56,7 @@ void update(glm::vec3 translation, glm::vec3 rotationAngles);
 
 // lighting
 vec3 computenorm(ModelTriangle t);
-float calcProximity(vec3 point,ModelTriangle t);
+float calcProximity(vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles);
 
 // generative geometry
 void diamondSquare(double** pointHeights, int width, double currentSize);
@@ -742,7 +743,7 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                 if(distance < minDist){
                     final_intersection = intersection;
                     point = intersection.intersectionPoint;
-                    float brightness = calcProximity(point,triangles[i]);
+                    float brightness = calcProximity(point,triangles[i],triangles);
 
                     vec3 lightColourCorrected = lightColour * brightness;
 
@@ -753,29 +754,10 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                     final_intersection.intersectedTriangle.colour = c;
 
                     minDist = distance;
-                }
-            }
-            //valid intersection
-            if(final_intersection.distanceFromCamera != infinity){
-                vec3 shadowRay = lightPos - point;
-                float dist = glm::length(shadowRay);
-                shadowRay = glm::normalize(shadowRay);
-                bool isShadow = false;
-                for (size_t i = 0; i < triangles.size(); i++) {
-                    RayTriangleIntersection shadowIntersection = getIntersection(shadowRay,triangles[i],point);
-                    if(shadowIntersection.distanceFromCamera < dist && !isEqualTriangle(shadowIntersection.intersectedTriangle,final_intersection.intersectedTriangle)){
-                        isShadow = true;
-                        break;
-                    }
-                }
-                if(!isShadow){
                     window.setPixelColour(x,y,final_intersection.intersectedTriangle.colour.packed_colour());
-                }else{
-                    window.setPixelColour(x,y,0);
-                }
-                // window.setPixelColour(x,y,final_intersection.intersectedTriangle.colour.packed_colour());
-            }
 
+                }
+            }
         }
     }
 }
@@ -788,8 +770,9 @@ vec3 computenorm(ModelTriangle t){
     return norm;
 }
 
-float calcProximity(glm::vec3 point,ModelTriangle t){
+float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles){
     vec3 lightDir = lightPos - point;
+    float dist = glm::length(lightDir);
     lightDir = glm::normalize(lightDir);
     vec3 norm = computenorm(t);
     float dot_product = glm::dot(lightDir,norm);
@@ -798,6 +781,17 @@ float calcProximity(glm::vec3 point,ModelTriangle t){
     float brightness = (float) INTENSITY * std::max(0.f,dot_product)*(1/(2*M_PI* distance * distance));
     if (brightness > 1) brightness = 1;
     if (brightness < AMBIENCE) brightness = AMBIENCE;
+    //do shadow calc here
+    //lightDir = shadowRay (lightPos - point)
+    bool isShadow = false;
+    for (size_t i = 0; i < triangles.size(); i++) {
+        RayTriangleIntersection shadowIntersection = getIntersection(lightDir,triangles[i],point);
+        if(shadowIntersection.distanceFromCamera < dist && !isEqualTriangle(shadowIntersection.intersectedTriangle,t)){
+            isShadow = true;
+            break;
+        }
+    }
+    if(isShadow) brightness = 0;
     // std::cout << brightness << '\n';
     return brightness;
 }

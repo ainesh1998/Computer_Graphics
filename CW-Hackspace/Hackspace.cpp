@@ -67,7 +67,8 @@ std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, in
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 glm::vec3 cameraPos = glm::vec3(0, 0, 300);
-glm::vec3 lightPos = glm::vec3(-0.2,4.8,-3.043);
+//  box_lighPos = glm::vec3(-0.2,4.8,-3.043)
+glm::vec3 lightPos = glm::vec3(300,59,15);
 glm::vec3 lightColour = glm::vec3(1,1,1);
 glm::mat3 cameraOrientation = glm::mat3();
 float infinity = std::numeric_limits<float>::infinity();;
@@ -263,28 +264,26 @@ std::map<std::string,Colour> readMTL(std::string filename){
 }
 
 std::vector<ModelTriangle> readOBJ(std::string filename,float scale) {
+    //The colour map is getting initialised with dummy values
 
     std::ifstream stream;
     stream.open(WORKING_DIRECTORY + filename,std::ifstream::in);
-    // std::cout << WORKING_DIRECTORY + filename << '\n';
 
     char mtlFile[256];
     stream.getline(mtlFile,256,' '); //skip the mtllib
     stream.getline(mtlFile,256);
 
     std::map<std::string,Colour> colourMap = readMTL(WORKING_DIRECTORY + (std::string)mtlFile);
-    // std::cout << WORKING_DIRECTORY + (std::string)mtlFile << '\n';
 
 
     std::vector<glm::vec3> vertices;
     std::vector<ModelTriangle> modelTriangles;
     char line[256];
-    Colour colour;
+    Colour colour = Colour(255,255,255);
     while(stream.getline(line,256)){
 
         std::string* contents = split(line,' ');
         if(line[0] == 'v' && line[1] == 't'){
-            // std::cout << "not handled" << '\n';
         }
         else if(line[0] == 'u'){
             colour = colourMap[contents[1]];
@@ -295,7 +294,6 @@ std::vector<ModelTriangle> readOBJ(std::string filename,float scale) {
                 float z = std::stof(contents[3]) * scale;
                 glm::vec3 v(x,y,z);
                 vertices.push_back(v);
-                // std::cout << "vertice" << '\n';
 
         }
         else if(line[0] == 'f'){
@@ -310,15 +308,13 @@ std::vector<ModelTriangle> readOBJ(std::string filename,float scale) {
             ModelTriangle m = ModelTriangle(vertices[index1 -1],
             vertices[index2 - 1], vertices[index3 -1],colour);
             modelTriangles.push_back(m);
-            // std::cout << "face" << '\n';
         }
     }
     lightPos *= scale;
 
     stream.clear();
     stream.close();
-    
-    // std::cout << "finished reading obj" << '\n';
+
     return modelTriangles;
 }
 
@@ -771,12 +767,12 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                         break;
                     }
                 }
-                if(!isShadow){
-                    window.setPixelColour(x,y,final_intersection.intersectedTriangle.colour.packed_colour());
-                }else{
-                    window.setPixelColour(x,y,0);
-                }
-                // window.setPixelColour(x,y,final_intersection.intersectedTriangle.colour.packed_colour());
+                // if(!isShadow){
+                //     window.setPixelColour(x,y,final_intersection.intersectedTriangle.colour.packed_colour());
+                // }else{
+                //     window.setPixelColour(x,y,0);
+                // }
+                window.setPixelColour(x,y,final_intersection.intersectedTriangle.colour.packed_colour());
             }
 
         }

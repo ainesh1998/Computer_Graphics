@@ -103,8 +103,8 @@ int main(int argc, char* argv[])
     // }
     int width1;
     int height;
-    std::vector<Colour> colours = readPPM("texture.ppm",&width1,&height);
-    writePPM("test.ppm",width1,height,colours);
+    // std::vector<Colour> colours = readPPM("test.ppm",&width1,&height);
+    // writePPM("test1.ppm",width1,height,colours);
     std::vector<ModelTriangle> triangles = readOBJ("cornell-box.obj", BOX_SCALE );
 
     int width = 5;
@@ -232,18 +232,32 @@ std::vector<Colour> readPPM(std::string filename,int* width, int* height){
 
     char maxValT[256];
     stream.getline(maxValT,256);
-
-    char r;
-    char g;
-    char b;
     std::vector<Colour> payload;
-    while(stream.get(r) &&stream.get(g)&& stream.get(b)){
-        unsigned char r1 = r;
-        unsigned char g1 = g;
-        unsigned char b1 = b;
-        // std::cout << "reading" <<Colour(r,g,b) << '\n';
-        payload.push_back(Colour(r1,g1,b1));
+    if (strcmp(encoding,"P3") == 0) {
+        char line[256];
+        while (stream.getline(line,256)) {
+            std::string* colours = split(line,' ');
+            int r = stoi(colours[0]);
+            int g = stoi(colours[1]);
+            int b  = stoi(colours[2]);
+            payload.push_back(Colour(r,g,b));
+        }
+    }else{
+        char r;
+        char g;
+        char b;
+        while(stream.get(r) &&stream.get(g)&& stream.get(b)){
+            //to make it a value between 0 and 255
+            unsigned char r1 = r;
+            unsigned char g1 = g;
+            unsigned char b1 = b;
+            payload.push_back(Colour(r1,g1,b1));
+        }
     }
+
+
+
+
     stream.clear();
     stream.close();
     return payload;
@@ -253,7 +267,7 @@ void writePPM(std::string filename,int width, int height, std::vector<Colour> co
     std::ofstream afile(filename, std::ios::out);
 
     if (afile.is_open()) {
-        afile << "P3\n";
+        afile << "P3\n"; //had to use P3 encoding
         afile << "# Comment to match GIMP\n";
         afile << width << " " << height << "\n";
         afile << "255\n";

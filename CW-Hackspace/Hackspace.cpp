@@ -72,6 +72,7 @@ glm::vec3 box_lightPos = glm::vec3(-0.2,4.8,-3.043);
 glm::vec3 logo_lightPos = glm::vec3(300,59,15);
 glm::vec3 lightPos = box_lightPos;
 glm::vec3 lightColour = glm::vec3(1,1,1);
+
 glm::mat3 cameraOrientation = glm::mat3();
 float infinity = std::numeric_limits<float>::infinity();;
 double depth_buffer[WIDTH][HEIGHT];
@@ -744,7 +745,8 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                     final_intersection = intersection;
                     point = intersection.intersectionPoint;
                     float brightness = calcProximity(point,triangles[i],triangles);
-
+                    brightness += 0.5f;
+                    if(brightness > 1) brightness = 1;
                     vec3 lightColourCorrected = lightColour * brightness;
 
                     vec3 oldColour = vec3(triangles[i].colour.red, triangles[i].colour.green, triangles[i].colour.blue);

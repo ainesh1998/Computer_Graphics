@@ -29,6 +29,8 @@ std::vector<float> interpolate(float start, float end, int noOfValues);
 std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValues);
 vec3 cramer_rule(glm::mat3 DEMatrix,vec3 SPVector);
 bool isEqualTriangle(ModelTriangle t1,ModelTriangle t2);
+//load colours from the window to a vector
+std::vector<Colour> loadColours();
 
 
 // file readers
@@ -117,7 +119,7 @@ int main(int argc, char* argv[])
 
     window.renderFrame();
 
-
+    int count = 0;
     while(true)
     {
         glm::vec3 translation = glm::vec3(0,0,0);
@@ -149,6 +151,10 @@ int main(int argc, char* argv[])
 
             // Need to render the frame at the end, or nothing actually gets shown on the screen !
             window.renderFrame();
+            std::vector<Colour> colours = loadColours();
+            std::string filename = "image" + std::to_string(count) + ".ppm";
+            writePPM(filename,WIDTH,HEIGHT,colours);
+            count++;
         }
     }
 }
@@ -156,6 +162,19 @@ int main(int argc, char* argv[])
 
 // HELPER FUNCTIONS //
 
+std::vector<Colour> loadColours(){
+    std::vector<Colour> colours;
+    for (size_t y = 0; y < HEIGHT; y++) {
+        for (size_t x = 0; x < WIDTH; x++) {
+            uint32_t colour = window.getPixelColour(x,y);
+            unsigned char red = (colour & 0x00FF0000) >> 16;
+            unsigned char green = (colour & 0x0000FF00) >> 8;
+            unsigned char blue = (colour & 0x000000FF);
+            colours.push_back(Colour(red,green,blue));
+        }
+    }
+    return colours;
+}
 
 double **malloc2dArray(int dimX, int dimY)
 {

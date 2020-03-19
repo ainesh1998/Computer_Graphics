@@ -50,6 +50,7 @@ void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::ve
 void drawBox(std::vector<ModelTriangle> triangles, float focalLength);
 
 // raytracer
+glm::vec3 computeRay(float x,float y,float fov);
 RayTriangleIntersection getIntersection(glm::vec3 ray,std::vector<ModelTriangle> modelTriangles,vec3 origin);
 void drawBoxRayTraced(std::vector<ModelTriangle> triangles);
 
@@ -151,8 +152,8 @@ int main(int argc, char* argv[])
 
             // Need to render the frame at the end, or nothing actually gets shown on the screen !
             window.renderFrame();
-            std::vector<Colour> colours = loadColours();
-            std::string filename = "image" + std::to_string(count) + ".ppm";
+            // std::vector<Colour> colours = loadColours();
+            // std::string filename = "image" + std::to_string(count) + ".ppm";
             // writePPM(filename,WIDTH,HEIGHT,colours);
             count++;
         }
@@ -779,12 +780,12 @@ RayTriangleIntersection getIntersection(glm::vec3 ray,ModelTriangle triangle,vec
     return r;
 }
 
-glm::vec3 computeRay(int x,int y,float fov){
+glm::vec3 computeRay(float x,float y,float fov){
     //code adapted form scratch a pixel tutorial
     // https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-generating-camera-rays/generating-camera-rays
     //0.5 added as ray goes through centre of pixel
-    float ndc_x = (x + 0.5)/WIDTH;
-    float ndc_y = (y + 0.5)/HEIGHT;
+    float ndc_x = x/WIDTH;
+    float ndc_y = y/HEIGHT;
     float screen_x = 2*ndc_x -1;
     float screen_y = 1 - 2*ndc_y; //as y axis is flipped
     float aspectRatio = (float) WIDTH/ (float) HEIGHT;
@@ -809,35 +810,42 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
     window.clearPixels();
     for (size_t x = 0; x < WIDTH; x++) {
         for (size_t y = 0; y < HEIGHT; y++) {
-            float minDist = infinity;
-            vec3 ray = computeRay(x,y,FOV);
-            RayTriangleIntersection final_intersection;
-            final_intersection.distanceFromCamera = infinity;
-            glm::vec3 point;
+            vec3 ray1 = computeRay((x+0.5),(y+0.45),FOV);
+            vec3 ray2 = computeRay((x+0.5),(y+0.55),FOV);
+            std::vector<vec3> rays = {ray1,ray2};
+            vec3 sumColour = vec3(0,0,0);
+            for (size_t r = 0; r < rays.size(); r++) {
+                RayTriangleIntersection final_intersection;
+                final_intersection.distanceFromCamera = infinity;
+                vec3 ray = rays[r];
+                vec3 newColour;
+                float minDist = infinity;
+                for (size_t i = 0; i < triangles.size(); i++) {
+                    RayTriangleIntersection intersection = getIntersection(ray,triangles[i],cameraPos);
+                    float distance = intersection.distanceFromCamera;
+                    //this is valid as you are setting distance to infinity if it's invalid
+                    if(distance < minDist){
+                        final_intersection.distanceFromCamera = intersection.distanceFromCamera;
+                        float brightness = calcBrightness(intersection.intersectionPoint,triangles[i],triangles,light_positions);
+                        vec3 lightColourCorrected = lightColour * brightness;
 
-            for (size_t i = 0; i < triangles.size(); i++) {
-                RayTriangleIntersection intersection = getIntersection(ray,triangles[i],cameraPos);
-                float distance = intersection.distanceFromCamera;
-                //this is valid as you are setting distance to infinity if it's invalid
-                if(distance < minDist){
-                    final_intersection = intersection;
-                    point = intersection.intersectionPoint;
-                    float brightness = calcBrightness(point,triangles[i],triangles,light_positions);
-                    // brightness += 0.5f;
-                    // if(brightness > 1) brightness = 1;
-                    vec3 lightColourCorrected = lightColour * brightness;
+                        vec3 oldColour = vec3(triangles[i].colour.red, triangles[i].colour.green, triangles[i].colour.blue);
+                        newColour = lightColourCorrected * oldColour;
 
-                    vec3 oldColour = vec3(triangles[i].colour.red, triangles[i].colour.green, triangles[i].colour.blue);
-                    vec3 newColour = lightColourCorrected * oldColour;
 
-                    Colour c = Colour(newColour.x, newColour.y, newColour.z);
-                    final_intersection.intersectedTriangle.colour = c;
+                        Colour c = Colour(newColour.x, newColour.y, newColour.z);
+                        intersection.intersectedTriangle.colour = c;
 
-                    minDist = distance;
-                    window.setPixelColour(x,y,final_intersection.intersectedTriangle.colour.packed_colour());
-
+                        minDist = distance;
+                    }
+                }
+                if(final_intersection.distanceFromCamera != infinity){
+                     sumColour += newColour;
                 }
             }
+            vec3 avgColour = (1/(float)rays.size()) * sumColour;
+            Colour c = Colour(avgColour.x, avgColour.y, avgColour.z);
+            window.setPixelColour(x,y,c.packed_colour());
         }
     }
 }

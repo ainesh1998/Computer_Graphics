@@ -103,8 +103,8 @@ int main(int argc, char* argv[])
     //     print_vec3(lightPos);
     //     light_positions.push_back(lightPos);
     // }
-    int width1;
-    int height;
+    // int width1;
+    // int height;
     // std::vector<Colour> colours = readPPM("test.ppm",&width1,&height);
     // writePPM("test1.ppm",width1,height,colours);
     std::vector<ModelTriangle> triangles = readOBJ("cornell-box.obj", BOX_SCALE );
@@ -153,7 +153,7 @@ int main(int argc, char* argv[])
             window.renderFrame();
             std::vector<Colour> colours = loadColours();
             std::string filename = "image" + std::to_string(count) + ".ppm";
-            writePPM(filename,WIDTH,HEIGHT,colours);
+            // writePPM(filename,WIDTH,HEIGHT,colours);
             count++;
         }
     }
@@ -871,7 +871,7 @@ float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> t
             break;
         }
     }
-    if(isShadow) brightness = 0;
+    if(isShadow) brightness = AMBIENCE/2;
     // std::cout << brightness << '\n';
     return brightness;
 }

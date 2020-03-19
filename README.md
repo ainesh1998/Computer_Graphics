@@ -25,7 +25,7 @@ Bold = done, italics = sort of
 - [ ] Simple animation (e.g. fly-through)
 - [ ] Some form of Physics (gravity, friction, bounce etc)
 - [ ] Basic culling (far-plane, near-plan, back-face)
-- [ ] Basic anti-aliasing
+- [x] **Basic anti-aliasing**
 
 ### 70s range
 - [ ] Phong Shading
@@ -33,7 +33,7 @@ Bold = done, italics = sort of
 - [ ] Complex anti-aliasing
 - [ ] Perspective corrected texture mapping
 - [ ] “Fancy” animation
-- [ ] Soft shadow
+- [x] *Soft shadow*
 - [ ] Bump maps
 - [ ] Environment maps
 - [ ] Basic clipping (bounding box)

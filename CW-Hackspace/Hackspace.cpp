@@ -10,19 +10,20 @@
 #include <glm/gtx/string_cast.hpp>
 
 
-#define WIDTH 800
-#define HEIGHT 640
+#define WIDTH 640
+#define HEIGHT 480
 #define FOCALLENGTH 250
 #define FOV 90
 #define INTENSITY 300000
 #define AMBIENCE 0.4
-#define WORKING_DIRECTORY "cornell-box/"
+#define WORKING_DIRECTORY "HackspaceLogo/"
 #define BOX_SCALE 50
 #define LOGO_SCALE 0.5
 
 using glm::vec3;
 
 // helper functions
+void print_vec3(vec3 point);
 double **malloc2dArray(int dimX, int dimY);
 void order_triangle(CanvasTriangle *triangle);
 std::vector<float> interpolate(float start, float end, int noOfValues);
@@ -38,7 +39,7 @@ std::vector<Colour> readPPM(std::string filename,int* width, int* height);
 //given filename and dimensions create a ppm file
 void writePPM(std::string filename,int width, int height, std::vector<Colour> colours);
 std::map<std::string,Colour> readMTL(std::string filename);
-std::vector<ModelTriangle> readOBJ(std::string filename,float scale);
+std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, float scale);
 void displayPicture(std::vector<Colour> payload,int width,int height);
 
 // rasteriser
@@ -84,12 +85,11 @@ glm::mat3 cameraOrientation = glm::mat3();
 float infinity = std::numeric_limits<float>::infinity();;
 double depth_buffer[WIDTH][HEIGHT];
 int mode = 1;
+int textureWidth;
+int textureHeight;
+std::vector<Colour> texture = readPPM("HackspaceLogo/texture.ppm", &textureWidth, &textureHeight);
 
-void print_vec3(vec3 point){
-    std::cout << "("<< point.x << " " <<
-    point.y << " " << point.z << ")" <<
-     '\n';
-}
+
 int main(int argc, char* argv[])
 {
     for(int x = 0; x < WIDTH; x++){
@@ -108,7 +108,7 @@ int main(int argc, char* argv[])
     // int height;
     // std::vector<Colour> colours = readPPM("test.ppm",&width1,&height);
     // writePPM("test1.ppm",width1,height,colours);
-    std::vector<ModelTriangle> triangles = readOBJ("cornell-box.obj", BOX_SCALE );
+    std::vector<ModelTriangle> triangles = readOBJ("logo.obj", "materials.mtl", LOGO_SCALE );
 
     int width = 5;
     double** grid = malloc2dArray(width, width);
@@ -162,6 +162,12 @@ int main(int argc, char* argv[])
 
 
 // HELPER FUNCTIONS //
+
+void print_vec3(vec3 point){
+    std::cout << "("<< point.x << " " <<
+    point.y << " " << point.z << ")" <<
+     '\n';
+}
 
 std::vector<Colour> loadColours(){
     std::vector<Colour> colours;
@@ -262,7 +268,8 @@ std::vector<Colour> readPPM(std::string filename,int* width, int* height){
             int b  = stoi(colours[2]);
             payload.push_back(Colour(r,g,b));
         }
-    }else{
+    }
+    else{
         char r;
         char g;
         char b;
@@ -274,9 +281,6 @@ std::vector<Colour> readPPM(std::string filename,int* width, int* height){
             payload.push_back(Colour(r1,g1,b1));
         }
     }
-
-
-
 
     stream.clear();
     stream.close();
@@ -308,34 +312,51 @@ void writePPM(std::string filename,int width, int height, std::vector<Colour> co
 std::map<std::string,Colour> readMTL(std::string filename){
     std::map<std::string,Colour> colourMap;
     std::ifstream stream;
-    stream.open(filename,std::ifstream::in);
+    stream.open(filename, std::ifstream::in);
 
     char newmtl[256];
 
-    while(stream.getline(newmtl, 256, ' ') && strcmp(newmtl, "newmtl") == 0) {
-        char colourName[256];
-        stream.getline(colourName, 256);
+    while(stream.getline(newmtl, 256, ' ')) {
 
-        char mtlProperty[256];
-        char rc[256];
-        char gc[256];
-        char bc[256];
+        if (strcmp(newmtl, "newmtl") == 0) {
+            char colourName[256];
+            stream.getline(colourName, 256);
 
-        stream.getline(mtlProperty, 256, ' ');
-        stream.getline(rc, 256, ' ');
-        stream.getline(gc, 256, ' ');
-        stream.getline(bc, 256);
+            char mtlProperty[256];
+            char rc[256];
+            char gc[256];
+            char bc[256];
 
-        int r = std::stof(rc) * 255;
-        int g = std::stof(gc) * 255;
-        int b = std::stof(bc) * 255;
+            stream.getline(mtlProperty, 256, ' ');
+            stream.getline(rc, 256, ' ');
+            stream.getline(gc, 256, ' ');
+            stream.getline(bc, 256);
 
-        Colour c = Colour(colourName, r, g, b);
-        colourMap[colourName] = c;
-        // colours.push_back(c);
+            int r = std::stof(rc) * 255;
+            int g = std::stof(gc) * 255;
+            int b = std::stof(bc) * 255;
 
-        char newLine[256];
-        stream.getline(newLine, 256);
+            Colour c = Colour(colourName, r, g, b);
+            colourMap[colourName] = c;
+            // colours.push_back(c);
+
+            char newLine[256];
+            stream.getline(newLine, 256);
+        }
+
+        else if (strcmp(newmtl, "map_Kd") == 0) {
+            char textureFile[256];
+            stream.getline(textureFile, 256);
+            std::cout << textureFile << '\n';
+
+            int width;
+            int height;
+            std::vector<Colour> textureMap = readPPM(WORKING_DIRECTORY + (std::string) textureFile, &width, &height);
+
+            // for (int i = 0; i < textureMap.size(); i++) {
+            //     colourMap.push_back(textureMap[i])
+            // }
+        }
     }
     stream.clear();
     stream.close();
@@ -343,20 +364,20 @@ std::map<std::string,Colour> readMTL(std::string filename){
     return colourMap;
 }
 
-std::vector<ModelTriangle> readOBJ(std::string filename,float scale) {
+std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, float scale) {
     //The colour map is getting initialised with dummy values
 
     std::ifstream stream;
-    stream.open(WORKING_DIRECTORY + filename,std::ifstream::in);
+    stream.open(WORKING_DIRECTORY + filename, std::ifstream::in);
 
     char mtlFile[256];
     stream.getline(mtlFile,256,' '); //skip the mtllib
     stream.getline(mtlFile,256);
 
-    std::map<std::string,Colour> colourMap = readMTL(WORKING_DIRECTORY + (std::string)mtlFile);
-
+    std::map<std::string,Colour> colourMap = readMTL(WORKING_DIRECTORY + (std::string) mtlName);
 
     std::vector<glm::vec3> vertices;
+    std::vector<TexturePoint> texturePoints;
     std::vector<ModelTriangle> modelTriangles;
     char line[256];
     Colour colour = Colour(255,255,255);
@@ -364,18 +385,24 @@ std::vector<ModelTriangle> readOBJ(std::string filename,float scale) {
 
         std::string* contents = split(line,' ');
         if(line[0] == 'v' && line[1] == 't'){
+            float x = std::stof(contents[1]);
+            float y = std::stof(contents[2]);
+            TexturePoint point = TexturePoint(x, y);
+            texturePoints.push_back(point);
         }
+
         else if(line[0] == 'u'){
             colour = colourMap[contents[1]];
         }
-        else if(line[0] == 'v'){
-                float x = std::stof(contents[1]) * scale;
-                float y = std::stof(contents[2]) * scale;
-                float z = std::stof(contents[3]) * scale;
-                glm::vec3 v(x,y,z);
-                vertices.push_back(v);
 
+        else if(line[0] == 'v'){
+            float x = std::stof(contents[1]) * scale;
+            float y = std::stof(contents[2]) * scale;
+            float z = std::stof(contents[3]) * scale;
+            glm::vec3 v(x,y,z);
+            vertices.push_back(v);
         }
+
         else if(line[0] == 'f'){
             std::string* indexes1 = split(contents[1],'/');
             std::string* indexes2 = split(contents[2],'/');
@@ -385,11 +412,17 @@ std::vector<ModelTriangle> readOBJ(std::string filename,float scale) {
             int index2 = std::stoi(indexes2[0]);
             int index3 = std::stoi(indexes3[0]);
 
-            ModelTriangle m = ModelTriangle(vertices[index1 -1],
-            vertices[index2 - 1], vertices[index3 -1],colour);
+            int textureIndex1 = std::stoi(indexes1[1]);
+            int textureIndex2 = std::stoi(indexes2[1]);
+            int textureIndex3 = std::stoi(indexes3[1]);
+
+            ModelTriangle m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1],
+                                            texturePoints[textureIndex1-1], texturePoints[textureIndex2-1],
+                                            texturePoints[textureIndex3-1]);
             modelTriangles.push_back(m);
         }
     }
+
     for (size_t i = 0; i < light_positions.size(); i++) {
         light_positions[i] *= scale;
     }

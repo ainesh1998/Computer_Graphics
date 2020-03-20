@@ -21,7 +21,7 @@ Bold = done, italics = sort of
 
 ### 60s range
 - [ ] Gouraud shading
-- []  Naive (non-perspective corrected) texture mapping (done in 2D but not in 3D)
+- [ ]  Naive (non-perspective corrected) texture mapping (done in 2D but not in 3D)
 - [ ] Simple animation (e.g. fly-through)
 - [ ] Some form of Physics (gravity, friction, bounce etc)
 - [ ] Basic culling (far-plane, near-plan, back-face)

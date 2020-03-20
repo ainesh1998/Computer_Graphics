@@ -20,6 +20,9 @@ class ModelTriangle
       vertices[1] = v1;
       vertices[2] = v2;
       colour = trigColour;
+      texturePoints[0] = TexturePoint(-1,-1);
+      texturePoints[1] = TexturePoint(-1,-1);
+      texturePoints[2] = TexturePoint(-1,-1);
     }
 
     ModelTriangle(glm::vec3 v0, glm::vec3 v1, glm::vec3 v2, TexturePoint t1, TexturePoint t2, TexturePoint t3)

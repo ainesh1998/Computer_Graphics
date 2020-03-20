@@ -6,6 +6,7 @@ class CanvasTriangle
   public:
     CanvasPoint vertices[3];
     Colour colour;
+    bool isTexture;
 
     CanvasTriangle()
     {
@@ -17,6 +18,7 @@ class CanvasTriangle
       vertices[1] = v1;
       vertices[2] = v2;
       colour = Colour(255,255,255);
+      isTexture = v0.isTexture && v1.isTexture && v2.isTexture;
     }
 
     CanvasTriangle(CanvasPoint v0, CanvasPoint v1, CanvasPoint v2, Colour c)
@@ -25,6 +27,7 @@ class CanvasTriangle
       vertices[1] = v1;
       vertices[2] = v2;
       colour = c;
+      isTexture = v0.isTexture && v1.isTexture && v2.isTexture;
     }
 
 };

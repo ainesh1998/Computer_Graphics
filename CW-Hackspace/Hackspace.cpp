@@ -749,7 +749,7 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
             if(-wrtCamera.z < near){
                 near = -wrtCamera.z;
             }
-            CanvasPoint point = CanvasPoint(x, y,-wrtCamera.z);
+            CanvasPoint point = CanvasPoint(x, y,-wrtCamera.z, modelTriangles[i].texturePoints[j]);
             // std::cout << modelTriangles[i].vertices[j].z << '\n';
             points.push_back(point);
         }

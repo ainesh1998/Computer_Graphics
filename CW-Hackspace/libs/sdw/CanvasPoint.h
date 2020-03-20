@@ -9,10 +9,12 @@ class CanvasPoint
     double depth;
     float brightness;
     TexturePoint texturePoint;
+    bool isTexture;
 
     CanvasPoint()
     {
         texturePoint = TexturePoint(-1,-1);
+        isTexture = false;
     }
 
     CanvasPoint(float xPos, float yPos)
@@ -22,6 +24,7 @@ class CanvasPoint
       depth = 0.0;
       brightness = 1.0;
       texturePoint = TexturePoint(-1,-1);
+      isTexture = false;
     }
 
     CanvasPoint(float xPos, float yPos, float pointDepth)
@@ -31,6 +34,7 @@ class CanvasPoint
       depth = pointDepth;
       brightness = 1.0;
       texturePoint = TexturePoint(-1,-1);
+      isTexture = false;
     }
 
     CanvasPoint(float xPos, float yPos, float pointDepth, float pointBrightness)
@@ -40,6 +44,17 @@ class CanvasPoint
       depth = pointDepth;
       brightness = pointBrightness;
       texturePoint = TexturePoint(-1,-1);
+      isTexture = false;
+    }
+
+    CanvasPoint(float xPos, float yPos, float pointDepth, TexturePoint t)
+    {
+      x = xPos;
+      y = yPos;
+      depth = pointDepth;
+      brightness = 1.0;
+      texturePoint = t;
+      isTexture = true;
     }
 
 };

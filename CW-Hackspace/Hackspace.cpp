@@ -47,7 +47,6 @@ void drawLine(CanvasPoint start,CanvasPoint end,Colour c);
 void drawRake(vec3 start,vec3 end,Colour c,double** depth_buffer);
 void drawTriangle(CanvasTriangle triangle);
 void drawFilledTriangle(CanvasTriangle triangle, double** depth_buffer,double near,double far);
-void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::vector<Colour> payload,int width,int height);
 void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer,double near,double far);
 void drawBox(std::vector<ModelTriangle> triangles, float focalLength);
 
@@ -507,83 +506,6 @@ void drawTriangle(CanvasTriangle triangle){
   drawLine(triangle.vertices[2],triangle.vertices[0],c);
 }
 
-
-void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::vector<Colour> payload,int width,int height){
-    order_textured_triangle(&triangle, &texture);
-
-    CanvasPoint v1 = triangle.vertices[0];
-    CanvasPoint v2 = triangle.vertices[1];
-    CanvasPoint v3 = triangle.vertices[2];
-    float slope = (v2.y - v1.y)/(v3.y - v1.y);
-    int newX = v1.x + slope * (v3.x - v1.x);
-    CanvasPoint v4 = CanvasPoint(newX,v2.y);
-    CanvasPoint u1 = texture.vertices[0];
-    CanvasPoint u2 = texture.vertices[1];
-    CanvasPoint u3 = texture.vertices[2];
-
-    float k_x = (u3.x-u1.x)/(v3.x-v1.x);
-    float k_y = (u3.y-u1.y)/(v3.y-v1.y);
-    int u4_x = u1.x + k_x * (v4.x-v1.x);
-    int u4_y = u1.y + k_y * (v4.y-v1.y);
-    CanvasPoint u4 = CanvasPoint(u4_x,u4_y);
-
-    //Compute  flat bottom triangle
-    std::vector<vec3> triangleLeft = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v2.x,v2.y,v2.depth), (v2.y-v1.y)+1);
-    std::vector<vec3> textureLeft = interpolate3(vec3(u1.x,u1.y,u1.depth), vec3(u2.x,u2.y,u2.depth), (v2.y-v1.y)+1);
-
-    std::vector<vec3> triangleRight = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v4.x,v4.y,v4.depth), (v2.y-v1.y)+1);
-    std::vector<vec3> textureRight = interpolate3(vec3(u1.x,u1.y,u1.depth), vec3(u4.x,u4.y,u4.depth), (v2.y-v1.y)+1);
-
-    for (int i = 0; i < triangleLeft.size(); i++) {
-        vec3 startTriangle = vec3((int) triangleLeft[i].x, triangleLeft[i].y, triangleLeft[i].z);
-        vec3 endTriangle = vec3((int) triangleRight[i].x, triangleRight[i].y, triangleRight[i].z);
-        std::vector<vec3> rakeTriangle = interpolate3(startTriangle, endTriangle, std::abs(endTriangle.x-startTriangle.x)+1);
-
-        vec3 startTexture = vec3((int) textureLeft[i].x, (int) textureLeft[i].y, textureLeft[i].z);
-        vec3 endTexture = vec3((int) textureRight[i].x, (int) textureRight[i].y, textureRight[i].z);
-        std::vector<vec3> rakeTexture = interpolate3(startTexture, endTexture, std::abs(endTriangle.x-startTriangle.x)+1);
-
-        int y = triangleLeft[i].y;
-
-        for (int j = 0; j < rakeTriangle.size(); j++) {
-            int x = rakeTriangle[j].x;
-            int ui = rakeTexture[j].x;
-            int vi = rakeTexture[j].y;
-
-            Colour c = payload[(int) ui + (int) vi * width];
-            window.setPixelColour(x,y,c.packed_colour());
-        }
-  }
-
-  //Compute Flat Top triangle
-  triangleLeft = interpolate3(vec3(v2.x,v2.y,v2.depth), vec3(v3.x,v3.y,v3.depth), (v3.y-v2.y)+1);
-  textureLeft = interpolate3(vec3(u2.x,u2.y,u2.depth), vec3(u3.x,u3.y,u3.depth), (v3.y-v2.y)+1);
-
-  triangleRight = interpolate3(vec3(v4.x,v4.y,v4.depth), vec3(v3.x,v3.y,v3.depth), (v3.y-v2.y)+1);
-  textureRight = interpolate3(vec3(u4.x,u4.y,u4.depth), vec3(u3.x,u3.y,u3.depth), (v3.y-v2.y)+1);
-
-  for (int i = 0; i < triangleLeft.size(); i++) {
-      vec3 startTriangle = vec3((int) triangleLeft[i].x, triangleLeft[i].y, triangleLeft[i].z);
-      vec3 endTriangle = vec3((int) triangleRight[i].x, triangleRight[i].y, triangleRight[i].z);
-      std::vector<vec3> rakeTriangle = interpolate3(startTriangle, endTriangle, std::abs(endTriangle.x-startTriangle.x)+1);
-
-      vec3 startTexture = vec3((int) textureLeft[i].x, (int) textureLeft[i].y, textureLeft[i].z);
-      vec3 endTexture = vec3((int) textureRight[i].x, (int) textureRight[i].y, textureRight[i].z);
-      std::vector<vec3> rakeTexture = interpolate3(startTexture, endTexture, std::abs(endTriangle.x-startTriangle.x)+1);
-
-      int y = triangleLeft[i].y;
-
-      for (int j = 0; j < rakeTriangle.size(); j++) {
-          int x = rakeTriangle[j].x;
-          int ui = rakeTexture[j].x;
-          int vi = rakeTexture[j].y;
-
-          Colour c = payload[(int) ui + (int) vi * width];
-          window.setPixelColour(x,y,c.packed_colour());
-      }
-  }
-}
-
 double compute_depth(double depth,double near,double far){
     //saw equation online
     double z = (near + far)/(far - near) + 1/depth * ((-2 * far * near)/(far - near));
@@ -689,7 +611,7 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer, double
                     int ui = rakeTexture[j].x;
                     int vi = rakeTexture[j].y;
 
-                    Colour c = texture[(int) ui + (int) vi * textureWidth];
+                    Colour c = texture[ui + (vi*textureWidth)];
                     window.setPixelColour(x, y, c.packed_colour());
                 }
             }
@@ -1099,6 +1021,7 @@ bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAng
         if(event.key.keysym.sym == SDLK_UP) rotationAngles->x -= 0.1;
         // rotate down
         if(event.key.keysym.sym == SDLK_DOWN) rotationAngles->x += 0.1;
+
 
         // look at
         if(event.key.keysym.sym == SDLK_SPACE) {

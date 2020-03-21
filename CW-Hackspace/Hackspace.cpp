@@ -16,7 +16,7 @@
 #define FOV 90
 #define INTENSITY 300000
 #define AMBIENCE 0.4
-#define WORKING_DIRECTORY "HackspaceLogo/"
+#define WORKING_DIRECTORY "cornell-box/"
 #define BOX_SCALE 50
 #define LOGO_SCALE 0.5
 
@@ -108,7 +108,7 @@ int main(int argc, char* argv[])
     // int height;
     // std::vector<Colour> colours = readPPM("test.ppm",&width1,&height);
     // writePPM("test1.ppm",width1,height,colours);
-    std::vector<ModelTriangle> triangles = readOBJ("logo.obj", "materials.mtl", LOGO_SCALE );
+    std::vector<ModelTriangle> triangles = readOBJ("cornell-box.obj", "cornell-box.mtl", BOX_SCALE );
 
     int width = 5;
     double** grid = malloc2dArray(width, width);
@@ -344,19 +344,19 @@ std::map<std::string,Colour> readMTL(std::string filename){
             stream.getline(newLine, 256);
         }
 
-        else if (strcmp(newmtl, "map_Kd") == 0) {
-            char textureFile[256];
-            stream.getline(textureFile, 256);
-            std::cout << textureFile << '\n';
-
-            int width;
-            int height;
-            std::vector<Colour> textureMap = readPPM(WORKING_DIRECTORY + (std::string) textureFile, &width, &height);
-
-            // for (int i = 0; i < textureMap.size(); i++) {
-            //     colourMap.push_back(textureMap[i])
-            // }
-        }
+        // else if (strcmp(newmtl, "map_Kd") == 0) {
+        //     char textureFile[256];
+        //     stream.getline(textureFile, 256);
+        //     std::cout << textureFile << '\n';
+        //
+        //     int width;
+        //     int height;
+        //     std::vector<Colour> textureMap = readPPM(WORKING_DIRECTORY + (std::string) textureFile, &width, &height);
+        //
+        //     // for (int i = 0; i < textureMap.size(); i++) {
+        //     //     colourMap.push_back(textureMap[i])
+        //     // }
+        // }
     }
     stream.clear();
     stream.close();
@@ -385,10 +385,10 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
 
         std::string* contents = split(line,' ');
         if(line[0] == 'v' && line[1] == 't'){
-            float x = std::stof(contents[1]);
-            float y = std::stof(contents[2]);
-            TexturePoint point = TexturePoint(x, y);
-            texturePoints.push_back(point);
+            // float x = std::stof(contents[1]);
+            // float y = std::stof(contents[2]);
+            // TexturePoint point = TexturePoint(x, y);
+            // texturePoints.push_back(point);
         }
 
         else if(line[0] == 'u'){
@@ -412,13 +412,14 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
             int index2 = std::stoi(indexes2[0]);
             int index3 = std::stoi(indexes3[0]);
 
-            int textureIndex1 = std::stoi(indexes1[1]);
-            int textureIndex2 = std::stoi(indexes2[1]);
-            int textureIndex3 = std::stoi(indexes3[1]);
+            // int textureIndex1 = std::stoi(indexes1[1]);
+            // int textureIndex2 = std::stoi(indexes2[1]);
+            // int textureIndex3 = std::stoi(indexes3[1]);
 
-            ModelTriangle m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1],
-                                            texturePoints[textureIndex1-1], texturePoints[textureIndex2-1],
-                                            texturePoints[textureIndex3-1]);
+            // ModelTriangle m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1],
+            //                                 texturePoints[textureIndex1-1], texturePoints[textureIndex2-1],
+            //                                 texturePoints[textureIndex3-1]);
+            ModelTriangle m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1], colour);
             modelTriangles.push_back(m);
         }
     }
@@ -637,24 +638,33 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer,double nea
     // drawLine(v2,v4,Colour(255,255,255));
 
     //fill top triangle
-    float invslope1 = (v2.x - v1.x) / (v2.y - v1.y);
-    float invslope2 = (v4.x - v1.x) / (v4.y - v1.y);
-    double depthslope1 = (v2.depth - v1.depth) / (double)(v2.y - v1.y);
-    double depthslope2 = (v4.depth - v1.depth) / (double)(v2.y - v1.y);
-    float curx1 = v1.x;
-    float curx2 = v1.x;
-    double curDepth1 = v1.depth;
-    double curDepth2 = v1.depth;
+    std::vector<vec3> leftSide = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v2.x,v2.y,v2.depth), v2.y-v1.y+1);
+    std::vector<vec3> rightSide = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v4.x,v4.y,v4.depth), v2.y-v1.y+1);
 
-    for (int y = v1.y; y <= v2.y; y++) {
-        float x_max = std::max(curx1,curx2);
-        float x_min = std::min(curx1,curx2);
-        float dx = x_max - x_min;
+    // float invslope1 = (v2.x - v1.x) / (v2.y - v1.y);
+    // float invslope2 = (v4.x - v1.x) / (v4.y - v1.y);
+    // double depthslope1 = (v2.depth - v1.depth) / (double)(v2.y - v1.y);
+    // double depthslope2 = (v4.depth - v1.depth) / (double)(v2.y - v1.y);
+    // float curx1 = v1.x;
+    // float curx2 = v1.x;
+    // double curDepth1 = v1.depth;
+    // double curDepth2 = v1.depth;
 
-        double depth = curx1 < curx2 ? curDepth1 : curDepth2;
-        double d_depth = curx1 < curx2 ? (curDepth2 - curDepth1)/dx : (curDepth1 - curDepth2)/dx;
+    // for (int y = v1.y; y <= v2.y; y++) {
+    for (int i = 0; i < leftSide.size(); i++) {
+        std::vector<vec3> rake = interpolate3(leftSide[i], rightSide[i], std::abs(rightSide[i].x-leftSide[i].x)+1);
+        // float x_max = std::max(curx1,curx2);
+        // float x_min = std::min(curx1,curx2);
+        // float dx = x_max - x_min;
 
-        for(int x = x_min; x <= x_max; x++){
+        // double depth = curx1 < curx2 ? curDepth1 : curDepth2;
+        // double d_depth = curx1 < curx2 ? (curDepth2 - curDepth1)/dx : (curDepth1 - curDepth2)/dx;
+
+        // for(int x = x_min; x <= x_max; x++){
+        for (int j = 0; j < rake.size(); j++) {
+            int x = rake[j].x;
+            int y = rake[j].y;
+            double depth = rake[j].z;
             if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
                 if(depth < depth_buffer[x][y]){
                     depth_buffer[x][y] = depth;
@@ -662,12 +672,12 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer,double nea
                     // std::cout << depth << '\n';
                 }
             }
-            depth += d_depth;
+            // depth += d_depth;
         }
-        curDepth1 += depthslope1;
-        curDepth2 += depthslope2;
-        curx1 += invslope1;
-        curx2 += invslope2;
+        // curDepth1 += depthslope1;
+        // curDepth2 += depthslope2;
+        // curx1 += invslope1;
+        // curx2 += invslope2;
     }
 
    //  //fill bottom triangle

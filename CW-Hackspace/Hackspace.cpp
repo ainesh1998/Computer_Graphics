@@ -392,10 +392,10 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
 
         std::string* contents = split(line,' ');
         if(line[0] == 'v' && line[1] == 't'){
-            // float x = std::stof(contents[1]);
-            // float y = std::stof(contents[2]);
-            // TexturePoint point = TexturePoint(x, y);
-            // texturePoints.push_back(point);
+            float x = std::stof(contents[1]);
+            float y = std::stof(contents[2]);
+            TexturePoint point = TexturePoint(x, y);
+            texturePoints.push_back(point);
         }
 
         else if(line[0] == 'u'){
@@ -411,6 +411,10 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
         }
 
         else if(line[0] == 'f'){
+            bool notTextured = contents[1][contents[1].length()-1] == '/' ||
+                              contents[2][contents[2].length()-1] == '/' ||
+                              contents[3][contents[3].length()-1] == '/';
+
             std::string* indexes1 = split(contents[1],'/');
             std::string* indexes2 = split(contents[2],'/');
             std::string* indexes3 = split(contents[3],'/');
@@ -419,15 +423,21 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
             int index2 = std::stoi(indexes2[0]);
             int index3 = std::stoi(indexes3[0]);
 
-            // int textureIndex1 = std::stoi(indexes1[1]);
-            // int textureIndex2 = std::stoi(indexes2[1]);
-            // int textureIndex3 = std::stoi(indexes3[1]);
 
-            // ModelTriangle m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1],
-            //                                 texturePoints[textureIndex1-1], texturePoints[textureIndex2-1],
-            //                                 texturePoints[textureIndex3-1]);
-            ModelTriangle m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1], colour);
-            modelTriangles.push_back(m);
+            if (!notTextured) {
+                int textureIndex1 = std::stoi(indexes1[1]);
+                int textureIndex2 = std::stoi(indexes2[1]);
+                int textureIndex3 = std::stoi(indexes3[1]);
+
+                ModelTriangle m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1],
+                                                texturePoints[textureIndex1-1], texturePoints[textureIndex2-1],
+                                                texturePoints[textureIndex3-1]);
+            }
+
+            else {
+                ModelTriangle m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1], colour);
+                modelTriangles.push_back(m);
+            }
         }
     }
 
@@ -455,18 +465,18 @@ void displayPicture(std::vector<Colour> payload,int width,int height){
 
 
 void drawLine(CanvasPoint start,CanvasPoint end,Colour c){
-  float xDiff = end.x - start.x;
-  float yDiff = end.y - start.y;
-  float zDiff = end.depth - start.depth;
-  float temp = std::max(abs(xDiff), abs(yDiff));
-  float numberOfSteps = std::max(temp, std::abs(zDiff));
+    float xDiff = end.x - start.x;
+    float yDiff = end.y - start.y;
+    float zDiff = end.depth - start.depth;
+    float temp = std::max(abs(xDiff), abs(yDiff));
+    float numberOfSteps = std::max(temp, std::abs(zDiff));
 
-  std::vector<vec3> line = interpolate3(vec3(start.x,start.y,start.depth), vec3(end.x,end.y,end.depth), numberOfSteps+1);
-  uint32_t colour = (255<<24) + (int(c.red)<<16) + (int(c.green)<<8) + int(c.blue);
+    std::vector<vec3> line = interpolate3(vec3(start.x,start.y,start.depth), vec3(end.x,end.y,end.depth), numberOfSteps+1);
+    uint32_t colour = (255<<24) + (int(c.red)<<16) + (int(c.green)<<8) + int(c.blue);
 
-  for (int i = 0; i < line.size(); i++) {
-      window.setPixelColour(line[i].x, line[i].y, colour);
-  }
+    for (int i = 0; i < line.size(); i++) {
+        window.setPixelColour(line[i].x, line[i].y, colour);
+    }
 }
 
 // draws HORIZONTAL lines only
@@ -638,11 +648,7 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
     for (int i = 0; i < (int) modelTriangles.size(); i++) {
         std::vector<CanvasPoint> points;
         for (int j = 0; j < 3; j++) {
-            // std::cout << modelTriangles[i].vertices[j].x << '\n';
             glm::vec3 wrtCamera = (modelTriangles[i].vertices[j] - cameraPos) * cameraOrientation;
-            // std::cout << triangles[i].vertices[j].x << " " << triangles[i].vertices[j].y << " " << triangles[i].vertices[j].z << '\n';
-            // std::cout << wrtCamera.x << " " << wrtCamera.y << " " << wrtCamera.z << '\n';
-            // std::cout << '\n';
             float ratio = focalLength/(-wrtCamera.z);
 
             int x = wrtCamera.x * ratio + WIDTH/2;
@@ -655,7 +661,6 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
                 near = -wrtCamera.z;
             }
             CanvasPoint point = CanvasPoint(x, y,-wrtCamera.z, modelTriangles[i].texturePoints[j]);
-            // std::cout << modelTriangles[i].vertices[j].z << '\n';
             points.push_back(point);
         }
         CanvasTriangle triangle = CanvasTriangle(points[0], points[1], points[2], modelTriangles[i].colour);
@@ -670,8 +675,6 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
         }
     }
     free(depth_buffer);
-    // std::cout << near << '\n';
-    // std::cout << far << '\n';
 }
 
 

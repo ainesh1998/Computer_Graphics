@@ -671,7 +671,6 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer,double nea
         // for(int x = x_min; x <= x_max; x++){
         for (int j = 0; j < rake.size(); j++) {
             int x = rake[j].x;
-            std::cout << rake[j].x << '\n';
             int y = rake[j].y;
             double depth = rake[j].z;
             if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
@@ -690,41 +689,59 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer,double nea
     }
 
    //  //fill bottom triangle
-    float invslope3 = (v3.x - v2.x) / (v3.y - v2.y);
-    float invslope4 = (v3.x - v4.x) / (v3.y - v4.y);
-    double depthslope3 = (v3.depth - v2.depth) / (double)(v3.y - v2.y);
-    double depthslope4 = (v3.depth - v4.depth) / (double)(v3.y - v2.y);
+   leftSide = interpolate3(vec3(v3.x,v3.y,v3.depth), vec3(v2.x,v2.y,v2.depth), std::abs(v2.y-v3.y)+1);
+   rightSide = interpolate3(vec3(v3.x,v3.y,v3.depth), vec3(v4.x,v4.y,v4.depth), std::abs(v4.y-v3.y)+1);
 
-    float curx3 = v3.x;
-    float curx4 = v3.x;
-
-    double curDepth3 = v3.depth;
-    double curDepth4 = v3.depth;
+    // float invslope3 = (v3.x - v2.x) / (v3.y - v2.y);
+    // float invslope4 = (v3.x - v4.x) / (v3.y - v4.y);
+    // double depthslope3 = (v3.depth - v2.depth) / (double)(v3.y - v2.y);
+    // double depthslope4 = (v3.depth - v4.depth) / (double)(v3.y - v2.y);
+    //
+    // float curx3 = v3.x;
+    // float curx4 = v3.x;
+    //
+    // double curDepth3 = v3.depth;
+    // double curDepth4 = v3.depth;
     // std::cout << curDepth3 << '\n';
 
-    for (int y = v3.y; y > v2.y; y--)
-   {
-       float x_max = std::max(curx3,curx4);
-       float x_min = std::min(curx3,curx4);
-       float dx = x_max - x_min;
+    // for (int y = v3.y; y > v2.y; y--){
+    for (int i = 0; i < leftSide.size(); i++) {
+        vec3 start = vec3((int) leftSide[i].x, leftSide[i].y, leftSide[i].z);
+        vec3 end = vec3((int) rightSide[i].x, rightSide[i].y, rightSide[i].z);
+        std::vector<vec3> rake = interpolate3(start, end, std::abs(end.x-start.x)+1);
 
-       double depth = curx3 < curx4 ? curDepth3 : curDepth4;
-       double d_depth = curx3 < curx4 ? (curDepth4 - curDepth3)/dx : (curDepth3 - curDepth4)/dx;
+       // float x_max = std::max(curx3,curx4);
+       // float x_min = std::min(curx3,curx4);
+       // float dx = x_max - x_min;
+       //
+       // double depth = curx3 < curx4 ? curDepth3 : curDepth4;
+       // double d_depth = curx3 < curx4 ? (curDepth4 - curDepth3)/dx : (curDepth3 - curDepth4)/dx;
 
-       for(int x = x_min; x <= x_max; x++){
+       // for(int x = x_min; x <= x_max; x++){
+       //     if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
+       //         if(depth < depth_buffer[x][y]){
+       //             depth_buffer[x][y] = depth;
+       //             // std::cout << depth_buffer[x][y] << '\n';
+       //             window.setPixelColour(x, y, c.packed_colour());
+       //         }
+       //     }
+       //     depth += d_depth;
+       // }
+       for (int j = 0; j < rake.size(); j++) {
+           int x = rake[j].x;
+           int y = rake[j].y;
+           double depth = rake[j].z;
            if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
                if(depth < depth_buffer[x][y]){
                    depth_buffer[x][y] = depth;
-                   // std::cout << depth_buffer[x][y] << '\n';
                    window.setPixelColour(x, y, c.packed_colour());
                }
            }
-           depth += d_depth;
        }
-     curx3 -= invslope3;
-     curx4 -= invslope4;
-     curDepth3 -= depthslope3;
-     curDepth4 -= depthslope4;
+     // curx3 -= invslope3;
+     // curx4 -= invslope4;
+     // curDepth3 -= depthslope3;
+     // curDepth4 -= depthslope4;
    }
 }
 

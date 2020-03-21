@@ -191,48 +191,37 @@ void drawFilledTriangle(CanvasTriangle triangle){
     CanvasPoint v4 = CanvasPoint(newX,v2.y);
 
     Colour c = triangle.colour;
-    drawLine(v2,v4,Colour(255,255,255));
 
     //fill top triangle
-    float invslope1 = (v2.x - v1.x) / (v2.y - v1.y);
-    float invslope2 = (v4.x - v1.x) / (v4.y - v1.y);
-    float curx1 = v1.x;
-    float curx2 = v1.x;
-    for (int scanlineY = v1.y; scanlineY <= v2.y; scanlineY++)
-  {
-    drawLine(CanvasPoint(curx1, scanlineY), CanvasPoint(curx2, scanlineY),c);
-    curx1 += invslope1;
-    curx2 += invslope2;
-  }
-   //  //fill bottom triangle
-    float invslope3 = (v3.x - v2.x) / (v3.y - v2.y);
-    float invslope4 = (v3.x - v4.x) / (v3.y - v4.y);
+    std::vector<vec3> leftSide = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v2.x,v2.y,v2.depth), v2.y-v1.y+1);
+    std::vector<vec3> rightSide = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v4.x,v4.y,v4.depth), v2.y-v1.y+1);
 
-    float curx3 = v3.x;
-    float curx4 = v3.x;
+    for (int i = 0; i < leftSide.size(); i++) {
+        drawLine(CanvasPoint((int) leftSide[i].x, leftSide[i].y), CanvasPoint((int) rightSide[i].x, rightSide[i].y),c);
+    }
 
-    for (int scanlineY = v3.y; scanlineY > v2.y; scanlineY--)
-   {
-     drawLine(CanvasPoint(curx3, scanlineY), CanvasPoint(curx4, scanlineY),c);
-     curx3 -= invslope3;
-     curx4 -= invslope4;
-   }
+    //fill bottom triangle
+    leftSide = interpolate3(vec3(v3.x,v3.y,v3.depth), vec3(v2.x,v2.y,v2.depth), std::abs(v2.y-v3.y)+1);
+    rightSide = interpolate3(vec3(v3.x,v3.y,v3.depth), vec3(v4.x,v4.y,v4.depth), std::abs(v4.y-v3.y)+1);
 
+    for (int i = 0; i < leftSide.size(); i++) {
+        drawLine(CanvasPoint((int) leftSide[i].x, leftSide[i].y), CanvasPoint((int) rightSide[i].x, rightSide[i].y),c);
+    }
 }
 
 void drawLine(CanvasPoint start,CanvasPoint end,Colour c){
   float xDiff = end.x - start.x;
   float yDiff = end.y - start.y;
-  float numberOfSteps = std::max(abs(xDiff), abs(yDiff));
-  float xStepSize = xDiff/numberOfSteps;
-  float yStepSize = yDiff/numberOfSteps;
-  uint32_t colour = (255<<24) + (int(c.red)<<16) + (int(c.green)<<8) + int(c.blue);
-  for (float i=0.0; i<numberOfSteps; i++) {
-    float x = start.x + (xStepSize*i);
-    float y = start.y + (yStepSize*i);
-    window.setPixelColour(round(x), round(y), colour);
-  }
+  float zDiff = end.depth - start.depth;
+  float temp = std::max(abs(xDiff), abs(yDiff));
+  float numberOfSteps = std::max(temp, std::abs(zDiff));
 
+  std::vector<vec3> line = interpolate3(vec3(start.x,start.y,start.depth), vec3(end.x,end.y,end.depth), numberOfSteps+1);
+  uint32_t colour = (255<<24) + (int(c.red)<<16) + (int(c.green)<<8) + int(c.blue);
+
+  for (int i = 0; i < line.size(); i++) {
+      window.setPixelColour(line[i].x, line[i].y, colour);
+  }
 }
 
 

@@ -633,42 +633,17 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer,double nea
     int newX = v1.x + slope * (v3.x - v1.x);
     double newZ = v1.depth +  (double)slope * (v3.depth - v1.depth);
     CanvasPoint v4 = CanvasPoint(newX,v2.y,newZ);
-
     Colour c = triangle.colour;
-    // drawLine(v2,v4,Colour(255,255,255));
 
     //fill top triangle
     std::vector<vec3> leftSide = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v2.x,v2.y,v2.depth), v2.y-v1.y+1);
     std::vector<vec3> rightSide = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v4.x,v4.y,v4.depth), v2.y-v1.y+1);
 
-    // float invslope1 = (v2.x - v1.x) / (v2.y - v1.y);
-    // float invslope2 = (v4.x - v1.x) / (v4.y - v1.y);
-    // double depthslope1 = (v2.depth - v1.depth) / (double)(v2.y - v1.y);
-    // double depthslope2 = (v4.depth - v1.depth) / (double)(v2.y - v1.y);
-    // float curx1 = v1.x;
-    // float curx2 = v1.x;
-    // double curDepth1 = v1.depth;
-    // double curDepth2 = v1.depth;
-
-    // for (int y = v1.y; y <= v2.y; y++) {
     for (int i = 0; i < leftSide.size(); i++) {
         vec3 start = vec3((int) leftSide[i].x, leftSide[i].y, leftSide[i].z);
         vec3 end = vec3((int) rightSide[i].x, rightSide[i].y, rightSide[i].z);
         std::vector<vec3> rake = interpolate3(start, end, std::abs(end.x-start.x)+1);
 
-        // int y = leftSide[i].y;
-        // int curx1 = leftSide[i].x;
-        // int curx2 = rightSide[i].x;
-        // double curDepth1 = leftSide[i].z;
-        // double curDepth2 = rightSide[i].z;
-        // float x_max = std::max(curx1,curx2);
-        // float x_min = std::min(curx1,curx2);
-        // float dx = x_max - x_min;
-
-        // double depth = curx1 < curx2 ? curDepth1 : curDepth2;
-        // double d_depth = curx1 < curx2 ? (curDepth2 - curDepth1)/dx : (curDepth1 - curDepth2)/dx;
-
-        // for(int x = x_min; x <= x_max; x++){
         for (int j = 0; j < rake.size(); j++) {
             int x = rake[j].x;
             int y = rake[j].y;
@@ -677,56 +652,20 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer,double nea
                 if(depth < depth_buffer[x][y]){
                     depth_buffer[x][y] = depth;
                     window.setPixelColour(x, y, c.packed_colour());
-                    // std::cout << depth << '\n';
                 }
             }
-            // depth += d_depth;
         }
-        // curDepth1 += depthslope1;
-        // curDepth2 += depthslope2;
-        // curx1 += invslope1;
-        // curx2 += invslope2;
     }
 
-   //  //fill bottom triangle
+   //fill bottom triangle
    leftSide = interpolate3(vec3(v3.x,v3.y,v3.depth), vec3(v2.x,v2.y,v2.depth), std::abs(v2.y-v3.y)+1);
    rightSide = interpolate3(vec3(v3.x,v3.y,v3.depth), vec3(v4.x,v4.y,v4.depth), std::abs(v4.y-v3.y)+1);
 
-    // float invslope3 = (v3.x - v2.x) / (v3.y - v2.y);
-    // float invslope4 = (v3.x - v4.x) / (v3.y - v4.y);
-    // double depthslope3 = (v3.depth - v2.depth) / (double)(v3.y - v2.y);
-    // double depthslope4 = (v3.depth - v4.depth) / (double)(v3.y - v2.y);
-    //
-    // float curx3 = v3.x;
-    // float curx4 = v3.x;
-    //
-    // double curDepth3 = v3.depth;
-    // double curDepth4 = v3.depth;
-    // std::cout << curDepth3 << '\n';
-
-    // for (int y = v3.y; y > v2.y; y--){
     for (int i = 0; i < leftSide.size(); i++) {
         vec3 start = vec3((int) leftSide[i].x, leftSide[i].y, leftSide[i].z);
         vec3 end = vec3((int) rightSide[i].x, rightSide[i].y, rightSide[i].z);
         std::vector<vec3> rake = interpolate3(start, end, std::abs(end.x-start.x)+1);
 
-       // float x_max = std::max(curx3,curx4);
-       // float x_min = std::min(curx3,curx4);
-       // float dx = x_max - x_min;
-       //
-       // double depth = curx3 < curx4 ? curDepth3 : curDepth4;
-       // double d_depth = curx3 < curx4 ? (curDepth4 - curDepth3)/dx : (curDepth3 - curDepth4)/dx;
-
-       // for(int x = x_min; x <= x_max; x++){
-       //     if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
-       //         if(depth < depth_buffer[x][y]){
-       //             depth_buffer[x][y] = depth;
-       //             // std::cout << depth_buffer[x][y] << '\n';
-       //             window.setPixelColour(x, y, c.packed_colour());
-       //         }
-       //     }
-       //     depth += d_depth;
-       // }
        for (int j = 0; j < rake.size(); j++) {
            int x = rake[j].x;
            int y = rake[j].y;
@@ -738,10 +677,6 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer,double nea
                }
            }
        }
-     // curx3 -= invslope3;
-     // curx4 -= invslope4;
-     // curDepth3 -= depthslope3;
-     // curDepth4 -= depthslope4;
    }
 }
 

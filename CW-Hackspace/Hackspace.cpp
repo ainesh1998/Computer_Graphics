@@ -212,7 +212,7 @@ std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValu
     float stepZ = (end.z - start.z)/(noOfValues-1);
 
     vals.push_back(start);
-    for(int i = 0; i < noOfValues - 1; i++){
+    for(int i = 0; i < noOfValues-1; i++){
       float tempX = vals[i].x + stepX;
       float tempY = vals[i].y + stepY;
       float tempZ = vals[i].z + stepZ;
@@ -652,7 +652,15 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer,double nea
 
     // for (int y = v1.y; y <= v2.y; y++) {
     for (int i = 0; i < leftSide.size(); i++) {
-        std::vector<vec3> rake = interpolate3(leftSide[i], rightSide[i], std::abs(rightSide[i].x-leftSide[i].x)+1);
+        vec3 start = vec3((int) leftSide[i].x, leftSide[i].y, leftSide[i].z);
+        vec3 end = vec3((int) rightSide[i].x, rightSide[i].y, rightSide[i].z);
+        std::vector<vec3> rake = interpolate3(start, end, std::abs(end.x-start.x)+1);
+
+        // int y = leftSide[i].y;
+        // int curx1 = leftSide[i].x;
+        // int curx2 = rightSide[i].x;
+        // double curDepth1 = leftSide[i].z;
+        // double curDepth2 = rightSide[i].z;
         // float x_max = std::max(curx1,curx2);
         // float x_min = std::min(curx1,curx2);
         // float dx = x_max - x_min;
@@ -663,6 +671,7 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer,double nea
         // for(int x = x_min; x <= x_max; x++){
         for (int j = 0; j < rake.size(); j++) {
             int x = rake[j].x;
+            std::cout << rake[j].x << '\n';
             int y = rake[j].y;
             double depth = rake[j].z;
             if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){

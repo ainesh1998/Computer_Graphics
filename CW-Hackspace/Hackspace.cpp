@@ -662,9 +662,10 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer,double nea
         vec3 end = vec3((int) rightSide[i].x, rightSide[i].y, rightSide[i].z);
         std::vector<vec3> rake = interpolate3(start, end, std::abs(end.x-start.x)+1);
 
+        int y = leftSide[i].y;
+
         for (int j = 0; j < rake.size(); j++) {
             int x = rake[j].x;
-            int y = rake[j].y;
             double depth = rake[j].z;
             if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
                 if(depth < depth_buffer[x][y]){
@@ -684,9 +685,10 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer,double nea
         vec3 end = vec3((int) rightSide[i].x, rightSide[i].y, rightSide[i].z);
         std::vector<vec3> rake = interpolate3(start, end, std::abs(end.x-start.x)+1);
 
+        int y = leftSide[i].y;
+
        for (int j = 0; j < rake.size(); j++) {
            int x = rake[j].x;
-           int y = rake[j].y;
            double depth = rake[j].z;
            if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
                if(depth < depth_buffer[x][y]){

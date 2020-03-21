@@ -643,29 +643,28 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer, double
     double newZ = v1.depth +  (double) slope * (v3.depth - v1.depth);
     CanvasPoint v4 = CanvasPoint(newX, v2.y, newZ);
 
+    if (v1.y == v3.y) return;
+
     CanvasPoint u1 = texturedTriangle.vertices[0];
     CanvasPoint u2 = texturedTriangle.vertices[1];
     CanvasPoint u3 = texturedTriangle.vertices[2];
 
     float v1_v3_dist = (v3.x-v1.x)*(v3.x-v1.x) + (v3.y-v1.y)*(v3.y-v1.y);
     float v1_v4_dist = (v4.x-v1.x)*(v4.x-v1.x) + (v4.y-v1.y)*(v4.y-v1.y);
-    float ratio = std::sqrt(v1_v4_dist/v1_v3_dist);
-    int u4_x = u1.x + ratio*(u3.x - u1.x);
-    int u4_y = u1.y + ratio*(u3.y - u1.y);
+    float ratio = (v1_v4_dist/v1_v3_dist);
+
+    int u4_x = u1.x + ratio*(u3.x-u1.x);
+    int u4_y = u1.y + ratio*(u3.y-u1.y);
 
     CanvasPoint u4 = CanvasPoint(u4_x,u4_y);
 
-    std::cout << v3.x << " " << v1.x << '\n';
+    // std::cout << "v: " << v1 << v4 << v3 <<  " u: " << u1 << u4 << u3 << "\n\n";
 
     //fill top triangle
-    // std::cout << "triangleLeft" << '\n';
     std::vector<vec3> triangleLeft = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v2.x,v2.y,v2.depth), (v2.y-v1.y)+1);
-    // std::cout << "textureLeft" << '\n';
     std::vector<vec3> textureLeft = interpolate3(vec3(u1.x,u1.y,u1.depth), vec3(u2.x,u2.y,u2.depth), (v2.y-v1.y)+1);
 
-    // std::cout << "triangleRight" << '\n';
     std::vector<vec3> triangleRight = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v4.x,v4.y,v4.depth), (v2.y-v1.y)+1);
-    // std::cout << "textureRight" << '\n';
     std::vector<vec3> textureRight = interpolate3(vec3(u1.x,u1.y,u1.depth), vec3(u4.x,u4.y,u4.depth), (v2.y-v1.y)+1);
 
     for (int i = 0; i < triangleLeft.size(); i++) {

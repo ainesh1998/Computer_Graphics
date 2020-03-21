@@ -44,6 +44,7 @@ void displayPicture(std::vector<Colour> payload,int width,int height);
 
 // rasteriser
 void drawLine(CanvasPoint start,CanvasPoint end,Colour c);
+void drawRake(vec3 start,vec3 end,Colour c,double** depth_buffer);
 void drawTriangle(CanvasTriangle triangle);
 void drawFilledTriangle(CanvasTriangle triangle, double** depth_buffer,double near,double far);
 void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::vector<Colour> payload,int width,int height);
@@ -468,6 +469,23 @@ void drawLine(CanvasPoint start,CanvasPoint end,Colour c){
   }
 }
 
+// draws HORIZONTAL lines only
+void drawRake(vec3 start, vec3 end, Colour c, double** depth_buffer){
+    float numberOfSteps = std::abs(end.x - start.x);
+    int y = start.y;
+    std::vector<vec3> rake = interpolate3(start, end, numberOfSteps+1);
+
+    for (int i = 0; i < rake.size(); i++) {
+        int x = rake[i].x; double depth = rake[i].z;
+        if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
+            if (depth < depth_buffer[x][y]) {
+                depth_buffer[x][y] = depth;
+                window.setPixelColour(x, y, c.packed_colour());
+            }
+        }
+    }
+}
+
 void drawTriangle(CanvasTriangle triangle){
   Colour c = triangle.colour;
   drawLine(triangle.vertices[0],triangle.vertices[1],c);
@@ -582,20 +600,7 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer,double nea
     for (int i = 0; i < leftSide.size(); i++) {
         vec3 start = vec3((int) leftSide[i].x, leftSide[i].y, leftSide[i].z);
         vec3 end = vec3((int) rightSide[i].x, rightSide[i].y, rightSide[i].z);
-        std::vector<vec3> rake = interpolate3(start, end, std::abs(end.x-start.x)+1);
-
-        int y = leftSide[i].y;
-
-        for (int j = 0; j < rake.size(); j++) {
-            int x = rake[j].x;
-            double depth = rake[j].z;
-            if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
-                if(depth < depth_buffer[x][y]){
-                    depth_buffer[x][y] = depth;
-                    window.setPixelColour(x, y, c.packed_colour());
-                }
-            }
-        }
+        drawRake(start, end, c, depth_buffer);
     }
 
    //fill bottom triangle
@@ -605,20 +610,7 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer,double nea
     for (int i = 0; i < leftSide.size(); i++) {
         vec3 start = vec3((int) leftSide[i].x, leftSide[i].y, leftSide[i].z);
         vec3 end = vec3((int) rightSide[i].x, rightSide[i].y, rightSide[i].z);
-        std::vector<vec3> rake = interpolate3(start, end, std::abs(end.x-start.x)+1);
-
-        int y = leftSide[i].y;
-
-       for (int j = 0; j < rake.size(); j++) {
-           int x = rake[j].x;
-           double depth = rake[j].z;
-           if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
-               if(depth < depth_buffer[x][y]){
-                   depth_buffer[x][y] = depth;
-                   window.setPixelColour(x, y, c.packed_colour());
-               }
-           }
-       }
+        drawRake(start, end, c, depth_buffer);
    }
 }
 

@@ -26,6 +26,7 @@ using glm::vec3;
 void print_vec3(vec3 point);
 double **malloc2dArray(int dimX, int dimY);
 void order_triangle(CanvasTriangle *triangle);
+void order_textured_triangle(CanvasTriangle *triangle, CanvasTriangle *texture);
 std::vector<float> interpolate(float start, float end, int noOfValues);
 std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValues);
 vec3 cramer_rule(glm::mat3 DEMatrix,vec3 SPVector);
@@ -235,6 +236,24 @@ void order_triangle(CanvasTriangle *triangle){
         }
     }
 }
+
+void order_textured_triangle(CanvasTriangle *triangle, CanvasTriangle *texture) {
+    if(triangle->vertices[1].y < triangle->vertices[0].y){
+        std::swap(triangle->vertices[0],triangle->vertices[1]);
+        std::swap(texture->vertices[0],texture->vertices[1]);
+    }
+
+    if(triangle->vertices[2].y < triangle->vertices[1].y){
+        std::swap(triangle->vertices[1],triangle->vertices[2]);
+        std::swap(texture->vertices[1],texture->vertices[2]);
+
+        if(triangle->vertices[1].y < triangle->vertices[0].y){
+            std::swap(triangle->vertices[1],triangle->vertices[0]);
+            std::swap(texture->vertices[1],texture->vertices[0]);
+        }
+    }
+}
+
 
 
 // FILE READING //
@@ -475,7 +494,7 @@ void drawTriangle(CanvasTriangle triangle){
 
 
 void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::vector<Colour> payload,int width,int height){
-    order_triangle(&triangle);
+    order_textured_triangle(&triangle, &texture);
 
     CanvasPoint v1 = triangle.vertices[0];
     CanvasPoint v2 = triangle.vertices[1];
@@ -483,7 +502,6 @@ void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::ve
     float slope = (v2.y - v1.y)/(v3.y - v1.y);
     int newX = v1.x + slope * (v3.x - v1.x);
     CanvasPoint v4 = CanvasPoint(newX,v2.y);
-    // order_triangle(&texture);
     CanvasPoint u1 = texture.vertices[0];
     CanvasPoint u2 = texture.vertices[1];
     CanvasPoint u3 = texture.vertices[2];

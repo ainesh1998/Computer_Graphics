@@ -10,6 +10,8 @@
 #define WIDTH 800
 #define HEIGHT 640
 
+using glm::vec3;
+
 void draw();
 void update();
 void handleEvent(SDL_Event event);
@@ -115,23 +117,38 @@ void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::ve
     // drawLine(v4,v2,Colour(0,255,0));
 
     //Compute  flat bottom triangle
-    float dxdyl = (v2.x - v1.x)/(v2.y -v1.y);
-    float dux_dyl = (u2.x - u1.x)/(v2.y -v1.y);
-    float duy_dyl = (u2.y- u1.y)/(v2.y -v1.y);
+    std::vector<vec3> triangleLeft = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v2.x,v2.y,v2.depth), (v2.y-v1.y)+1);
+    std::vector<vec3> textureLeft = interpolate3(vec3(u1.x,u1.y,u1.depth), vec3(u2.x,u2.y,u2.depth), (v2.y-v1.y)+1);
 
-    float dxdyr = (v4.x - v1.x)/(v2.y -v1.y);
-    float dux_dyr = (u4.x - u1.x)/(v2.y -v1.y);
-    float duy_dyr = (u4.y- u1.y)/(v2.y -v1.y);
+    // float dxdyl = (v2.x - v1.x)/(v2.y -v1.y);
+    // float dux_dyl = (u2.x - u1.x)/(v2.y -v1.y);
+    // float duy_dyl = (u2.y- u1.y)/(v2.y -v1.y);
 
-    float xl = v1.x;
-    float u_xl = u1.x;
-    float u_yl = u1.y;
+    std::vector<vec3> triangleRight = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v4.x,v4.y,v4.depth), (v2.y-v1.y)+1);
+    std::vector<vec3> textureRight = interpolate3(vec3(u1.x,u1.y,u1.depth), vec3(u4.x,u4.y,u4.depth), (v2.y-v1.y)+1);
 
-    float xr = v1.x;
-    float u_xr = u1.x;
-    float u_yr = u1.y;
+    // float dxdyr = (v4.x - v1.x)/(v2.y -v1.y);
+    // float dux_dyr = (u4.x - u1.x)/(v2.y -v1.y);
+    // float duy_dyr = (u4.y- u1.y)/(v2.y -v1.y);
+    //
+    // float xl = v1.x;
+    // float u_xl = u1.x;
+    // float u_yl = u1.y;
+    //
+    // float xr = v1.x;
+    // float u_xr = u1.x;
+    // float u_yr = u1.y;
 
-    for (int y = v1.y; y <= v2.y; y++){
+    // for (int y = v1.y; y <= v2.y; y++){
+    for (int i = 0; i < triangleLeft.size(); i++) {
+        int y = triangleLeft[i].y;
+        float xl = triangleLeft[i].x;
+        float xr = triangleRight[i].x;
+        float u_xl = textureLeft[i].x;
+        float u_yl = textureLeft[i].y;
+        float u_xr = textureRight[i].x;
+        float u_yr = textureRight[i].y;
+
         float ui = u_xl;
         float vi = u_yl;
         float dx = xr - xl;
@@ -144,32 +161,46 @@ void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::ve
             vi += dv;
         }
 
-        xl += dxdyl;
-        u_xl += dux_dyl;
-        u_yl += duy_dyl;
-        xr += dxdyr;
-        u_xr += dux_dyr;
-        u_yr += duy_dyr;
+        // xl += dxdyl;
+        // u_xl += dux_dyl;
+        // u_yl += duy_dyl;
+        // xr += dxdyr;
+        // u_xr += dux_dyr;
+        // u_yr += duy_dyr;
   }
 
   //Compute Flat Top triangle
-  dxdyl = (v3.x - v2.x)/(v3.y -v2.y);
-  dux_dyl = (u3.x - u2.x)/(v3.y -v2.y);
-  duy_dyl = (u3.y- u2.y)/(v3.y -v2.y);
+  triangleLeft = interpolate3(vec3(v2.x,v2.y,v2.depth), vec3(v3.x,v3.y,v3.depth), (v3.y-v2.y)+1);
+  textureLeft = interpolate3(vec3(u2.x,u2.y,u2.depth), vec3(u3.x,u3.y,u3.depth), (v3.y-v2.y)+1);
 
-  dxdyr = (v3.x - v4.x)/(v3.y -v2.y);
-  dux_dyr = (u3.x - u4.x)/(v3.y -v2.y);
-  duy_dyr = (u3.y- u4.y)/(v3.y -v2.y);
+  triangleRight = interpolate3(vec3(v4.x,v4.y,v4.depth), vec3(v3.x,v3.y,v3.depth), (v3.y-v2.y)+1);
+  textureRight = interpolate3(vec3(u4.x,u4.y,u4.depth), vec3(u3.x,u3.y,u3.depth), (v3.y-v2.y)+1);
+  // dxdyl = (v3.x - v2.x)/(v3.y -v2.y);
+  // dux_dyl = (u3.x - u2.x)/(v3.y -v2.y);
+  // duy_dyl = (u3.y- u2.y)/(v3.y -v2.y);
+  //
+  // dxdyr = (v3.x - v4.x)/(v3.y -v2.y);
+  // dux_dyr = (u3.x - u4.x)/(v3.y -v2.y);
+  // duy_dyr = (u3.y- u4.y)/(v3.y -v2.y);
+  //
+  // xl = v3.x;
+  // u_xl = u3.x;
+  // u_yl = u3.y;
+  //
+  // xr = v3.x;
+  // u_xr = u3.x;
+  // u_yr = u3.y;
 
-  xl = v3.x;
-  u_xl = u3.x;
-  u_yl = u3.y;
+  // for (int y = v3.y; y > v2.y; y--){
+  for (int i = 0; i < triangleLeft.size(); i++) {
+      int y = triangleLeft[i].y;
+      float xl = triangleLeft[i].x;
+      float xr = triangleRight[i].x;
+      float u_xl = textureLeft[i].x;
+      float u_yl = textureLeft[i].y;
+      float u_xr = textureRight[i].x;
+      float u_yr = textureRight[i].y;
 
-  xr = v3.x;
-  u_xr = u3.x;
-  u_yr = u3.y;
-
-  for (int y = v3.y; y > v2.y; y--){
       float ui = u_xl;
       float vi = u_yl;
       float dx = xr - xl;
@@ -182,12 +213,12 @@ void drawTexturedTriangle(CanvasTriangle triangle,CanvasTriangle texture,std::ve
           ui += du;
           vi += dv;
       }
-      xl -= dxdyl;
-      u_xl -= dux_dyl;
-      u_yl -= duy_dyl;
-      xr -= dxdyr;
-      u_xr -= dux_dyr;
-      u_yr -= duy_dyr;
+      // xl -= dxdyl;
+      // u_xl -= dux_dyl;
+      // u_yl -= duy_dyl;
+      // xr -= dxdyr;
+      // u_xr -= dux_dyr;
+      // u_yr -= duy_dyr;
   }
 
 

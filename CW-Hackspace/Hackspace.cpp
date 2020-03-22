@@ -794,9 +794,9 @@ bool isEqualTriangle(ModelTriangle t1,ModelTriangle t2){
 vec3 calcMirrorVec(vec3 point,ModelTriangle t){
     //not sure how to use mirror with multiple light sources
     vec3 lightPos = light_positions[0];
-    vec3 incidence = point - lightPos;
+    vec3 incidence = glm::normalize(point - lightPos);
     vec3 norm = computenorm(t);
-    vec3 reflect = incidence -  ( 2.f *norm) * (glm::dot(incidence,norm));
+    vec3 reflect = incidence -  2.f *(norm * (glm::dot(incidence,norm)));
     reflect = glm::normalize(reflect);
     return reflect;
 }
@@ -847,13 +847,15 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                     for (size_t i = 0; i < triangles.size(); i++) {
                         RayTriangleIntersection mirror_intersection = getIntersection(mirrorRay,triangles[i],point);
                         float dist = mirror_intersection.distanceFromCamera;
-                        if(dist<mirrorDist && !isEqualTriangle(triangles[i],final_intersection.intersectedTriangle)){
+                        if(dist < mirrorDist && !isEqualTriangle(triangles[i],final_intersection.intersectedTriangle)){
                             Colour c = triangles[i].colour;
                             newColour = vec3(c.red,c.green,c.blue);
                             mirrorDist = dist;
+                        }else if(isEqualTriangle(triangles[i],final_intersection.intersectedTriangle)){
+                            newColour = vec3(0,0,0);
                         }
                     }
-                    // newColour = vec3(0,0,0);
+                    //
                     // for (size_t t = 0; t < triangles.size(); t++) {
                     // }
                 }

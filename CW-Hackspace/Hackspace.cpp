@@ -844,16 +844,32 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                     float mirrorDist = infinity;
                     vec3 point = final_intersection.intersectionPoint;
                     vec3 mirrorRay = calcMirrorVec(point,final_intersection.intersectedTriangle);
+                    bool foundMirror = false;
                     for (size_t i = 0; i < triangles.size(); i++) {
                         RayTriangleIntersection mirror_intersection = getIntersection(mirrorRay,triangles[i],point);
                         float dist = mirror_intersection.distanceFromCamera;
-                        if(dist < mirrorDist && !isEqualTriangle(triangles[i],final_intersection.intersectedTriangle)){
-                            Colour c = triangles[i].colour;
-                            newColour = vec3(c.red,c.green,c.blue);
-                            mirrorDist = dist;
-                        }else if(isEqualTriangle(triangles[i],final_intersection.intersectedTriangle)){
+                        if(dist==infinity&&!foundMirror){
                             newColour = vec3(0,0,0);
+                        }else{
+                                if(dist < mirrorDist && !isEqualTriangle(triangles[i],final_intersection.intersectedTriangle)){
+                                    Colour c = triangles[i].colour;
+                                    newColour = vec3(c.red,c.green,c.blue);
+                                    mirrorDist = dist;
+                                }
+                                foundMirror = true;
                         }
+                        // if(dist != infinity){
+                        //     if(dist < mirrorDist && !isEqualTriangle(triangles[i],final_intersection.intersectedTriangle)){
+                        //         Colour c = triangles[i].colour;
+                        //         newColour = vec3(c.red,c.green,c.blue);
+                        //         mirrorDist = dist;
+                        //     }else{
+                        //         newColour = vec3(0,0,0);
+                        //     }
+                        // }else{
+                        //     newColour = vec3(0,0,0);
+                        // }
+
                     }
                     //
                     // for (size_t t = 0; t < triangles.size(); t++) {

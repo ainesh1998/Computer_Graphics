@@ -477,7 +477,7 @@ void drawLine(CanvasPoint start,CanvasPoint end,Colour c){
     std::vector<vec3> line = interpolate3(vec3(start.x,start.y,start.depth), vec3(end.x,end.y,end.depth), numberOfSteps+1);
     uint32_t colour = (255<<24) + (int(c.red)<<16) + (int(c.green)<<8) + int(c.blue);
 
-    for (int i = 0; i < line.size(); i++) {
+    for (uint32_t i = 0; i < line.size(); i++) {
         window.setPixelColour(line[i].x, line[i].y, colour);
     }
 }
@@ -488,7 +488,7 @@ void drawRake(vec3 start, vec3 end, Colour c, double** depth_buffer){
     int y = start.y;
     std::vector<vec3> rake = interpolate3(start, end, numberOfSteps+1);
 
-    for (int i = 0; i < rake.size(); i++) {
+    for (uint32_t i = 0; i < rake.size(); i++) {
         int x = rake[i].x; double depth = rake[i].z;
         if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
             if (depth < depth_buffer[x][y]) {
@@ -533,7 +533,7 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer,double nea
     std::vector<vec3> leftSide = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v2.x,v2.y,v2.depth), v2.y-v1.y+1);
     std::vector<vec3> rightSide = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v4.x,v4.y,v4.depth), v2.y-v1.y+1);
 
-    for (int i = 0; i < leftSide.size(); i++) {
+    for (uint32_t i = 0; i < leftSide.size(); i++) {
         vec3 start = vec3((int) leftSide[i].x, leftSide[i].y, leftSide[i].z);
         vec3 end = vec3((int) rightSide[i].x, rightSide[i].y, rightSide[i].z);
         drawRake(start, end, c, depth_buffer);
@@ -543,7 +543,7 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer,double nea
    leftSide = interpolate3(vec3(v3.x,v3.y,v3.depth), vec3(v2.x,v2.y,v2.depth), std::abs(v2.y-v3.y)+1);
    rightSide = interpolate3(vec3(v3.x,v3.y,v3.depth), vec3(v4.x,v4.y,v4.depth), std::abs(v4.y-v3.y)+1);
 
-    for (int i = 0; i < leftSide.size(); i++) {
+    for (uint32_t i = 0; i < leftSide.size(); i++) {
         vec3 start = vec3((int) leftSide[i].x, leftSide[i].y, leftSide[i].z);
         vec3 end = vec3((int) rightSide[i].x, rightSide[i].y, rightSide[i].z);
         drawRake(start, end, c, depth_buffer);
@@ -589,7 +589,7 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer, double
     std::vector<vec3> triangleRight = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v4.x,v4.y,v4.depth), (v2.y-v1.y)+1);
     std::vector<vec3> textureRight = interpolate3(vec3(u1.x,u1.y,u1.depth), vec3(u4.x,u4.y,u4.depth), (v2.y-v1.y)+1);
 
-    for (int i = 0; i < triangleLeft.size(); i++) {
+    for (uint32_t i = 0; i < triangleLeft.size(); i++) {
         vec3 startTriangle = vec3((int) triangleLeft[i].x, triangleLeft[i].y, triangleLeft[i].z);
         vec3 endTriangle = vec3((int) triangleRight[i].x, triangleRight[i].y, triangleRight[i].z);
         std::vector<vec3> rakeTriangle = interpolate3(startTriangle, endTriangle, std::abs(endTriangle.x-startTriangle.x)+1);
@@ -601,7 +601,7 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer, double
 
         int y = triangleLeft[i].y;
 
-        for (int j = 0; j < rakeTriangle.size(); j++) {
+        for (uint32_t j = 0; j < rakeTriangle.size(); j++) {
             int x = rakeTriangle[j].x; double depth = rakeTriangle[i].z;
 
             if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
@@ -626,7 +626,7 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer, double
     triangleRight = interpolate3(vec3(v4.x,v4.y,v4.depth), vec3(v3.x,v3.y,v3.depth), (v3.y-v2.y)+1);
     textureRight = interpolate3(vec3(u4.x,u4.y,u4.depth), vec3(u3.x,u3.y,u3.depth), (v3.y-v2.y)+1);
 
-    for (int i = 0; i < triangleLeft.size(); i++) {
+    for (uint32_t i = 0; i < triangleLeft.size(); i++) {
         vec3 startTriangle = vec3((int) triangleLeft[i].x, triangleLeft[i].y, triangleLeft[i].z);
         vec3 endTriangle = vec3((int) triangleRight[i].x, triangleRight[i].y, triangleRight[i].z);
         std::vector<vec3> rakeTriangle = interpolate3(startTriangle, endTriangle, std::abs(endTriangle.x-startTriangle.x)+1);
@@ -638,7 +638,7 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer, double
 
         int y = triangleLeft[i].y;
 
-        for (int j = 0; j < rakeTriangle.size(); j++) {
+        for (uint32_t j = 0; j < rakeTriangle.size(); j++) {
             int x = rakeTriangle[j].x; double depth = rakeTriangle[i].z;
 
             if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){

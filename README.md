@@ -29,7 +29,7 @@ Bold = done, italics = sort of
 
 ### 70s range
 - [ ] Phong Shading
-- [ ] Fairly “interesting” materials (e.g. mirrors)
+- [x] **Fairly “interesting” materials (e.g. mirrors)**
 - [ ] Complex anti-aliasing
 - [ ] Perspective corrected texture mapping
 - [ ] “Fancy” animation

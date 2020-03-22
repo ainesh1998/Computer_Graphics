@@ -54,7 +54,7 @@ class CanvasPoint
       depth = pointDepth;
       brightness = 1.0;
       texturePoint = t;
-      isTexture = true;
+      isTexture = (t.x != -1 && t.y != -1);
     }
 
 };

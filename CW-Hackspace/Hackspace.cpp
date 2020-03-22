@@ -795,7 +795,7 @@ bool isEqualTriangle(ModelTriangle t1,ModelTriangle t2){
 vec3 calcMirrorVec(vec3 point,ModelTriangle t){
     //not sure how to use mirror with multiple light sources
     vec3 lightPos = light_positions[0];
-    vec3 incidence = glm::normalize(point - lightPos);
+    vec3 incidence = glm::normalize(point - cameraPos);
     vec3 norm = computenorm(t);
     vec3 reflect = incidence -  2.f *(norm * (glm::dot(incidence,norm)));
     reflect = glm::normalize(reflect);

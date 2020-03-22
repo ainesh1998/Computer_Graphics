@@ -390,9 +390,14 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
     std::vector<ModelTriangle> modelTriangles;
     char line[256];
     Colour colour = Colour(255,255,255);
+    bool mirrored = false;
+
     while(stream.getline(line,256)){
 
         std::string* contents = split(line,' ');
+        if(line[0]== 'o'){
+            mirrored = contents[1].compare("back_wall") == 0;
+        }
         if(line[0] == 'v' && line[1] == 't'){
             float x = (int) (std::stof(contents[1]) * textureWidth);
             float y = (int) (std::stof(contents[2]) * textureHeight);
@@ -439,6 +444,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
 
             else {
                 ModelTriangle m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1], colour);
+                m.isMirror = mirrored;
                 modelTriangles.push_back(m);
             }
         }

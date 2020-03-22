@@ -82,7 +82,7 @@ std::vector<vec3> light_positions = {box_lightPos};
 glm::vec3 lightColour = glm::vec3(1,1,1);
 
 glm::mat3 cameraOrientation = glm::mat3();
-float infinity = std::numeric_limits<float>::infinity();;
+float infinity = std::numeric_limits<float>::infinity();
 double depth_buffer[WIDTH][HEIGHT];
 int mode = 1;
 int textureWidth;
@@ -791,16 +791,26 @@ bool isEqualTriangle(ModelTriangle t1,ModelTriangle t2){
             && t1.vertices[2] == t2.vertices[2]);
 }
 
+vec3 calcMirrorVec(vec3 point,ModelTriangle t){
+    //not sure how to use mirror with multiple light sources
+    vec3 lightPos = light_positions[0];
+    vec3 incidence = point - lightPos;
+    vec3 norm = computenorm(t);
+    vec3 reflect = incidence -  ( 2.f *norm) * (glm::dot(incidence,norm));
+    reflect = glm::normalize(reflect);
+    return reflect;
+}
 void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
     window.clearPixels();
     for (size_t x = 0; x < WIDTH; x++) {
         for (size_t y = 0; y < HEIGHT; y++) {
             vec3 ray1 = computeRay((x+0.5),(y+0.5),FOV);
-            vec3 ray2 = computeRay((x),(y),FOV);
-            vec3 ray3 = computeRay((x+1),(y),FOV);
-            vec3 ray4 = computeRay((x),(y+1),FOV);
-            vec3 ray5 = computeRay((x+1),(y+1),FOV);
-            std::vector<vec3> rays = {ray1,ray2,ray3,ray4,ray5};
+            // vec3 ray2 = computeRay((x),(y),FOV);
+            // vec3 ray3 = computeRay((x+1),(y),FOV);
+            // vec3 ray4 = computeRay((x),(y+1),FOV);
+            // vec3 ray5 = computeRay((x+1),(y+1),FOV);
+            // std::vector<vec3> rays = {ray1,ray2,ray3,ray4,ray5};
+            std::vector<vec3> rays = {ray1};
             vec3 sumColour = vec3(0,0,0);
             for (size_t r = 0; r < rays.size(); r++) {
                 RayTriangleIntersection final_intersection;
@@ -813,7 +823,8 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                     float distance = intersection.distanceFromCamera;
                     //this is valid as you are setting distance to infinity if it's invalid
                     if(distance < minDist){
-                        final_intersection.distanceFromCamera = intersection.distanceFromCamera;
+
+
                         float brightness = calcBrightness(intersection.intersectionPoint,triangles[i],triangles,light_positions);
                         vec3 lightColourCorrected = lightColour * brightness;
 
@@ -823,9 +834,28 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
 
                         Colour c = Colour(newColour.x, newColour.y, newColour.z);
                         intersection.intersectedTriangle.colour = c;
-
+                        final_intersection = intersection;
                         minDist = distance;
                     }
+                }
+
+                if (final_intersection.intersectedTriangle.isMirror) {
+                    //calculate mirror vector
+                    float mirrorDist = infinity;
+                    vec3 point = final_intersection.intersectionPoint;
+                    vec3 mirrorRay = calcMirrorVec(point,final_intersection.intersectedTriangle);
+                    for (size_t i = 0; i < triangles.size(); i++) {
+                        RayTriangleIntersection mirror_intersection = getIntersection(mirrorRay,triangles[i],point);
+                        float dist = mirror_intersection.distanceFromCamera;
+                        if(dist<mirrorDist && !isEqualTriangle(triangles[i],final_intersection.intersectedTriangle)){
+                            Colour c = triangles[i].colour;
+                            newColour = vec3(c.red,c.green,c.blue);
+                            mirrorDist = dist;
+                        }
+                    }
+                    // newColour = vec3(0,0,0);
+                    // for (size_t t = 0; t < triangles.size(); t++) {
+                    // }
                 }
                 if(final_intersection.distanceFromCamera != infinity){
                      sumColour += newColour;

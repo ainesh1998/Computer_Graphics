@@ -16,7 +16,7 @@
 #define FOV 90
 #define INTENSITY 300000
 #define AMBIENCE 0.4
-#define WORKING_DIRECTORY "HackspaceLogo/"
+#define WORKING_DIRECTORY "cornell-box/"
 #define BOX_SCALE 50
 #define LOGO_SCALE 0.5
 
@@ -108,7 +108,7 @@ int main(int argc, char* argv[])
     // int height;
     // std::vector<Colour> colours = readPPM("test.ppm",&width1,&height);
     // writePPM("test1.ppm",width1,height,colours);
-    std::vector<ModelTriangle> triangles = readOBJ("logo.obj", "materials.mtl", LOGO_SCALE );
+    std::vector<ModelTriangle> triangles = readOBJ("cornell-box.obj", "cornell-box.mtl", BOX_SCALE );
 
     int width = 5;
     double** grid = malloc2dArray(width, width);

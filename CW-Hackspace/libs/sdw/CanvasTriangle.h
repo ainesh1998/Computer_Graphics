@@ -30,6 +30,12 @@ class CanvasTriangle
       isTexture = v0.isTexture && v1.isTexture && v2.isTexture;
     }
 
+    CanvasTriangle getTextureTriangle() {
+        CanvasPoint t0 = CanvasPoint(vertices[0].texturePoint.x, vertices[0].texturePoint.y);
+        CanvasPoint t1 = CanvasPoint(vertices[1].texturePoint.x, vertices[1].texturePoint.y);
+        CanvasPoint t2 = CanvasPoint(vertices[2].texturePoint.x, vertices[2].texturePoint.y);
+        return CanvasTriangle(t0, t1, t2);
+    }
 };
 
 std::ostream& operator<<(std::ostream& os, const CanvasTriangle& triangle)

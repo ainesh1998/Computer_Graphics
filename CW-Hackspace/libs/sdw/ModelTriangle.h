@@ -9,6 +9,7 @@ class ModelTriangle
     glm::vec3 vertices[3];
     Colour colour;
     TexturePoint texturePoints[3];
+    bool isMirror = false;
 
     ModelTriangle()
     {

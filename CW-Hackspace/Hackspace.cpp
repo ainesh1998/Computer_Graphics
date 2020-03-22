@@ -16,7 +16,7 @@
 #define FOV 90
 #define INTENSITY 300000
 #define AMBIENCE 0.4
-#define WORKING_DIRECTORY "HackspaceLogo/"
+#define WORKING_DIRECTORY "cornell-box/"
 #define BOX_SCALE 50
 #define LOGO_SCALE 0.5
 
@@ -51,6 +51,7 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer,double 
 void drawBox(std::vector<ModelTriangle> triangles, float focalLength);
 
 // raytracer
+vec3 calcMirrorVec(vec3 point,ModelTriangle t);
 glm::vec3 computeRay(float x,float y,float fov);
 RayTriangleIntersection getIntersection(glm::vec3 ray,std::vector<ModelTriangle> modelTriangles,vec3 origin);
 void drawBoxRayTraced(std::vector<ModelTriangle> triangles);
@@ -82,7 +83,7 @@ std::vector<vec3> light_positions = {box_lightPos};
 glm::vec3 lightColour = glm::vec3(1,1,1);
 
 glm::mat3 cameraOrientation = glm::mat3();
-float infinity = std::numeric_limits<float>::infinity();;
+float infinity = std::numeric_limits<float>::infinity();
 double depth_buffer[WIDTH][HEIGHT];
 int mode = 1;
 int textureWidth;
@@ -108,7 +109,7 @@ int main(int argc, char* argv[])
     // int height;
     // std::vector<Colour> colours = readPPM("test.ppm",&width1,&height);
     // writePPM("test1.ppm",width1,height,colours);
-    std::vector<ModelTriangle> triangles = readOBJ("logo.obj", "materials.mtl", LOGO_SCALE );
+    std::vector<ModelTriangle> triangles = readOBJ("cornell-box.obj", "cornell-box.mtl", BOX_SCALE );
 
     int width = 5;
     double** grid = malloc2dArray(width, width);
@@ -390,9 +391,14 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
     std::vector<ModelTriangle> modelTriangles;
     char line[256];
     Colour colour = Colour(255,255,255);
+    bool mirrored = false;
+
     while(stream.getline(line,256)){
 
         std::string* contents = split(line,' ');
+        if(line[0]== 'o'){
+            mirrored = contents[1].compare("back_wall") == 0;
+        }
         if(line[0] == 'v' && line[1] == 't'){
             float x = (int) (std::stof(contents[1]) * textureWidth);
             float y = (int) (std::stof(contents[2]) * textureHeight);
@@ -439,6 +445,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
 
             else {
                 ModelTriangle m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1], colour);
+                m.isMirror = mirrored;
                 modelTriangles.push_back(m);
             }
         }
@@ -785,16 +792,26 @@ bool isEqualTriangle(ModelTriangle t1,ModelTriangle t2){
             && t1.vertices[2] == t2.vertices[2]);
 }
 
+vec3 calcMirrorVec(vec3 point,ModelTriangle t){
+    //not sure how to use mirror with multiple light sources
+    vec3 lightPos = light_positions[0];
+    vec3 incidence = glm::normalize(point - cameraPos);
+    vec3 norm = computenorm(t);
+    vec3 reflect = incidence -  2.f *(norm * (glm::dot(incidence,norm)));
+    reflect = glm::normalize(reflect);
+    return reflect;
+}
 void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
     window.clearPixels();
     for (size_t x = 0; x < WIDTH; x++) {
         for (size_t y = 0; y < HEIGHT; y++) {
             vec3 ray1 = computeRay((x+0.5),(y+0.5),FOV);
-            vec3 ray2 = computeRay((x),(y),FOV);
-            vec3 ray3 = computeRay((x+1),(y),FOV);
-            vec3 ray4 = computeRay((x),(y+1),FOV);
-            vec3 ray5 = computeRay((x+1),(y+1),FOV);
-            std::vector<vec3> rays = {ray1,ray2,ray3,ray4,ray5};
+            // vec3 ray2 = computeRay((x),(y),FOV);
+            // vec3 ray3 = computeRay((x+1),(y),FOV);
+            // vec3 ray4 = computeRay((x),(y+1),FOV);
+            // vec3 ray5 = computeRay((x+1),(y+1),FOV);
+            // std::vector<vec3> rays = {ray1,ray2,ray3,ray4,ray5};
+            std::vector<vec3> rays = {ray1};
             vec3 sumColour = vec3(0,0,0);
             for (size_t r = 0; r < rays.size(); r++) {
                 RayTriangleIntersection final_intersection;
@@ -807,7 +824,8 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                     float distance = intersection.distanceFromCamera;
                     //this is valid as you are setting distance to infinity if it's invalid
                     if(distance < minDist){
-                        final_intersection.distanceFromCamera = intersection.distanceFromCamera;
+
+
                         float brightness = calcBrightness(intersection.intersectionPoint,triangles[i],triangles,light_positions);
                         vec3 lightColourCorrected = lightColour * brightness;
 
@@ -817,9 +835,33 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
 
                         Colour c = Colour(newColour.x, newColour.y, newColour.z);
                         intersection.intersectedTriangle.colour = c;
-
+                        final_intersection = intersection;
                         minDist = distance;
                     }
+                }
+
+                if (final_intersection.intersectedTriangle.isMirror) {
+                    //calculate mirror vector
+                    float mirrorDist = infinity;
+                    vec3 point = final_intersection.intersectionPoint;
+                    vec3 mirrorRay = calcMirrorVec(point,final_intersection.intersectedTriangle);
+                    bool foundMirror = false;
+                    for (size_t i = 0; i < triangles.size(); i++) {
+                        RayTriangleIntersection mirror_intersection = getIntersection(mirrorRay,triangles[i],point);
+                        float dist = mirror_intersection.distanceFromCamera;
+                        if(dist==infinity&&!foundMirror){
+                            newColour = vec3(0,0,0);
+                        }else{
+                                if(dist < mirrorDist && !isEqualTriangle(triangles[i],final_intersection.intersectedTriangle)){
+                                    Colour c = triangles[i].colour;
+                                    newColour = vec3(c.red,c.green,c.blue);
+                                    mirrorDist = dist;
+                                }
+                                foundMirror = true;
+                        }
+
+                    }
+
                 }
                 if(final_intersection.distanceFromCamera != infinity){
                      sumColour += newColour;

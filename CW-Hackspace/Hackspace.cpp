@@ -51,6 +51,7 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer,double 
 void drawBox(std::vector<ModelTriangle> triangles, float focalLength);
 
 // raytracer
+vec3 calcMirrorVec(vec3 point,ModelTriangle t);
 glm::vec3 computeRay(float x,float y,float fov);
 RayTriangleIntersection getIntersection(glm::vec3 ray,std::vector<ModelTriangle> modelTriangles,vec3 origin);
 void drawBoxRayTraced(std::vector<ModelTriangle> triangles);
@@ -858,22 +859,9 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                                 }
                                 foundMirror = true;
                         }
-                        // if(dist != infinity){
-                        //     if(dist < mirrorDist && !isEqualTriangle(triangles[i],final_intersection.intersectedTriangle)){
-                        //         Colour c = triangles[i].colour;
-                        //         newColour = vec3(c.red,c.green,c.blue);
-                        //         mirrorDist = dist;
-                        //     }else{
-                        //         newColour = vec3(0,0,0);
-                        //     }
-                        // }else{
-                        //     newColour = vec3(0,0,0);
-                        // }
 
                     }
-                    //
-                    // for (size_t t = 0; t < triangles.size(); t++) {
-                    // }
+
                 }
                 if(final_intersection.distanceFromCamera != infinity){
                      sumColour += newColour;

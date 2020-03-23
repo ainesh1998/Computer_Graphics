@@ -804,6 +804,7 @@ vec3 calcMirrorVec(vec3 point,ModelTriangle t){
 RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangles,vec3 ray,vec3 origin,RayTriangleIntersection* original_intersection){
     RayTriangleIntersection final_intersection;
     final_intersection.distanceFromCamera = infinity;
+    final_intersection.intersectedTriangle.colour = Colour(0,0,0);
     vec3 newColour;
     float minDist = infinity;
     for (size_t i = 0; i < triangles.size(); i++) {
@@ -847,23 +848,13 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                 final_intersection = getFinalIntersection(triangles,ray,cameraPos,nullptr);
                 Colour c = final_intersection.intersectedTriangle.colour;
                 vec3 newColour = {c.red,c.green,c.blue};
-
                 if (final_intersection.intersectedTriangle.isMirror) {
-                    newColour = vec3(0,0,0); // set it to black intially (in case reflected ray doesn't hit anything)
                     //calculate mirror vector
                     vec3 point = final_intersection.intersectionPoint;
                     vec3 mirrorRay = calcMirrorVec(point,final_intersection.intersectedTriangle);
-                    float mirrorDist = infinity;
-                    for (size_t i = 0; i < triangles.size(); i++) {
-                        RayTriangleIntersection mirror_intersection = getIntersection(mirrorRay,triangles[i],point);
-                        float dist = mirror_intersection.distanceFromCamera;
-                        if(dist < mirrorDist && !isEqualTriangle(triangles[i],final_intersection.intersectedTriangle)){
-                            Colour c = triangles[i].colour;
-                            newColour = vec3(c.red,c.green,c.blue);
-                            mirrorDist = dist;
-                        }
-                    }
-
+                    RayTriangleIntersection final_mirror_intersection = getFinalIntersection(triangles,mirrorRay,point,&final_intersection);
+                    Colour c = final_mirror_intersection.intersectedTriangle.colour;
+                    newColour = vec3(c.red,c.green,c.blue);
                 }
                 if(final_intersection.distanceFromCamera != infinity){
                      sumColour += newColour;

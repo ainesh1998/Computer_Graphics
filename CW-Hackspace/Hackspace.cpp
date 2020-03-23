@@ -794,12 +794,39 @@ bool isEqualTriangle(ModelTriangle t1,ModelTriangle t2){
 
 vec3 calcMirrorVec(vec3 point,ModelTriangle t){
     //not sure how to use mirror with multiple light sources
-    vec3 lightPos = light_positions[0];
     vec3 incidence = glm::normalize(point - cameraPos);
     vec3 norm = computenorm(t);
     vec3 reflect = incidence -  2.f *(norm * (glm::dot(incidence,norm)));
     reflect = glm::normalize(reflect);
     return reflect;
+}
+
+RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangles,vec3 ray,vec3 origin,RayTriangleIntersection* original_intersection){
+    RayTriangleIntersection final_intersection;
+    final_intersection.distanceFromCamera = infinity;
+    vec3 newColour;
+    float minDist = infinity;
+    for (size_t i = 0; i < triangles.size(); i++) {
+        RayTriangleIntersection intersection = getIntersection(ray,triangles[i],origin);
+        float distance = intersection.distanceFromCamera;
+        //this is valid as you are setting distance to infinity if it's invalid
+        //!isEqualTriangle used to prevent acne from the mirror (doesn't affect the original raytrace)
+        bool hit = (original_intersection != nullptr && !isEqualTriangle(triangles[i],original_intersection->intersectedTriangle))
+                    || original_intersection == nullptr;
+        if(distance < minDist && hit){
+            float brightness = calcBrightness(intersection.intersectionPoint,triangles[i],triangles,light_positions);
+            vec3 lightColourCorrected = lightColour * brightness;
+
+            vec3 oldColour = vec3(triangles[i].colour.red, triangles[i].colour.green, triangles[i].colour.blue);
+            newColour = lightColourCorrected * oldColour;
+
+            Colour c = Colour(newColour.x, newColour.y, newColour.z);
+            intersection.intersectedTriangle.colour = c;
+            final_intersection = intersection;
+            minDist = distance;
+        }
+    }
+    return final_intersection;
 }
 void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
     window.clearPixels();
@@ -817,49 +844,24 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                 RayTriangleIntersection final_intersection;
                 final_intersection.distanceFromCamera = infinity;
                 vec3 ray = rays[r];
-                vec3 newColour;
-                float minDist = infinity;
-                for (size_t i = 0; i < triangles.size(); i++) {
-                    RayTriangleIntersection intersection = getIntersection(ray,triangles[i],cameraPos);
-                    float distance = intersection.distanceFromCamera;
-                    //this is valid as you are setting distance to infinity if it's invalid
-                    if(distance < minDist){
-
-
-                        float brightness = calcBrightness(intersection.intersectionPoint,triangles[i],triangles,light_positions);
-                        vec3 lightColourCorrected = lightColour * brightness;
-
-                        vec3 oldColour = vec3(triangles[i].colour.red, triangles[i].colour.green, triangles[i].colour.blue);
-                        newColour = lightColourCorrected * oldColour;
-
-
-                        Colour c = Colour(newColour.x, newColour.y, newColour.z);
-                        intersection.intersectedTriangle.colour = c;
-                        final_intersection = intersection;
-                        minDist = distance;
-                    }
-                }
+                final_intersection = getFinalIntersection(triangles,ray,cameraPos,nullptr);
+                Colour c = final_intersection.intersectedTriangle.colour;
+                vec3 newColour = {c.red,c.green,c.blue};
 
                 if (final_intersection.intersectedTriangle.isMirror) {
+                    newColour = vec3(0,0,0); // set it to black intially (in case reflected ray doesn't hit anything)
                     //calculate mirror vector
-                    float mirrorDist = infinity;
                     vec3 point = final_intersection.intersectionPoint;
                     vec3 mirrorRay = calcMirrorVec(point,final_intersection.intersectedTriangle);
-                    bool foundMirror = false;
+                    float mirrorDist = infinity;
                     for (size_t i = 0; i < triangles.size(); i++) {
                         RayTriangleIntersection mirror_intersection = getIntersection(mirrorRay,triangles[i],point);
                         float dist = mirror_intersection.distanceFromCamera;
-                        if(dist==infinity&&!foundMirror){
-                            newColour = vec3(0,0,0);
-                        }else{
-                                if(dist < mirrorDist && !isEqualTriangle(triangles[i],final_intersection.intersectedTriangle)){
-                                    Colour c = triangles[i].colour;
-                                    newColour = vec3(c.red,c.green,c.blue);
-                                    mirrorDist = dist;
-                                }
-                                foundMirror = true;
+                        if(dist < mirrorDist && !isEqualTriangle(triangles[i],final_intersection.intersectedTriangle)){
+                            Colour c = triangles[i].colour;
+                            newColour = vec3(c.red,c.green,c.blue);
+                            mirrorDist = dist;
                         }
-
                     }
 
                 }

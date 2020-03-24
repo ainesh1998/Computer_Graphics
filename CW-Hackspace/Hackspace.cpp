@@ -854,7 +854,7 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                     vec3 mirrorRay = calcMirrorVec(point,final_intersection.intersectedTriangle);
                     RayTriangleIntersection final_mirror_intersection = getFinalIntersection(triangles,mirrorRay,point,&final_intersection);
                     Colour c = final_mirror_intersection.intersectedTriangle.colour;
-                    newColour = vec3(c.red,c.green,c.blue);
+                    newColour = 0.8f *  vec3(c.red,c.green,c.blue);
                 }
                 if(final_intersection.distanceFromCamera != infinity){
                      sumColour += newColour;

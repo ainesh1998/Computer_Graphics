@@ -16,7 +16,7 @@
 #define FOV 90
 #define INTENSITY 300000
 #define AMBIENCE 0.4
-#define WORKING_DIRECTORY "cornell-box/"
+#define WORKING_DIRECTORY "HackspaceLogo/"
 #define BOX_SCALE 50
 #define LOGO_SCALE 0.5
 
@@ -109,7 +109,7 @@ int main(int argc, char* argv[])
     // int height;
     // std::vector<Colour> colours = readPPM("test.ppm",&width1,&height);
     // writePPM("test1.ppm",width1,height,colours);
-    std::vector<ModelTriangle> triangles = readOBJ("cornell-box.obj", "cornell-box.mtl", BOX_SCALE );
+    std::vector<ModelTriangle> triangles = readOBJ("logo.obj", "materials.mtl", LOGO_SCALE );
 
     int width = 5;
     double** grid = malloc2dArray(width, width);
@@ -515,9 +515,9 @@ void drawTriangle(CanvasTriangle triangle){
 
 double compute_depth(double depth,double near,double far){
     //saw equation online
-    double z = (near + far)/(far - near) + 1/depth * ((-2 * far * near)/(far - near));
+    // double z = (near + far)/(far - near) + 1/depth * ((-2 * far * near)/(far - near));
     // z = 1/depth;
-    // double z = (1/depth -1/near)/(1/far-1/near);
+    double z = (1/depth -1/near)/(1/far-1/near);
     return z;
 }
 
@@ -564,9 +564,12 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer, double
     CanvasPoint v1 = triangle.vertices[0];
     CanvasPoint v2 = triangle.vertices[1];
     CanvasPoint v3 = triangle.vertices[2];
+
     v1.depth = compute_depth(v1.depth,near,far);
     v2.depth = compute_depth(v2.depth,near,far);
     v3.depth = compute_depth(v3.depth,near,far);
+
+
     double slope = (v2.y - v1.y)/(v3.y - v1.y);
     int newX = v1.x + slope * (v3.x - v1.x);
     double newZ = v1.depth +  (double) slope * (v3.depth - v1.depth);
@@ -584,6 +587,10 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer, double
 
     int u4_x = u1.x + ratio*(u3.x-u1.x);
     int u4_y = u1.y + ratio*(u3.y-u1.y);
+    // float k_x = (v3.x==v1.x)? 1 : (u3.x-u1.x)/(v3.x-v1.x);
+    // float k_y = (v3.y==v1.y)? 1 :(u3.y-u1.y)/(v3.y-v1.y);
+    // int u4_x = u1.x + k_x * (v4.x-v1.x);
+    // int u4_y = u1.y + k_y * (v4.y-v1.y);
 
     CanvasPoint u4 = CanvasPoint(u4_x,u4_y);
 
@@ -609,14 +616,16 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer, double
         int y = triangleLeft[i].y;
 
         for (uint32_t j = 0; j < rakeTriangle.size(); j++) {
-            int x = rakeTriangle[j].x; double depth = rakeTriangle[i].z;
-
+            int x = rakeTriangle[j].x;
+            // std::cout << depth << '\n';
+            int ui = rakeTexture[j].x;
+            int vi = rakeTexture[j].y;
+            double depth = rakeTriangle[j].z;
             if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
                 if (depth < depth_buffer[x][y]) {
                     depth_buffer[x][y] = depth;
 
-                    int ui = rakeTexture[j].x;
-                    int vi = rakeTexture[j].y;
+
 
                     Colour c = texture[ui + (vi*textureWidth)];
                     window.setPixelColour(x, y, c.packed_colour());
@@ -646,15 +655,13 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer, double
         int y = triangleLeft[i].y;
 
         for (uint32_t j = 0; j < rakeTriangle.size(); j++) {
-            int x = rakeTriangle[j].x; double depth = rakeTriangle[i].z;
-
+            int x = rakeTriangle[j].x;
+            int ui = rakeTexture[j].x;
+            int vi = rakeTexture[j].y;
+            double depth = rakeTriangle[j].z;
             if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
                 if (depth < depth_buffer[x][y]) {
                     depth_buffer[x][y] = depth;
-
-                    int ui = rakeTexture[j].x;
-                    int vi = rakeTexture[j].y;
-
                     Colour c = texture[(int) ui + (int) vi * textureWidth];
                     window.setPixelColour(x, y, c.packed_colour());
                 }

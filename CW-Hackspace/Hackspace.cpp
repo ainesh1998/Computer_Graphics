@@ -587,8 +587,8 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer, double
     //
     // int u4_x = u1.x + ratio*(u3.x-u1.x);
     // int u4_y = u1.y + ratio*(u3.y-u1.y);
-    float k_x = (v3.x==v1.x)? 1 : (u3.x-u1.x)/(v3.x-v1.x);
-    float k_y = (v3.y==v1.y)? 1 :(u3.y-u1.y)/(v3.y-v1.y);
+    float k_x = (v3.x==v1.x)? 0 : (u3.x-u1.x)/(v3.x-v1.x);
+    float k_y = (v3.y==v1.y)? 0 :(u3.y-u1.y)/(v3.y-v1.y);
     int u4_x = u1.x + k_x * (v4.x-v1.x);
     int u4_y = u1.y + k_y * (v4.y-v1.y);
 

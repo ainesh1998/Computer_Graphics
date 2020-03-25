@@ -581,16 +581,16 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer, double
     CanvasPoint u2 = texturedTriangle.vertices[1];
     CanvasPoint u3 = texturedTriangle.vertices[2];
 
-    float v1_v3_dist = (v3.x-v1.x)*(v3.x-v1.x) + (v3.y-v1.y)*(v3.y-v1.y);
-    float v1_v4_dist = (v4.x-v1.x)*(v4.x-v1.x) + (v4.y-v1.y)*(v4.y-v1.y);
-    float ratio = (v1_v4_dist/v1_v3_dist);
-
-    int u4_x = u1.x + ratio*(u3.x-u1.x);
-    int u4_y = u1.y + ratio*(u3.y-u1.y);
-    // float k_x = (v3.x==v1.x)? 1 : (u3.x-u1.x)/(v3.x-v1.x);
-    // float k_y = (v3.y==v1.y)? 1 :(u3.y-u1.y)/(v3.y-v1.y);
-    // int u4_x = u1.x + k_x * (v4.x-v1.x);
-    // int u4_y = u1.y + k_y * (v4.y-v1.y);
+    // float v1_v3_dist = (v3.x-v1.x)*(v3.x-v1.x) + (v3.y-v1.y)*(v3.y-v1.y);
+    // float v1_v4_dist = (v4.x-v1.x)*(v4.x-v1.x) + (v4.y-v1.y)*(v4.y-v1.y);
+    // float ratio = (v1_v4_dist/v1_v3_dist);
+    //
+    // int u4_x = u1.x + ratio*(u3.x-u1.x);
+    // int u4_y = u1.y + ratio*(u3.y-u1.y);
+    float k_x = (v3.x==v1.x)? 1 : (u3.x-u1.x)/(v3.x-v1.x);
+    float k_y = (v3.y==v1.y)? 1 :(u3.y-u1.y)/(v3.y-v1.y);
+    int u4_x = u1.x + k_x * (v4.x-v1.x);
+    int u4_y = u1.y + k_y * (v4.y-v1.y);
 
     CanvasPoint u4 = CanvasPoint(u4_x,u4_y);
 

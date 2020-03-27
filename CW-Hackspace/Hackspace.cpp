@@ -18,7 +18,7 @@
 #define AMBIENCE 0.4
 #define WORKING_DIRECTORY ""
 #define BOX_SCALE 50
-#define LOGO_SCALE 0.5
+#define LOGO_SCALE 0.3
 
 using glm::vec3;
 
@@ -58,8 +58,8 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles);
 
 // event handling
 void lookAt(glm::vec3 point);
-bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAngles);
-void update(glm::vec3 translation, glm::vec3 rotationAngles);
+bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAngles, glm::vec3* light_translation);
+void update(glm::vec3 translation, glm::vec3 rotationAngles,glm::vec3 light_translation);
 
 // lighting
 vec3 computenorm(ModelTriangle t);
@@ -72,7 +72,7 @@ std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, in
 //scene map
 void drawScene();
 //move object by vec3 vector
-void moveObject(std::string,vec3 moveVec);
+void moveObject(std::string name,vec3 moveVec);
 
 // GLOBAL VARIABLES //
 
@@ -112,19 +112,21 @@ int main(int argc, char* argv[])
 
     std::vector<ModelTriangle> logo_triangles = readOBJ("HackspaceLogo/logo.obj", "HackspaceLogo/materials.mtl", LOGO_SCALE );
     for (size_t i = 0; i < logo_triangles.size(); i++) {
+        //texture mapping currently not working for raytracer
+        //setting colour to white
         logo_triangles[i].colour = Colour(255,255,255);
     }
     std::vector<ModelTriangle> box_triangles = readOBJ("cornell-box/cornell-box.obj", "cornell-box/cornell-box.mtl", BOX_SCALE );
-
+    light_positions[0] *= (float)BOX_SCALE; //cornell box light
     scene["logo"] = logo_triangles;
     scene["box"] = box_triangles;
+    moveObject("logo",vec3(-35,-25,-100));
     int width = 5;
     double** grid = malloc2dArray(width, width);
 
 
     std::vector<ModelTriangle> generatedTriangles = generateGeometry(grid, width, 50);
     drawScene();
-    // drawBox(box_triangles, FOCALLENGTH);
 
     window.renderFrame();
 
@@ -133,15 +135,16 @@ int main(int argc, char* argv[])
     {
         glm::vec3 translation = glm::vec3(0,0,0);
         glm::vec3 rotationAngles = glm::vec3(0,0,0);
+        glm::vec3 light_translation = glm::vec3(0,0,0);
         bool isUpdate = false;
 
         // We MUST poll for events - otherwise the window will freeze !
         if(window.pollForInputEvents(&event)) {
-            isUpdate = handleEvent(event, &translation, &rotationAngles);
+            isUpdate = handleEvent(event, &translation, &rotationAngles,&light_translation);
         }
 
         if (isUpdate) {
-            update(translation, rotationAngles);
+            update(translation, rotationAngles,light_translation);
 
             // RENAMED WIREFRAME TO DRAW
             // if (mode == 1 || mode == 2) drawScene();
@@ -153,6 +156,8 @@ int main(int argc, char* argv[])
             //     time(&toc);
             //     std::cout << "runtime: " << toc-tic << " seconds" << '\n';
             // }
+            std::cout << "light is at" << '\n';
+            print_vec3(light_positions[0]);
             if(mode!=4)drawScene();
             else {
                 drawBox(generatedTriangles, FOCALLENGTH);
@@ -457,9 +462,9 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
         }
     }
 
-    for (size_t i = 0; i < light_positions.size(); i++) {
-        light_positions[i] *= scale;
-    }
+    // for (size_t i = 0; i < light_positions.size(); i++) {
+    //     light_positions[i] *= scale;
+    // }
 
     stream.clear();
     stream.close();
@@ -1035,13 +1040,28 @@ std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, in
 void drawScene(){
     window.clearPixels();
     std::map<std::string,std::vector<ModelTriangle>>::iterator it;
+    std::vector<ModelTriangle> triangles;
     for (it=scene.begin(); it!=scene.end(); ++it){
-        if(mode==3)drawBoxRayTraced(it->second);
-        else drawBox(it->second,FOCALLENGTH);
+        // triangles.push_back(it->second);
+        //append triangle list
+        triangles.insert(triangles.end(),it->second.begin(),it->second.end());
     }
-
+    if(mode==3)drawBoxRayTraced(triangles);
+    else drawBox(triangles,FOCALLENGTH);
 }
 
+void moveObject(std::string name,vec3 moveVec){
+    std::vector<ModelTriangle> triangles = scene[name];
+    for (size_t i = 0; i < triangles.size(); i++) {
+        for (size_t j = 0; j < 3; j++) {
+            triangles[i].vertices[j].x += moveVec.x;
+            triangles[i].vertices[j].y += moveVec.y;
+            triangles[i].vertices[j].z += moveVec.z;
+        }
+        // std::cout << triangles[i] << '\n';
+    }
+    scene[name] = triangles;
+}
 
 // EVENT HANDLING //
 
@@ -1055,7 +1075,7 @@ void lookAt(glm::vec3 point) {
     // std::cout << glm::to_string(cameraOrientation) << '\n';
 }
 
-bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAngles)
+bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAngles,glm::vec3* light_translation)
 {
     bool toUpdate = true;
 
@@ -1081,6 +1101,19 @@ bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAng
         if(event.key.keysym.sym == SDLK_UP) rotationAngles->x -= 0.1;
         // rotate down
         if(event.key.keysym.sym == SDLK_DOWN) rotationAngles->x += 0.1;
+
+        // light translate left
+        if(event.key.keysym.sym == SDLK_j) light_translation->x -= 10;
+        // light translate right
+        if(event.key.keysym.sym == SDLK_l) light_translation->x += 10;
+        // light translate up
+        if(event.key.keysym.sym == SDLK_i) light_translation->y += 10;
+        // light translate down
+        if(event.key.keysym.sym == SDLK_k) light_translation->y -= 10;
+        // light translate back
+        if(event.key.keysym.sym == SDLK_o) light_translation->z += 10;
+        // light translate front
+        if(event.key.keysym.sym == SDLK_p) light_translation->z -= 10;
 
 
         // look at
@@ -1121,7 +1154,7 @@ bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAng
 // APPLY TRANSFORMATIONS TO CAMERA //
 
 
-void update(glm::vec3 translation, glm:: vec3 rotationAngles) {
+void update(glm::vec3 translation, glm:: vec3 rotationAngles, glm::vec3 light_translation) {
     glm::mat3 rotationX = glm::transpose(glm::mat3(glm::vec3(1, 0, 0),
                                     glm::vec3(0, cos(rotationAngles.x), -sin(rotationAngles.x)),
                                     glm::vec3(0, sin(rotationAngles.x), cos(rotationAngles.x))));
@@ -1134,4 +1167,5 @@ void update(glm::vec3 translation, glm:: vec3 rotationAngles) {
     cameraOrientation *= rotationY;
 
     cameraPos += translation;
+    light_positions[0] += light_translation;
 }

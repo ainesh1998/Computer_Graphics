@@ -16,7 +16,7 @@
 #define FOV 90
 #define INTENSITY 300000
 #define AMBIENCE 0.4
-#define WORKING_DIRECTORY "HackspaceLogo/"
+#define WORKING_DIRECTORY ""
 #define BOX_SCALE 50
 #define LOGO_SCALE 0.5
 
@@ -69,6 +69,10 @@ float calcBrightness(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> 
 void diamondSquare(double** pointHeights, int width, double currentSize);
 std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, int scale);
 
+//scene map
+void drawScene();
+//move object by vec3 vector
+void moveObject(std::string,vec3 moveVec);
 
 // GLOBAL VARIABLES //
 
@@ -89,7 +93,7 @@ int mode = 1;
 int textureWidth;
 int textureHeight;
 std::vector<Colour> texture = readPPM("HackspaceLogo/texture.ppm", &textureWidth, &textureHeight);
-
+std::map<std::string, std::vector<ModelTriangle>> scene;
 
 int main(int argc, char* argv[])
 {
@@ -105,19 +109,22 @@ int main(int argc, char* argv[])
     //     print_vec3(lightPos);
     //     light_positions.push_back(lightPos);
     // }
-    // int width1;
-    // int height;
-    // std::vector<Colour> colours = readPPM("test.ppm",&width1,&height);
-    // writePPM("test1.ppm",width1,height,colours);
-    std::vector<ModelTriangle> triangles = readOBJ("logo.obj", "materials.mtl", LOGO_SCALE );
 
+    std::vector<ModelTriangle> logo_triangles = readOBJ("HackspaceLogo/logo.obj", "HackspaceLogo/materials.mtl", LOGO_SCALE );
+    for (size_t i = 0; i < logo_triangles.size(); i++) {
+        logo_triangles[i].colour = Colour(255,255,255);
+    }
+    std::vector<ModelTriangle> box_triangles = readOBJ("cornell-box/cornell-box.obj", "cornell-box/cornell-box.mtl", BOX_SCALE );
+
+    scene["logo"] = logo_triangles;
+    scene["box"] = box_triangles;
     int width = 5;
     double** grid = malloc2dArray(width, width);
 
 
     std::vector<ModelTriangle> generatedTriangles = generateGeometry(grid, width, 50);
-
-    drawBox(triangles, FOCALLENGTH);
+    drawScene();
+    // drawBox(box_triangles, FOCALLENGTH);
 
     window.renderFrame();
 
@@ -137,17 +144,17 @@ int main(int argc, char* argv[])
             update(translation, rotationAngles);
 
             // RENAMED WIREFRAME TO DRAW
-            if (mode == 1 || mode == 2) drawBox(triangles, FOCALLENGTH);
-            else if (mode == 3) {
-                time_t tic;
-                time(&tic);
-                drawBoxRayTraced(triangles);
-                time_t toc;
-                time(&toc);
-                std::cout << "runtime: " << toc-tic << " seconds" << '\n';
-            }
-
-            else if (mode == 4) {
+            // if (mode == 1 || mode == 2) drawScene();
+            // else if (mode == 3) {
+            //     time_t tic;
+            //     time(&tic);
+            //     drawBoxRayTraced(triangles);
+            //     time_t toc;
+            //     time(&toc);
+            //     std::cout << "runtime: " << toc-tic << " seconds" << '\n';
+            // }
+            if(mode!=4)drawScene();
+            else {
                 drawBox(generatedTriangles, FOCALLENGTH);
             }
 
@@ -348,7 +355,6 @@ std::map<std::string,Colour> readMTL(std::string filename){
 
             Colour c = Colour(colourName, r, g, b);
             colourMap[colourName] = c;
-            // colours.push_back(c);
 
             char newLine[256];
             stream.getline(newLine, 256);
@@ -674,7 +680,7 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer, double
 void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
     // stepBack = dv, focalLength = di
 
-    window.clearPixels();
+    // window.clearPixels();
     std::vector<CanvasTriangle> triangles;
 
     double **depth_buffer;
@@ -837,7 +843,7 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
     return final_intersection;
 }
 void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
-    window.clearPixels();
+    // window.clearPixels();
     for (size_t x = 0; x < WIDTH; x++) {
         for (size_t y = 0; y < HEIGHT; y++) {
             vec3 ray1 = computeRay((x+0.5),(y+0.5),FOV);
@@ -1022,6 +1028,18 @@ std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, in
         }
     }
     return generatedTriangles;
+}
+
+//SCENE//
+
+void drawScene(){
+    window.clearPixels();
+    std::map<std::string,std::vector<ModelTriangle>>::iterator it;
+    for (it=scene.begin(); it!=scene.end(); ++it){
+        if(mode==3)drawBoxRayTraced(it->second);
+        else drawBox(it->second,FOCALLENGTH);
+    }
+
 }
 
 

@@ -73,6 +73,7 @@ std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, in
 void drawScene();
 //move object by vec3 vector
 void moveObject(std::string name,vec3 moveVec);
+void rotateObject(std::string name,vec3 rotationAngles);
 
 // GLOBAL VARIABLES //
 
@@ -117,13 +118,16 @@ int main(int argc, char* argv[])
         logo_triangles[i].colour = Colour(255,255,255);
     }
     std::vector<ModelTriangle> box_triangles = readOBJ("cornell-box/cornell-box.obj", "cornell-box/cornell-box.mtl", BOX_SCALE );
-    light_positions[0] *= (float)BOX_SCALE; //cornell box light
+    for (size_t i = 0; i < light_positions.size(); i++) {
+        light_positions[i] *= (float)BOX_SCALE; //cornell box light
+    }
     scene["logo"] = logo_triangles;
     scene["box"] = box_triangles;
     moveObject("logo",vec3(-35,-25,-100));
+    rotateObject("logo",vec3(0,1.5,0));
+    moveObject("logo",vec3(0,0,-120));
     int width = 5;
     double** grid = malloc2dArray(width, width);
-
 
     std::vector<ModelTriangle> generatedTriangles = generateGeometry(grid, width, 50);
     drawScene();
@@ -146,16 +150,6 @@ int main(int argc, char* argv[])
         if (isUpdate) {
             update(translation, rotationAngles,light_translation);
 
-            // RENAMED WIREFRAME TO DRAW
-            // if (mode == 1 || mode == 2) drawScene();
-            // else if (mode == 3) {
-            //     time_t tic;
-            //     time(&tic);
-            //     drawBoxRayTraced(triangles);
-            //     time_t toc;
-            //     time(&toc);
-            //     std::cout << "runtime: " << toc-tic << " seconds" << '\n';
-            // }
             std::cout << "light is at" << '\n';
             print_vec3(light_positions[0]);
             if(mode!=4)drawScene();
@@ -461,10 +455,6 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
             }
         }
     }
-
-    // for (size_t i = 0; i < light_positions.size(); i++) {
-    //     light_positions[i] *= scale;
-    // }
 
     stream.clear();
     stream.close();
@@ -1042,11 +1032,17 @@ void drawScene(){
     std::map<std::string,std::vector<ModelTriangle>>::iterator it;
     std::vector<ModelTriangle> triangles;
     for (it=scene.begin(); it!=scene.end(); ++it){
-        // triangles.push_back(it->second);
         //append triangle list
         triangles.insert(triangles.end(),it->second.begin(),it->second.end());
     }
-    if(mode==3)drawBoxRayTraced(triangles);
+    if(mode==3){
+        time_t tic;
+        time(&tic);
+        drawBoxRayTraced(triangles);
+        time_t toc;
+        time(&toc);
+        std::cout << "runtime: " << toc-tic << " seconds" << '\n';
+    }
     else drawBox(triangles,FOCALLENGTH);
 }
 
@@ -1054,9 +1050,32 @@ void moveObject(std::string name,vec3 moveVec){
     std::vector<ModelTriangle> triangles = scene[name];
     for (size_t i = 0; i < triangles.size(); i++) {
         for (size_t j = 0; j < 3; j++) {
-            triangles[i].vertices[j].x += moveVec.x;
-            triangles[i].vertices[j].y += moveVec.y;
-            triangles[i].vertices[j].z += moveVec.z;
+            triangles[i].vertices[j] += moveVec;
+            // triangles[i].vertices[j].x += moveVec.x;
+            // triangles[i].vertices[j].y += moveVec.y;
+            // triangles[i].vertices[j].z += moveVec.z;
+        }
+        // std::cout << triangles[i] << '\n';
+    }
+    scene[name] = triangles;
+}
+
+void rotateObject(std::string name,vec3 rotationAngles){
+    glm::mat3 rotation_matrix  = glm::mat3();
+    glm::mat3 rotationX = glm::transpose(glm::mat3(glm::vec3(1, 0, 0),
+                                    glm::vec3(0, cos(rotationAngles.x), -sin(rotationAngles.x)),
+                                    glm::vec3(0, sin(rotationAngles.x), cos(rotationAngles.x))));
+
+    glm::mat3 rotationY = glm::transpose(glm::mat3(glm::vec3(cos(rotationAngles.y), 0.0, sin(rotationAngles.y)),
+                                    glm::vec3(0.0, 1.0, 0.0),
+                                    glm::vec3(-sin(rotationAngles.y), 0.0, cos(rotationAngles.y))));
+    rotation_matrix *= rotationX;
+    rotation_matrix *= rotationY;
+
+    std::vector<ModelTriangle> triangles = scene[name];
+    for (size_t i = 0; i < triangles.size(); i++) {
+        for (size_t j = 0; j < 3; j++) {
+            triangles[i].vertices[j] = triangles[i].vertices[j] * rotation_matrix;
         }
         // std::cout << triangles[i] << '\n';
     }
@@ -1167,5 +1186,7 @@ void update(glm::vec3 translation, glm:: vec3 rotationAngles, glm::vec3 light_tr
     cameraOrientation *= rotationY;
 
     cameraPos += translation;
-    light_positions[0] += light_translation;
+    for (size_t i = 0; i < light_positions.size(); i++) {
+        light_positions[i] += light_translation;
+    }
 }

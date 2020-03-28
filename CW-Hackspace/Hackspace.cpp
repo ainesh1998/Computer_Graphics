@@ -122,9 +122,9 @@ int main(int argc, char* argv[])
     scene["logo"] = logo_triangles;
     scene["box"] = box_triangles;
     moveObject("logo",vec3(-35,-25,-100));
-    // rotateObject("logo",vec3(0,1.5,0));
-    // moveObject("logo",vec3(0,0,120));
-    moveObject("logo",vec3(0,0,80));
+    rotateObject("logo",vec3(0,1.5,0));
+    moveObject("logo",vec3(0,0,-120));
+
     int width = 5;
     double** grid = malloc2dArray(width, width);
 
@@ -800,32 +800,13 @@ vec3 getTextureColour(ModelTriangle triangle, vec3 solution, vec3 point) {
     float u = solution.y;
     float v = solution.z;
 
-    vec3 leftPoint = triangle.vertices[0] + u * (triangle.vertices[1] - triangle.vertices[0]);
-    vec3 rightPoint = triangle.vertices[0] + v * (triangle.vertices[2] - triangle.vertices[0]);
-
     vec3 t1 = vec3(triangle.texturePoints[0].x, triangle.texturePoints[0].y, 0);
     vec3 t2 = vec3(triangle.texturePoints[1].x, triangle.texturePoints[1].y, 0);
     vec3 t3 = vec3(triangle.texturePoints[2].x, triangle.texturePoints[2].y, 0);
-    vec3 leftPointTexture = t1 + u * (t2 - t1);
-    vec3 rightPointTexture = t1 + v * (t3 - t1);
 
-    // print_vec3(t1);
-    // print_vec3(t2);
-    // print_vec3(t3);
-    // std::cout  << '\n';
-
-
-    float rakeDist = glm::distance(leftPoint, rightPoint);
-    float rakePointDist = glm::distance(leftPoint, point);
-    float rakeTextureDist = glm::distance(leftPointTexture, rightPointTexture);
-    float ratio = rakeTextureDist*rakePointDist/rakeDist;
-    vec3 texturePoint = leftPointTexture + ratio*glm::normalize(rightPointTexture - leftPointTexture);
+    vec3 texturePoint = t1 + u * (t2 - t1) + v * (t3 - t1);
     Colour c = texture[(int) texturePoint.x + (int) texturePoint.y * textureWidth];
 
-    // print_vec3(leftPoint);
-    // print_vec3(point);
-    // std::cout << '\n';
-    // return vec3(255, 255, 255);
     return vec3(c.red, c.green, c.blue);
 }
 

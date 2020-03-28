@@ -19,6 +19,7 @@
 #define WORKING_DIRECTORY ""
 #define BOX_SCALE 50
 #define LOGO_SCALE 0.3
+#define SPHERE_SCALE 10
 
 using glm::vec3;
 
@@ -52,6 +53,7 @@ void drawBox(std::vector<ModelTriangle> triangles, float focalLength);
 
 // raytracer
 vec3 calcMirrorVec(vec3 point,ModelTriangle t);
+vec3 getTextureColour(ModelTriangle triangle, vec3 solution, vec3 point);
 glm::vec3 computeRay(float x,float y,float fov);
 RayTriangleIntersection getIntersection(glm::vec3 ray,std::vector<ModelTriangle> modelTriangles,vec3 origin);
 void drawBoxRayTraced(std::vector<ModelTriangle> triangles);
@@ -115,15 +117,22 @@ int main(int argc, char* argv[])
     std::vector<ModelTriangle> logo_triangles = readOBJ("HackspaceLogo/logo.obj", "HackspaceLogo/materials.mtl", LOGO_SCALE );
 
     std::vector<ModelTriangle> box_triangles = readOBJ("cornell-box/cornell-box.obj", "cornell-box/cornell-box.mtl", BOX_SCALE );
+
+    std::vector<ModelTriangle> sphere_triangles = readOBJ("extra-objects/sphere.obj", "", SPHERE_SCALE);
+
     for (size_t i = 0; i < light_positions.size(); i++) {
         light_positions[i] *= (float)BOX_SCALE; //cornell box light
     }
 
     scene["logo"] = logo_triangles;
     scene["box"] = box_triangles;
+    scene["sphere"] = sphere_triangles;
+
     moveObject("logo",vec3(-35,-25,-100));
     rotateObject("logo",vec3(0,1.5,0));
     moveObject("logo",vec3(0,0,-120));
+    // moveObject("sphere",vec3(35,100,-100)); // place sphere above red box
+    moveObject("sphere", vec3(-70, 20, -70)); // place sphere in front of blue box
 
     int width = 5;
     double** grid = malloc2dArray(width, width);
@@ -403,11 +412,12 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
     bool mirrored = false;
 
     while(stream.getline(line,256)){
-
         std::string* contents = split(line,' ');
+
         if(line[0]== 'o'){
             mirrored = contents[1].compare("back_wall") == 0;
         }
+
         if(line[0] == 'v' && line[1] == 't'){
             float x = (int) (std::stof(contents[1]) * textureWidth);
             float y = (int) (std::stof(contents[2]) * textureHeight);
@@ -415,11 +425,16 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
             texturePoints.push_back(point);
         }
 
+        else if(line[0] == 'v' && line[1] == 'n') {
+            // vertex normals - don't think we need to do anything, it's just for the sphere
+        }
+
         else if(line[0] == 'u'){
             colour = colourMap[contents[1]];
         }
 
         else if(line[0] == 'v'){
+            // if (filename.compare("extra-objects/sphere.obj")==0) std::cout << offset << '\n';
             float x = std::stof(contents[1]) * scale;
             float y = std::stof(contents[2]) * scale;
             float z = std::stof(contents[3]) * scale;
@@ -440,8 +455,9 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
             int index2 = std::stoi(indexes2[0]);
             int index3 = std::stoi(indexes3[0]);
 
+            std::string directory = filename.substr(0, 13);
 
-            if (!notTextured) {
+            if (!notTextured && directory.compare("extra-objects") != 0) {
                 int textureIndex1 = std::stoi(indexes1[1]);
                 int textureIndex2 = std::stoi(indexes2[1]);
                 int textureIndex3 = std::stoi(indexes3[1]);
@@ -453,6 +469,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
             }
 
             else {
+                if (directory.compare("extra-objects") == 0) colour = Colour(255,255,255);
                 ModelTriangle m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1], colour);
                 m.isMirror = mirrored;
                 modelTriangles.push_back(m);

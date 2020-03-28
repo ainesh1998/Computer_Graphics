@@ -936,17 +936,16 @@ vec3 computenorm(ModelTriangle t, vec3 solution) {
         norm = vertexNormals[0] + solution.y * (vertexNormals[1]-vertexNormals[0]) + solution.z * (vertexNormals[2]-vertexNormals[0]);
         return norm;
     }
-
     norm = glm::cross((t.vertices[1] - t.vertices[0]),(t.vertices[2] - t.vertices[0]));
     norm = glm::normalize(norm);
     return norm;
 }
 
 float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos, vec3 solution){
+    vec3 norm = computenorm(t-solution);
     vec3 lightDir = lightPos - point;
     float dist = glm::length(lightDir);
     lightDir = glm::normalize(lightDir);
-    vec3 norm = computenorm(t, solution);
 
     float dot_product = glm::dot(lightDir,norm);
 
@@ -956,8 +955,9 @@ float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> t
     if (brightness < AMBIENCE) brightness = AMBIENCE;
 
     //do shadow calc here
-    //lightDir = shadowRay (lightPos - point)
     bool isShadow = false;
+    vec3 shadowRay = glm::normalize(lightPos - norm);
+
     for (size_t i = 0; i < triangles.size(); i++) {
         RayTriangleIntersection shadowIntersection = getIntersection(lightDir,triangles[i],point);
         if(shadowIntersection.distanceFromCamera < dist && !isEqualTriangle(shadowIntersection.intersectedTriangle,t)){

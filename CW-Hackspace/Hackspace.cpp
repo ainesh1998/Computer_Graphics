@@ -245,6 +245,11 @@ void order_textured_triangle(CanvasTriangle *triangle, CanvasTriangle *texture) 
     }
 }
 
+bool isEqualTriangle(ModelTriangle t1,ModelTriangle t2){
+    return (t1.vertices[0] == t2.vertices[0]
+            && t1.vertices[1] == t2.vertices[1]
+            && t1.vertices[2] == t2.vertices[2]);
+}
 
 
 // FILE READING //
@@ -581,20 +586,12 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer, double
     CanvasPoint u2 = texturedTriangle.vertices[1];
     CanvasPoint u3 = texturedTriangle.vertices[2];
 
-    // float v1_v3_dist = (v3.x-v1.x)*(v3.x-v1.x) + (v3.y-v1.y)*(v3.y-v1.y);
-    // float v1_v4_dist = (v4.x-v1.x)*(v4.x-v1.x) + (v4.y-v1.y)*(v4.y-v1.y);
-    // float ratio = (v1_v4_dist/v1_v3_dist);
-    //
-    // int u4_x = u1.x + ratio*(u3.x-u1.x);
-    // int u4_y = u1.y + ratio*(u3.y-u1.y);
     float k_x = (v3.x==v1.x)? 0 : (u3.x-u1.x)/(v3.x-v1.x);
     float k_y = (v3.y==v1.y)? 0 :(u3.y-u1.y)/(v3.y-v1.y);
     int u4_x = u1.x + k_x * (v4.x-v1.x);
     int u4_y = u1.y + k_y * (v4.y-v1.y);
 
     CanvasPoint u4 = CanvasPoint(u4_x,u4_y);
-
-    // std::cout << "v: " << v1 << v4 << v3 <<  " u: " << u1 << u4 << u3 << "\n\n";
 
     //fill top triangle
     std::vector<vec3> triangleLeft = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v2.x,v2.y,v2.depth), (v2.y-v1.y)+1);
@@ -617,22 +614,18 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer, double
 
         for (uint32_t j = 0; j < rakeTriangle.size(); j++) {
             int x = rakeTriangle[j].x;
-            // std::cout << depth << '\n';
             int ui = rakeTexture[j].x;
             int vi = rakeTexture[j].y;
             double depth = rakeTriangle[j].z;
+
             if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
                 if (depth < depth_buffer[x][y]) {
                     depth_buffer[x][y] = depth;
-
-
-
                     Colour c = texture[ui + (vi*textureWidth)];
                     window.setPixelColour(x, y, c.packed_colour());
                 }
             }
         }
-
     }
 
     // fill bottom triangle
@@ -667,7 +660,6 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer, double
                 }
             }
         }
-
     }
 }
 
@@ -732,11 +724,12 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
 
 // RAYTRACING //
 
+
 /*
 DEMatrix * (t,u,v)= SPVector
 Cramer's rule is a way to find (t,u,v)
 info found here:
-https://www.purplemath.com/modules/cramers.html*/
+https://www.purplemath.com/modules/cramers.htm*/
 vec3 cramer_rule(glm::mat3 DEMatrix,vec3 SPVector){
     glm::vec3 negRay = glm::column(DEMatrix,0);
     glm::vec3 e0 = glm::column(DEMatrix,1);
@@ -793,11 +786,6 @@ glm::vec3 computeRay(float x,float y,float fov){
     rayDirection = glm::normalize(rayDirection);
     return rayDirection;
 }
-bool isEqualTriangle(ModelTriangle t1,ModelTriangle t2){
-    return (t1.vertices[0] == t2.vertices[0]
-            && t1.vertices[1] == t2.vertices[1]
-            && t1.vertices[2] == t2.vertices[2]);
-}
 
 vec3 calcMirrorVec(vec3 point,ModelTriangle t){
     //not sure how to use mirror with multiple light sources
@@ -836,10 +824,13 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
     }
     return final_intersection;
 }
+
 void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
     window.clearPixels();
     for (size_t x = 0; x < WIDTH; x++) {
         for (size_t y = 0; y < HEIGHT; y++) {
+            // complex anti-aliasing - firing multiple rays according to quincux pattern
+
             vec3 ray1 = computeRay((x+0.5),(y+0.5),FOV);
             // vec3 ray2 = computeRay((x),(y),FOV);
             // vec3 ray3 = computeRay((x+1),(y),FOV);
@@ -855,14 +846,18 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                 final_intersection = getFinalIntersection(triangles,ray,cameraPos,nullptr);
                 Colour c = final_intersection.intersectedTriangle.colour;
                 vec3 newColour = {c.red,c.green,c.blue};
+
+                // mirror
                 if (final_intersection.intersectedTriangle.isMirror) {
                     //calculate mirror vector
                     vec3 point = final_intersection.intersectionPoint;
                     vec3 mirrorRay = calcMirrorVec(point,final_intersection.intersectedTriangle);
+                    // original_intersection is used to ensure mirror doesn't reflect itself
                     RayTriangleIntersection final_mirror_intersection = getFinalIntersection(triangles,mirrorRay,point,&final_intersection);
                     Colour c = final_mirror_intersection.intersectedTriangle.colour;
-                    newColour = 0.8f *  vec3(c.red,c.green,c.blue);
+                    newColour = 0.8f *  vec3(c.red,c.green,c.blue); // 0.8 is to make mirror slightly darker than the real object
                 }
+
                 if(final_intersection.distanceFromCamera != infinity){
                      sumColour += newColour;
                 }
@@ -907,7 +902,9 @@ float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> t
     // std::cout << brightness << '\n';
     return brightness;
 }
+
 float calcBrightness(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,std::vector<vec3> light_positions){
+    // soft shadows - multiple light sources
     float brightness = 0.f;
     for (size_t i = 0; i < light_positions.size(); i++) {
         brightness += calcProximity(point,t,triangles,light_positions[i]);
@@ -1115,5 +1112,5 @@ void update(glm::vec3 translation, glm:: vec3 rotationAngles) {
     cameraOrientation *= rotationX;
     cameraOrientation *= rotationY;
 
-    cameraPos += translation;
+    cameraPos += translation * glm::inverse(cameraOrientation);
 }

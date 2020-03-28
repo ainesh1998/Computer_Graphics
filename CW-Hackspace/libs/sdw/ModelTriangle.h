@@ -10,9 +10,11 @@ class ModelTriangle
     Colour colour;
     TexturePoint texturePoints[3];
     bool isMirror = false;
+    bool isTexture = false;
 
     ModelTriangle()
     {
+        isTexture = false;
     }
 
     ModelTriangle(glm::vec3 v0, glm::vec3 v1, glm::vec3 v2, Colour trigColour)
@@ -24,6 +26,7 @@ class ModelTriangle
       texturePoints[0] = TexturePoint(-1,-1);
       texturePoints[1] = TexturePoint(-1,-1);
       texturePoints[2] = TexturePoint(-1,-1);
+      isTexture = false;
     }
 
     ModelTriangle(glm::vec3 v0, glm::vec3 v1, glm::vec3 v2, TexturePoint t1, TexturePoint t2, TexturePoint t3)
@@ -34,6 +37,7 @@ class ModelTriangle
       texturePoints[0] = t1;
       texturePoints[1] = t2;
       texturePoints[2] = t3;
+      isTexture = true;
     }
 };
 

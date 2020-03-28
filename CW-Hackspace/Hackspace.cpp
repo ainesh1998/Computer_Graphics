@@ -111,16 +111,14 @@ int main(int argc, char* argv[])
     //     light_positions.push_back(lightPos);
     // }
 
+    // SET UP SCENE
     std::vector<ModelTriangle> logo_triangles = readOBJ("HackspaceLogo/logo.obj", "HackspaceLogo/materials.mtl", LOGO_SCALE );
-    for (size_t i = 0; i < logo_triangles.size(); i++) {
-        //texture mapping currently not working for raytracer
-        //setting colour to white
-        logo_triangles[i].colour = Colour(255,255,255);
-    }
+
     std::vector<ModelTriangle> box_triangles = readOBJ("cornell-box/cornell-box.obj", "cornell-box/cornell-box.mtl", BOX_SCALE );
     for (size_t i = 0; i < light_positions.size(); i++) {
         light_positions[i] *= (float)BOX_SCALE; //cornell box light
     }
+
     scene["logo"] = logo_triangles;
     scene["box"] = box_triangles;
     moveObject("logo",vec3(-35,-25,-100));
@@ -763,7 +761,7 @@ RayTriangleIntersection getIntersection(glm::vec3 ray,ModelTriangle triangle,vec
     glm::mat3 DEMatrix(negRay, e0, e1);
     glm::vec3 possibleSolution = cramer_rule(DEMatrix,SPVector);
     glm::vec3 point = origin + ray*possibleSolution.x;
-    RayTriangleIntersection r = RayTriangleIntersection(point,possibleSolution.x,triangle);
+    RayTriangleIntersection r = RayTriangleIntersection(point,possibleSolution.x,triangle, possibleSolution);
     return r;
 }
 
@@ -797,6 +795,32 @@ vec3 calcMirrorVec(vec3 point,ModelTriangle t){
     return reflect;
 }
 
+vec3 getTextureColour(ModelTriangle triangle, vec3 intersectionPoint, vec3 point) {
+    float u = intersectionPoint.y;
+    float v = intersectionPoint.z;
+    vec3 leftPoint = triangle.vertices[0] + u * (triangle.vertices[1] - triangle.vertices[0]);
+    vec3 rightPoint = triangle.vertices[0] + v * (triangle.vertices[2] - triangle.vertices[0]);
+
+    vec3 t1 = vec3(triangle.texturePoints[0].x, triangle.texturePoints[0].y, 0);
+    vec3 t2 = vec3(triangle.texturePoints[1].x, triangle.texturePoints[1].y, 0);
+    vec3 t3 = vec3(triangle.texturePoints[2].x, triangle.texturePoints[2].y, 0);
+    vec3 leftPointTexture = t1 + u * (t2 - t1);
+    vec3 rightPointTexture = t1 + v * (t3 - t1);
+
+    float rakeDist = glm::distance(leftPoint, rightPoint);
+    float rakePointDist = glm::distance(leftPoint, point);
+    float rakeTextureDist = glm::distance(leftPointTexture, rightPointTexture);
+    float ratio = rakeTextureDist*rakePointDist/rakeDist;
+    vec3 texturePoint = leftPointTexture + ratio*glm::normalize(rightPointTexture - leftPointTexture);
+    Colour c = texture[texturePoint.x + texturePoint.y * textureWidth];
+
+    // print_vec3(leftPoint);
+    // print_vec3(point);
+    // std::cout << '\n';
+    // return vec3(255, 255, 255);
+    return vec3(c.red, c.green, c.blue);
+}
+
 RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangles,vec3 ray,vec3 origin,RayTriangleIntersection* original_intersection){
     RayTriangleIntersection final_intersection;
     final_intersection.distanceFromCamera = infinity;
@@ -806,15 +830,23 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
     for (size_t i = 0; i < triangles.size(); i++) {
         RayTriangleIntersection intersection = getIntersection(ray,triangles[i],origin);
         float distance = intersection.distanceFromCamera;
+
+
         //this is valid as you are setting distance to infinity if it's invalid
         //!isEqualTriangle used to prevent acne from the mirror (doesn't affect the original raytrace)
         bool hit = (original_intersection != nullptr && !isEqualTriangle(triangles[i],original_intersection->intersectedTriangle))
                     || original_intersection == nullptr;
         if(distance < minDist && hit){
+            vec3 oldColour = vec3(triangles[i].colour.red, triangles[i].colour.green, triangles[i].colour.blue);
+
+            // texture mapping
+            if (triangles[i].isTexture) {
+                oldColour = getTextureColour(triangles[i], intersection.solution, intersection.intersectionPoint);
+            }
+
             float brightness = calcBrightness(intersection.intersectionPoint,triangles[i],triangles,light_positions);
             vec3 lightColourCorrected = lightColour * brightness;
 
-            vec3 oldColour = vec3(triangles[i].colour.red, triangles[i].colour.green, triangles[i].colour.blue);
             newColour = lightColourCorrected * oldColour;
 
             Colour c = Colour(newColour.x, newColour.y, newColour.z);

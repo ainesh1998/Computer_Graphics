@@ -65,8 +65,9 @@ void update(glm::vec3 translation, glm::vec3 rotationAngles,glm::vec3 light_tran
 
 // lighting
 vec3 computenorm(ModelTriangle t);
-float calcProximity(vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos);
-float calcBrightness(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,std::vector<vec3> light_positions);
+vec3 computenorm(ModelTriangle t, vec3 solution); // checks if the triangle is using vertex normals
+float calcProximity(vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos, vec3 solution);
+float calcBrightness(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,std::vector<vec3> light_positions, vec3 solution);
 
 // gouraud shading
 void calcVertexNormals(std::vector<ModelTriangle> triangles);
@@ -103,6 +104,8 @@ int textureHeight;
 std::vector<Colour> texture = readPPM("HackspaceLogo/texture.ppm", &textureWidth, &textureHeight);
 std::map<std::string, std::vector<ModelTriangle>> scene;
 int newTriangleID = 0;
+std::map<int, std::vector<vec3>> triangleVertexNormals; //given a triangle ID, return its vertex normals
+
 
 int main(int argc, char* argv[])
 {
@@ -130,7 +133,9 @@ int main(int argc, char* argv[])
         light_positions[i] *= (float)BOX_SCALE; //cornell box light
     }
 
+    // calculate vertex normals for each triangle of the sphere - for gouraud shading
     calcVertexNormals(sphere_triangles);
+
     // scene["logo"] = logo_triangles;
     scene["box"] = box_triangles;
     scene["sphere"] = sphere_triangles;
@@ -846,7 +851,6 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
         RayTriangleIntersection intersection = getIntersection(ray,triangles[i],origin);
         float distance = intersection.distanceFromCamera;
 
-
         //this is valid as you are setting distance to infinity if it's invalid
         //!isEqualTriangle used to prevent acne from the mirror (doesn't affect the original raytrace)
         bool hit = (original_intersection != nullptr && !isEqualTriangle(triangles[i],original_intersection->intersectedTriangle))
@@ -859,7 +863,7 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
                 oldColour = getTextureColour(triangles[i], intersection.solution, intersection.intersectionPoint);
             }
 
-            float brightness = calcBrightness(intersection.intersectionPoint,triangles[i],triangles,light_positions);
+            float brightness = calcBrightness(intersection.intersectionPoint,triangles[i],triangles,light_positions,intersection.solution);
             vec3 lightColourCorrected = lightColour * brightness;
 
             newColour = lightColourCorrected * oldColour;
@@ -919,23 +923,38 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
 
 
 // LIGHTING //
-vec3 computenorm(ModelTriangle t){
+vec3 computenorm(ModelTriangle t) {
     vec3 norm = glm::cross((t.vertices[1] - t.vertices[0]),(t.vertices[2] - t.vertices[0]));
     norm = glm::normalize(norm);
     return norm;
 }
 
-float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos){
+vec3 computenorm(ModelTriangle t, vec3 solution) {
+    vec3 norm;
+    if (triangleVertexNormals.find(t.ID) != triangleVertexNormals.end()) {
+        std::vector<vec3> vertexNormals = triangleVertexNormals[t.ID];
+        norm = vertexNormals[0] + solution.y * (vertexNormals[1]-vertexNormals[0]) + solution.z * (vertexNormals[2]-vertexNormals[0]);
+        return norm;
+    }
+
+    norm = glm::cross((t.vertices[1] - t.vertices[0]),(t.vertices[2] - t.vertices[0]));
+    norm = glm::normalize(norm);
+    return norm;
+}
+
+float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos, vec3 solution){
     vec3 lightDir = lightPos - point;
     float dist = glm::length(lightDir);
     lightDir = glm::normalize(lightDir);
-    vec3 norm = computenorm(t);
+    vec3 norm = computenorm(t, solution);
+
     float dot_product = glm::dot(lightDir,norm);
 
     float distance = glm::distance(lightPos,point);
     float brightness = (float) INTENSITY * std::max(0.f,dot_product)*(1/(2*M_PI* distance * distance));
     if (brightness > 1) brightness = 1;
     if (brightness < AMBIENCE) brightness = AMBIENCE;
+
     //do shadow calc here
     //lightDir = shadowRay (lightPos - point)
     bool isShadow = false;
@@ -951,11 +970,11 @@ float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> t
     return brightness;
 }
 
-float calcBrightness(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,std::vector<vec3> light_positions){
+float calcBrightness(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,std::vector<vec3> light_positions, vec3 solution){
     // soft shadows - multiple light sources
     float brightness = 0.f;
     for (size_t i = 0; i < light_positions.size(); i++) {
-        brightness += calcProximity(point,t,triangles,light_positions[i]);
+        brightness += calcProximity(point,t,triangles,light_positions[i], solution);
         // std::cout << light_positions[i].x<<" "<<light_positions[i].y << " " << light_positions[i].z<<'\n';
     }
     // if(brightness < 0.2) brightness =0.2;
@@ -968,8 +987,6 @@ float calcBrightness(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> 
 
 
 void calcVertexNormals(std::vector<ModelTriangle> triangles) {
-    std::map<int, std::vector<vec3>> surfaceNormals; //given a triangle ID, return its vertex normals
-
     for (int i = 0; i < triangles.size(); i++) {
         std::vector<vec3> vertexNormals;
         for (int j = 0; j < 3; j++) {
@@ -986,11 +1003,10 @@ void calcVertexNormals(std::vector<ModelTriangle> triangles) {
                     }
                 }
             }
-
             vec3 vertexNormal = avgSurfaceNormal* (1/(float)normalCount);
             vertexNormals.push_back(vertexNormal);
         }
-        surfaceNormals[triangles[i].ID] = vertexNormals;
+        triangleVertexNormals[triangles[i].ID] = vertexNormals;
     }
 }
 

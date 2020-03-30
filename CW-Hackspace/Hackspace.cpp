@@ -65,12 +65,14 @@ void update(glm::vec3 translation, glm::vec3 rotationAngles,glm::vec3 light_tran
 
 // lighting
 vec3 computenorm(ModelTriangle t);
-vec3 computenorm(ModelTriangle t, vec3 solution); // checks if the triangle is using vertex normals
+// vec3 computenorm(ModelTriangle t, vec3 solution); // checks if the triangle is using vertex normals
 float calcProximity(vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos, vec3 solution);
 float calcBrightness(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,std::vector<vec3> light_positions, vec3 solution);
 
-// gouraud shading
+// gouraud and phong shading
 void calcVertexNormals(std::vector<ModelTriangle> triangles);
+float gouraudBrightness(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution);
+vec3 phongNormal(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution);
 
 // generative geometry
 void diamondSquare(double** pointHeights, int width, double currentSize);
@@ -929,17 +931,17 @@ vec3 computenorm(ModelTriangle t) {
     return norm;
 }
 
-vec3 computenorm(ModelTriangle t, vec3 solution) {
-    vec3 norm;
-    if (triangleVertexNormals.find(t.ID) != triangleVertexNormals.end()) {
-        std::vector<vec3> vertexNormals = triangleVertexNormals[t.ID];
-        norm = vertexNormals[0] + solution.y * (vertexNormals[1]-vertexNormals[0]) + solution.z * (vertexNormals[2]-vertexNormals[0]);
-        return norm;
-    }
-    norm = glm::cross((t.vertices[1] - t.vertices[0]),(t.vertices[2] - t.vertices[0]));
-    norm = glm::normalize(norm);
-    return norm;
-}
+// vec3 computenorm(ModelTriangle t, vec3 solution) {
+//     vec3 norm;
+//     if (triangleVertexNormals.find(t.ID) != triangleVertexNormals.end()) {
+//         std::vector<vec3> vertexNormals = triangleVertexNormals[t.ID];
+//         norm = vertexNormals[0] + solution.y * (vertexNormals[1]-vertexNormals[0]) + solution.z * (vertexNormals[2]-vertexNormals[0]);
+//         return norm;
+//     }
+//     norm = glm::cross((t.vertices[1] - t.vertices[0]),(t.vertices[2] - t.vertices[0]));
+//     norm = glm::normalize(norm);
+//     return norm;
+// }
 
 float calcIntensity(vec3 norm, vec3 lightPos, vec3 point) {
     vec3 lightDir = lightPos - point;
@@ -954,7 +956,12 @@ float calcIntensity(vec3 norm, vec3 lightPos, vec3 point) {
 }
 
 float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos, vec3 solution){
-    vec3 norm = computenorm(t, solution);
+    vec3 norm = computenorm(t);
+    if (triangleVertexNormals.find(t.ID) != triangleVertexNormals.end()) {
+        // phong shading
+        norm = phongNormal(t, point, lightPos, solution);
+    }
+
     vec3 lightDir = lightPos - point;
     float dist = glm::length(lightDir);
     lightDir = glm::normalize(lightDir);
@@ -983,13 +990,12 @@ float calcBrightness(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> 
         brightness += calcProximity(point,t,triangles,light_positions[i], solution);
         // std::cout << light_positions[i].x<<" "<<light_positions[i].y << " " << light_positions[i].z<<'\n';
     }
-    // if(brightness < 0.2) brightness =0.2;
     if(brightness > 1) brightness = 1;
     return brightness;
 }
 
 
-// GOURAUD SHADING //
+// GOURAUD AND PHONG SHADING //
 
 
 void calcVertexNormals(std::vector<ModelTriangle> triangles) {
@@ -1016,6 +1022,21 @@ void calcVertexNormals(std::vector<ModelTriangle> triangles) {
     }
 }
 
+float gouraudBrightness(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution) {
+    std::vector<vec3> vertexNormals = triangleVertexNormals[t.ID];
+    float brightness0 = calcIntensity(vertexNormals[0], lightPos, t.vertices[0]);
+    float brightness1 = calcIntensity(vertexNormals[1], lightPos, t.vertices[1]);
+    float brightness2 = calcIntensity(vertexNormals[2], lightPos, t.vertices[2]);
+
+    float brightness = brightness0 + solution.y*(brightness1-brightness0) + solution.z*(brightness2-brightness0);
+    return brightness;
+}
+
+vec3 phongNormal(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution) {
+    std::vector<vec3> vertexNormals = triangleVertexNormals[t.ID];
+    vec3 norm = vertexNormals[0] + solution.y*(vertexNormals[1]-vertexNormals[0]) + solution.z*(vertexNormals[2]-vertexNormals[0]);
+    return norm;
+}
 
 // GENERATIVE GEOMETRY //
 

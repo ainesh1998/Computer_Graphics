@@ -65,14 +65,15 @@ void update(glm::vec3 translation, glm::vec3 rotationAngles,glm::vec3 light_tran
 
 // lighting
 vec3 computenorm(ModelTriangle t);
-// vec3 computenorm(ModelTriangle t, vec3 solution); // checks if the triangle is using vertex normals
+float calcIntensity(vec3 norm, vec3 lightPos, vec3 point);
+float calcShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t);
 float calcProximity(vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos, vec3 solution);
 float calcBrightness(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,std::vector<vec3> light_positions, vec3 solution);
 
 // gouraud and phong shading
 void calcVertexNormals(std::vector<ModelTriangle> triangles);
-float gouraudBrightness(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution);
-vec3 phongNormal(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution);
+float gouraud(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution, std::vector<ModelTriangle> triangles);
+float phong(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution);
 
 // generative geometry
 void diamondSquare(double** pointHeights, int width, double currentSize);
@@ -135,7 +136,7 @@ int main(int argc, char* argv[])
         light_positions[i] *= (float)BOX_SCALE; //cornell box light
     }
 
-    // calculate vertex normals for each triangle of the sphere - for gouraud shading
+    // calculate vertex normals for each triangle of the sphere - for gouraud and phong shading
     calcVertexNormals(sphere_triangles);
 
     // scene["logo"] = logo_triangles;
@@ -931,18 +932,6 @@ vec3 computenorm(ModelTriangle t) {
     return norm;
 }
 
-// vec3 computenorm(ModelTriangle t, vec3 solution) {
-//     vec3 norm;
-//     if (triangleVertexNormals.find(t.ID) != triangleVertexNormals.end()) {
-//         std::vector<vec3> vertexNormals = triangleVertexNormals[t.ID];
-//         norm = vertexNormals[0] + solution.y * (vertexNormals[1]-vertexNormals[0]) + solution.z * (vertexNormals[2]-vertexNormals[0]);
-//         return norm;
-//     }
-//     norm = glm::cross((t.vertices[1] - t.vertices[0]),(t.vertices[2] - t.vertices[0]));
-//     norm = glm::normalize(norm);
-//     return norm;
-// }
-
 float calcIntensity(vec3 norm, vec3 lightPos, vec3 point) {
     vec3 lightDir = lightPos - point;
     lightDir = glm::normalize(lightDir);
@@ -955,20 +944,11 @@ float calcIntensity(vec3 norm, vec3 lightPos, vec3 point) {
     return brightness;
 }
 
-float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos, vec3 solution){
-    vec3 norm = computenorm(t);
-    if (triangleVertexNormals.find(t.ID) != triangleVertexNormals.end()) {
-        // phong shading
-        norm = phongNormal(t, point, lightPos, solution);
-    }
-
+float calcShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t) {
+    float newBrightness = brightness;
     vec3 lightDir = lightPos - point;
     float dist = glm::length(lightDir);
     lightDir = glm::normalize(lightDir);
-
-    float brightness = calcIntensity(norm, lightPos, point);
-
-    //do shadow calc here
     bool isShadow = false;
 
     for (size_t i = 0; i < triangles.size(); i++) {
@@ -978,8 +958,25 @@ float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> t
             break;
         }
     }
-    if(isShadow) brightness = AMBIENCE/2;
-    // std::cout << brightness << '\n';
+    if(isShadow) newBrightness = AMBIENCE/2;
+    return newBrightness;
+}
+
+float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos, vec3 solution){
+    vec3 norm = computenorm(t);
+    float brightness = calcIntensity(norm, lightPos, point);
+
+    // true if we precalculated the vertex normals for this triangle
+    if (triangleVertexNormals.find(t.ID) != triangleVertexNormals.end()) {
+        // gouraud shading
+        // brightness = gouraud(t, point, lightPos, solution, triangles);
+
+        // phong shading
+        brightness = phong(t, point, lightPos, solution);
+    }
+
+    //do shadow calc here
+    brightness = calcShadow(brightness, triangles, point, lightPos, t);
     return brightness;
 }
 
@@ -1022,20 +1019,44 @@ void calcVertexNormals(std::vector<ModelTriangle> triangles) {
     }
 }
 
-float gouraudBrightness(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution) {
+float gouraud(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution, std::vector<ModelTriangle> triangles) {
     std::vector<vec3> vertexNormals = triangleVertexNormals[t.ID];
     float brightness0 = calcIntensity(vertexNormals[0], lightPos, t.vertices[0]);
     float brightness1 = calcIntensity(vertexNormals[1], lightPos, t.vertices[1]);
     float brightness2 = calcIntensity(vertexNormals[2], lightPos, t.vertices[2]);
 
+    // float dot0 = std::max(0.f,glm::dot(glm::normalize(lightPos-t.vertices[0]), vertexNormals[0]));
+    // float dot1 = std::max(0.f,glm::dot(glm::normalize(lightPos-t.vertices[1]), vertexNormals[1]));
+    // float dot2 = std::max(0.f,glm::dot(glm::normalize(lightPos-t.vertices[2]), vertexNormals[2]));
+
+    // float dot0 = (glm::dot(glm::normalize(lightPos-t.vertices[0]), vertexNormals[0]));
+    // float dot1 = (glm::dot(glm::normalize(lightPos-t.vertices[1]), vertexNormals[1]));
+    // float dot2 = (glm::dot(glm::normalize(lightPos-t.vertices[2]), vertexNormals[2]));
+
+    // float dot = dot0 + solution.y*(dot1-dot0) + solution.z*(dot2-dot0);
+
+    // float calcShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t) {
+
+    // brightness0 = calcShadow(brightness0, triangles, t.vertices[0], lightPos, t);
+    // brightness1 = calcShadow(brightness1, triangles, t.vertices[1], lightPos, t);
+    // brightness2 = calcShadow(brightness2, triangles, t.vertices[2], lightPos, t);
+
     float brightness = brightness0 + solution.y*(brightness1-brightness0) + solution.z*(brightness2-brightness0);
+    // std::cout << brightness0 << " " << brightness1 << " " << brightness2 << " " << brightness << '\n';
+
+    // float tempShadow = calcShadow(brightness, triangles, point, lightPos, t);
+
+
+    // if (dot = 0) brightness = tempShadow;
+
     return brightness;
 }
 
-vec3 phongNormal(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution) {
+float phong(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution) {
     std::vector<vec3> vertexNormals = triangleVertexNormals[t.ID];
     vec3 norm = vertexNormals[0] + solution.y*(vertexNormals[1]-vertexNormals[0]) + solution.z*(vertexNormals[2]-vertexNormals[0]);
-    return norm;
+    float brightness = calcIntensity(norm, lightPos, point);
+    return brightness;
 }
 
 // GENERATIVE GEOMETRY //

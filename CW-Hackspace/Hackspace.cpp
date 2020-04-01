@@ -73,7 +73,7 @@ float calcBrightness(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> 
 // gouraud and phong shading
 void calcVertexNormals(std::vector<ModelTriangle> triangles);
 float gouraud(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution, std::vector<ModelTriangle> triangles);
-float phong(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution);
+float phong(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution, std::vector<ModelTriangle> triangles);
 
 // generative geometry
 void diamondSquare(double** pointHeights, int width, double currentSize);
@@ -90,12 +90,12 @@ void rotateObject(std::string name,vec3 rotationAngles);
 
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
-glm::vec3 cameraPos = glm::vec3(0, 0, 300);
+glm::vec3 cameraPos = glm::vec3(0, 130, 180);
 glm::vec3 box_lightPos = glm::vec3(-0.2,4.8,-3.043);
 glm::vec3 box_lightPos1 = glm::vec3(2,4.8,-3.043);
 glm::vec3 logo_lightPos = glm::vec3(300,59,15);
 glm::vec3 lightPos = box_lightPos1;
-std::vector<vec3> light_positions = {box_lightPos};
+std::vector<vec3> light_positions = {box_lightPos1};
 glm::vec3 lightColour = glm::vec3(1,1,1);
 
 glm::mat3 cameraOrientation = glm::mat3();
@@ -972,11 +972,14 @@ float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> t
         // brightness = gouraud(t, point, lightPos, solution, triangles);
 
         // phong shading
-        brightness = phong(t, point, lightPos, solution);
+        brightness = phong(t, point, lightPos, solution, triangles);
+    }
+    else {
+        // just use calcIntensity and calculate shadows like normal
+        brightness = calcShadow(brightness, triangles, point, lightPos, t);
     }
 
     //do shadow calc here
-    brightness = calcShadow(brightness, triangles, point, lightPos, t);
     return brightness;
 }
 
@@ -1025,37 +1028,27 @@ float gouraud(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution, std::ve
     float brightness1 = calcIntensity(vertexNormals[1], lightPos, t.vertices[1]);
     float brightness2 = calcIntensity(vertexNormals[2], lightPos, t.vertices[2]);
 
-    // float dot0 = std::max(0.f,glm::dot(glm::normalize(lightPos-t.vertices[0]), vertexNormals[0]));
-    // float dot1 = std::max(0.f,glm::dot(glm::normalize(lightPos-t.vertices[1]), vertexNormals[1]));
-    // float dot2 = std::max(0.f,glm::dot(glm::normalize(lightPos-t.vertices[2]), vertexNormals[2]));
-
-    // float dot0 = (glm::dot(glm::normalize(lightPos-t.vertices[0]), vertexNormals[0]));
-    // float dot1 = (glm::dot(glm::normalize(lightPos-t.vertices[1]), vertexNormals[1]));
-    // float dot2 = (glm::dot(glm::normalize(lightPos-t.vertices[2]), vertexNormals[2]));
-
-    // float dot = dot0 + solution.y*(dot1-dot0) + solution.z*(dot2-dot0);
-
-    // float calcShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t) {
-
-    // brightness0 = calcShadow(brightness0, triangles, t.vertices[0], lightPos, t);
-    // brightness1 = calcShadow(brightness1, triangles, t.vertices[1], lightPos, t);
-    // brightness2 = calcShadow(brightness2, triangles, t.vertices[2], lightPos, t);
+    float dot0 = (glm::dot(glm::normalize(lightPos-t.vertices[0]), vertexNormals[0]));
+    float dot1 = (glm::dot(glm::normalize(lightPos-t.vertices[1]), vertexNormals[1]));
+    float dot2 = (glm::dot(glm::normalize(lightPos-t.vertices[2]), vertexNormals[2]));
+    float dot = dot0 + solution.y*(dot1-dot0) + solution.z*(dot2-dot0);
 
     float brightness = brightness0 + solution.y*(brightness1-brightness0) + solution.z*(brightness2-brightness0);
-    // std::cout << brightness0 << " " << brightness1 << " " << brightness2 << " " << brightness << '\n';
 
-    // float tempShadow = calcShadow(brightness, triangles, point, lightPos, t);
-
-
-    // if (dot = 0) brightness = tempShadow;
+    // shadow calculation - not using the shadow ray so I'm not too sure
+    if(dot <= 0) brightness = AMBIENCE/2;
 
     return brightness;
 }
 
-float phong(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution) {
+float phong(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution, std::vector<ModelTriangle> triangles) {
     std::vector<vec3> vertexNormals = triangleVertexNormals[t.ID];
     vec3 norm = vertexNormals[0] + solution.y*(vertexNormals[1]-vertexNormals[0]) + solution.z*(vertexNormals[2]-vertexNormals[0]);
+    float dot = glm::dot(glm::normalize(lightPos-point), norm);
     float brightness = calcIntensity(norm, lightPos, point);
+
+    // shadow calculation - not using the shadow ray so I'm not too sure
+    if (dot <= 0) brightness = AMBIENCE/2;
     return brightness;
 }
 

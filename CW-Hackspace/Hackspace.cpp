@@ -700,6 +700,9 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer, double
     }
 }
 
+bool inRange(float x,float min,float max){
+    return x >= min && x <= max;
+}
 void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
     // stepBack = dv, focalLength = di
 
@@ -738,13 +741,12 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
             CanvasPoint point = CanvasPoint(x, y,-wrtCamera.z, modelTriangles[i].texturePoints[j]);
             points.push_back(point);
         }
-        if(points[0].depth >= 100 && points[0].depth <= 1000 ){ //near plane clipping
+        if(inRange(points[0].depth,100,1000)&& inRange(points[1].depth,100,1000) && inRange(points[2].depth,100,1000)){ //near plane clipping
             CanvasTriangle triangle = CanvasTriangle(points[0], points[1], points[2], modelTriangles[i].colour);
             triangles.push_back(triangle);
         }
 
     }
-    std::cout << far << '\n';
 
     for(int i = 0; i < (int)triangles.size(); i++){
         if (mode == 2 || mode == 4) {

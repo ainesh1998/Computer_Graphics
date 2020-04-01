@@ -19,6 +19,7 @@
 #define WORKING_DIRECTORY ""
 #define BOX_SCALE 50
 #define LOGO_SCALE 0.3
+#define SPHERE_SCALE 10
 
 using glm::vec3;
 
@@ -52,6 +53,7 @@ void drawBox(std::vector<ModelTriangle> triangles, float focalLength);
 
 // raytracer
 vec3 calcMirrorVec(vec3 point,ModelTriangle t);
+vec3 getTextureColour(ModelTriangle triangle, vec3 solution, vec3 point);
 glm::vec3 computeRay(float x,float y,float fov);
 RayTriangleIntersection getIntersection(glm::vec3 ray,std::vector<ModelTriangle> modelTriangles,vec3 origin);
 void drawBoxRayTraced(std::vector<ModelTriangle> triangles);
@@ -63,15 +65,24 @@ void update(glm::vec3 translation, glm::vec3 rotationAngles,glm::vec3 light_tran
 
 // lighting
 vec3 computenorm(ModelTriangle t);
-float calcProximity(vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos);
-float calcBrightness(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,std::vector<vec3> light_positions);
+float calcIntensity(vec3 norm, vec3 lightPos, vec3 point);
+float calcShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t);
+float calcProximity(vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos, vec3 solution);
+float calcBrightness(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,std::vector<vec3> light_positions, vec3 solution);
+
+// gouraud and phong shading
+void calcVertexNormals(std::vector<ModelTriangle> triangles);
+float gouraud(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution, std::vector<ModelTriangle> triangles);
+float phong(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution, std::vector<ModelTriangle> triangles);
+
 // generative geometry
 void diamondSquare(double** pointHeights, int width, double currentSize);
 std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, int scale);
 
-//scene map
+// scene map
 void drawScene();
-//move object by vec3 vector
+
+// move object by vec3 vector
 void moveObject(std::string name,vec3 moveVec);
 void rotateObject(std::string name,vec3 rotationAngles);
 
@@ -79,12 +90,12 @@ void rotateObject(std::string name,vec3 rotationAngles);
 
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
-glm::vec3 cameraPos = glm::vec3(0, 0, 300);
+glm::vec3 cameraPos = glm::vec3(0, 130, 180);
 glm::vec3 box_lightPos = glm::vec3(-0.2,4.8,-3.043);
 glm::vec3 box_lightPos1 = glm::vec3(2,4.8,-3.043);
 glm::vec3 logo_lightPos = glm::vec3(300,59,15);
 glm::vec3 lightPos = box_lightPos1;
-std::vector<vec3> light_positions = {box_lightPos};
+std::vector<vec3> light_positions = {box_lightPos1};
 glm::vec3 lightColour = glm::vec3(1,1,1);
 
 glm::mat3 cameraOrientation = glm::mat3();
@@ -95,6 +106,9 @@ int textureWidth;
 int textureHeight;
 std::vector<Colour> texture = readPPM("HackspaceLogo/texture.ppm", &textureWidth, &textureHeight);
 std::map<std::string, std::vector<ModelTriangle>> scene;
+int newTriangleID = 0;
+std::map<int, std::vector<vec3>> triangleVertexNormals; //given a triangle ID, return its vertex normals
+
 
 int main(int argc, char* argv[])
 {
@@ -115,15 +129,25 @@ int main(int argc, char* argv[])
     std::vector<ModelTriangle> logo_triangles = readOBJ("HackspaceLogo/logo.obj", "HackspaceLogo/materials.mtl", LOGO_SCALE );
 
     std::vector<ModelTriangle> box_triangles = readOBJ("cornell-box/cornell-box.obj", "cornell-box/cornell-box.mtl", BOX_SCALE );
+
+    std::vector<ModelTriangle> sphere_triangles = readOBJ("extra-objects/sphere.obj", "", SPHERE_SCALE);
+
     for (size_t i = 0; i < light_positions.size(); i++) {
         light_positions[i] *= (float)BOX_SCALE; //cornell box light
     }
 
-    scene["logo"] = logo_triangles;
+    // calculate vertex normals for each triangle of the sphere - for gouraud and phong shading
+    calcVertexNormals(sphere_triangles);
+
+    // scene["logo"] = logo_triangles;
     scene["box"] = box_triangles;
+    scene["sphere"] = sphere_triangles;
+
     moveObject("logo",vec3(-35,-25,-100));
     rotateObject("logo",vec3(0,1.5,0));
     moveObject("logo",vec3(0,0,-120));
+    moveObject("sphere",vec3(35,100,-100)); // place sphere above red box
+    // moveObject("sphere", vec3(-70, 20, -70)); // place sphere in front of blue box
 
     int width = 5;
     double** grid = malloc2dArray(width, width);
@@ -403,11 +427,12 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
     bool mirrored = false;
 
     while(stream.getline(line,256)){
-
         std::string* contents = split(line,' ');
+
         if(line[0]== 'o'){
             mirrored = contents[1].compare("back_wall") == 0;
         }
+
         if(line[0] == 'v' && line[1] == 't'){
             float x = (int) (std::stof(contents[1]) * textureWidth);
             float y = (int) (std::stof(contents[2]) * textureHeight);
@@ -415,11 +440,16 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
             texturePoints.push_back(point);
         }
 
+        else if(line[0] == 'v' && line[1] == 'n') {
+            // vertex normals - don't think we need to do anything, it's just for the sphere
+        }
+
         else if(line[0] == 'u'){
             colour = colourMap[contents[1]];
         }
 
         else if(line[0] == 'v'){
+            // if (filename.compare("extra-objects/sphere.obj")==0) std::cout << offset << '\n';
             float x = std::stof(contents[1]) * scale;
             float y = std::stof(contents[2]) * scale;
             float z = std::stof(contents[3]) * scale;
@@ -440,22 +470,26 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
             int index2 = std::stoi(indexes2[0]);
             int index3 = std::stoi(indexes3[0]);
 
+            std::string directory = filename.substr(0, 13);
 
-            if (!notTextured) {
+            if (!notTextured && directory.compare("extra-objects") != 0) {
                 int textureIndex1 = std::stoi(indexes1[1]);
                 int textureIndex2 = std::stoi(indexes2[1]);
                 int textureIndex3 = std::stoi(indexes3[1]);
 
                 ModelTriangle m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1],
                                                 texturePoints[textureIndex1-1], texturePoints[textureIndex2-1],
-                                                texturePoints[textureIndex3-1]);
+                                                texturePoints[textureIndex3-1], newTriangleID);
                 modelTriangles.push_back(m);
+                newTriangleID++;
             }
 
             else {
-                ModelTriangle m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1], colour);
+                if (directory.compare("extra-objects") == 0) colour = Colour(255,255,255);
+                ModelTriangle m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1], colour, newTriangleID);
                 m.isMirror = mirrored;
                 modelTriangles.push_back(m);
+                newTriangleID++;
             }
         }
     }
@@ -820,7 +854,6 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
         RayTriangleIntersection intersection = getIntersection(ray,triangles[i],origin);
         float distance = intersection.distanceFromCamera;
 
-
         //this is valid as you are setting distance to infinity if it's invalid
         //!isEqualTriangle used to prevent acne from the mirror (doesn't affect the original raytrace)
         bool hit = (original_intersection != nullptr && !isEqualTriangle(triangles[i],original_intersection->intersectedTriangle))
@@ -833,7 +866,7 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
                 oldColour = getTextureColour(triangles[i], intersection.solution, intersection.intersectionPoint);
             }
 
-            float brightness = calcBrightness(intersection.intersectionPoint,triangles[i],triangles,light_positions);
+            float brightness = calcBrightness(intersection.intersectionPoint,triangles[i],triangles,light_positions,intersection.solution);
             vec3 lightColourCorrected = lightColour * brightness;
 
             newColour = lightColourCorrected * oldColour;
@@ -872,12 +905,12 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                 // mirror
                 if (final_intersection.intersectedTriangle.isMirror) {
                     //calculate mirror vector
-                    vec3 point = final_intersection.intersectionPoint;
-                    vec3 mirrorRay = calcMirrorVec(point,final_intersection.intersectedTriangle);
-                    // original_intersection is used to ensure mirror doesn't reflect itself
-                    RayTriangleIntersection final_mirror_intersection = getFinalIntersection(triangles,mirrorRay,point,&final_intersection);
-                    Colour c = final_mirror_intersection.intersectedTriangle.colour;
-                    newColour = 0.8f *  vec3(c.red,c.green,c.blue); // 0.8 is to make mirror slightly darker than the real object
+                    // vec3 point = final_intersection.intersectionPoint;
+                    // vec3 mirrorRay = calcMirrorVec(point,final_intersection.intersectedTriangle);
+                    // // original_intersection is used to ensure mirror doesn't reflect itself
+                    // RayTriangleIntersection final_mirror_intersection = getFinalIntersection(triangles,mirrorRay,point,&final_intersection);
+                    // Colour c = final_mirror_intersection.intersectedTriangle.colour;
+                    // newColour = 0.8f *  vec3(c.red,c.green,c.blue); // 0.8 is to make mirror slightly darker than the real object
                 }
 
                 if(final_intersection.distanceFromCamera != infinity){
@@ -893,26 +926,31 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
 
 
 // LIGHTING //
-vec3 computenorm(ModelTriangle t){
+vec3 computenorm(ModelTriangle t) {
     vec3 norm = glm::cross((t.vertices[1] - t.vertices[0]),(t.vertices[2] - t.vertices[0]));
     norm = glm::normalize(norm);
     return norm;
 }
 
-float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos){
+float calcIntensity(vec3 norm, vec3 lightPos, vec3 point) {
     vec3 lightDir = lightPos - point;
-    float dist = glm::length(lightDir);
     lightDir = glm::normalize(lightDir);
-    vec3 norm = computenorm(t);
     float dot_product = glm::dot(lightDir,norm);
-
     float distance = glm::distance(lightPos,point);
     float brightness = (float) INTENSITY * std::max(0.f,dot_product)*(1/(2*M_PI* distance * distance));
     if (brightness > 1) brightness = 1;
     if (brightness < AMBIENCE) brightness = AMBIENCE;
-    //do shadow calc here
-    //lightDir = shadowRay (lightPos - point)
+
+    return brightness;
+}
+
+float calcShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t) {
+    float newBrightness = brightness;
+    vec3 lightDir = lightPos - point;
+    float dist = glm::length(lightDir);
+    lightDir = glm::normalize(lightDir);
     bool isShadow = false;
+
     for (size_t i = 0; i < triangles.size(); i++) {
         RayTriangleIntersection shadowIntersection = getIntersection(lightDir,triangles[i],point);
         if(shadowIntersection.distanceFromCamera < dist && !isEqualTriangle(shadowIntersection.intersectedTriangle,t)){
@@ -920,23 +958,99 @@ float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> t
             break;
         }
     }
-    if(isShadow) brightness = AMBIENCE/2;
-    // std::cout << brightness << '\n';
+    if(isShadow) newBrightness = AMBIENCE/2;
+    return newBrightness;
+}
+
+float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos, vec3 solution){
+    vec3 norm = computenorm(t);
+    float brightness = calcIntensity(norm, lightPos, point);
+
+    // true if we precalculated the vertex normals for this triangle
+    if (triangleVertexNormals.find(t.ID) != triangleVertexNormals.end()) {
+        // gouraud shading
+        // brightness = gouraud(t, point, lightPos, solution, triangles);
+
+        // phong shading
+        brightness = phong(t, point, lightPos, solution, triangles);
+    }
+    else {
+        // just use calcIntensity and calculate shadows like normal
+        brightness = calcShadow(brightness, triangles, point, lightPos, t);
+    }
+
+    //do shadow calc here
     return brightness;
 }
 
-float calcBrightness(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,std::vector<vec3> light_positions){
+float calcBrightness(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,std::vector<vec3> light_positions, vec3 solution){
     // soft shadows - multiple light sources
     float brightness = 0.f;
     for (size_t i = 0; i < light_positions.size(); i++) {
-        brightness += calcProximity(point,t,triangles,light_positions[i]);
+        brightness += calcProximity(point,t,triangles,light_positions[i], solution);
         // std::cout << light_positions[i].x<<" "<<light_positions[i].y << " " << light_positions[i].z<<'\n';
     }
-    // if(brightness < 0.2) brightness =0.2;
     if(brightness > 1) brightness = 1;
     return brightness;
 }
 
+
+// GOURAUD AND PHONG SHADING //
+
+
+void calcVertexNormals(std::vector<ModelTriangle> triangles) {
+    for (int i = 0; i < triangles.size(); i++) {
+        std::vector<vec3> vertexNormals;
+        for (int j = 0; j < 3; j++) {
+            vec3 point = triangles[i].vertices[j];
+            vec3 avgSurfaceNormal = vec3(0, 0, 0);
+            int normalCount = 0;
+
+            for (int k = 0; k < triangles.size(); k++) {
+                for (int l = 0; l < 3; l++) {
+                    vec3 newPoint = triangles[k].vertices[l];
+                    if (newPoint == point) {
+                        avgSurfaceNormal += computenorm(triangles[k]);
+                        normalCount++;
+                    }
+                }
+            }
+            vec3 vertexNormal = avgSurfaceNormal* (1/(float)normalCount);
+            vertexNormals.push_back(vertexNormal);
+        }
+        triangleVertexNormals[triangles[i].ID] = vertexNormals;
+    }
+}
+
+float gouraud(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution, std::vector<ModelTriangle> triangles) {
+    std::vector<vec3> vertexNormals = triangleVertexNormals[t.ID];
+    float brightness0 = calcIntensity(vertexNormals[0], lightPos, t.vertices[0]);
+    float brightness1 = calcIntensity(vertexNormals[1], lightPos, t.vertices[1]);
+    float brightness2 = calcIntensity(vertexNormals[2], lightPos, t.vertices[2]);
+
+    float dot0 = (glm::dot(glm::normalize(lightPos-t.vertices[0]), vertexNormals[0]));
+    float dot1 = (glm::dot(glm::normalize(lightPos-t.vertices[1]), vertexNormals[1]));
+    float dot2 = (glm::dot(glm::normalize(lightPos-t.vertices[2]), vertexNormals[2]));
+    float dot = dot0 + solution.y*(dot1-dot0) + solution.z*(dot2-dot0);
+
+    float brightness = brightness0 + solution.y*(brightness1-brightness0) + solution.z*(brightness2-brightness0);
+
+    // shadow calculation - not using the shadow ray so I'm not too sure
+    if(dot <= 0) brightness = AMBIENCE/2;
+
+    return brightness;
+}
+
+float phong(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution, std::vector<ModelTriangle> triangles) {
+    std::vector<vec3> vertexNormals = triangleVertexNormals[t.ID];
+    vec3 norm = vertexNormals[0] + solution.y*(vertexNormals[1]-vertexNormals[0]) + solution.z*(vertexNormals[2]-vertexNormals[0]);
+    float dot = glm::dot(glm::normalize(lightPos-point), norm);
+    float brightness = calcIntensity(norm, lightPos, point);
+
+    // shadow calculation - not using the shadow ray so I'm not too sure
+    if (dot <= 0) brightness = AMBIENCE/2;
+    return brightness;
+}
 
 // GENERATIVE GEOMETRY //
 
@@ -1033,8 +1147,9 @@ std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, in
             vec3 v3 = vec3((x-1) * scale, pointHeights[x-1][y] * scale, -(y) * scale);
             vec3 v4 = vec3((x) * scale, pointHeights[x][y] * scale,  -(y) * scale);
 
-            ModelTriangle t1 = ModelTriangle(v1, v2, v3, Colour(255, 255, 255));
-            ModelTriangle t2 = ModelTriangle(v2, v3, v4, Colour(255, 255, 255));
+            ModelTriangle t1 = ModelTriangle(v1, v2, v3, Colour(255, 255, 255), newTriangleID);
+            ModelTriangle t2 = ModelTriangle(v2, v3, v4, Colour(255, 255, 255), newTriangleID+1);
+            newTriangleID += 2;
 
             generatedTriangles.push_back(t1);
             generatedTriangles.push_back(t2);

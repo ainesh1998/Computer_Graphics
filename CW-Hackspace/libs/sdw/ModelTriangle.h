@@ -6,6 +6,7 @@
 class ModelTriangle
 {
   public:
+    int ID;
     glm::vec3 vertices[3];
     Colour colour;
     TexturePoint texturePoints[3];
@@ -15,9 +16,10 @@ class ModelTriangle
     ModelTriangle()
     {
         isTexture = false;
+        ID = -1;
     }
 
-    ModelTriangle(glm::vec3 v0, glm::vec3 v1, glm::vec3 v2, Colour trigColour)
+    ModelTriangle(glm::vec3 v0, glm::vec3 v1, glm::vec3 v2, Colour trigColour, int triangleID)
     {
       vertices[0] = v0;
       vertices[1] = v1;
@@ -27,9 +29,10 @@ class ModelTriangle
       texturePoints[1] = TexturePoint(-1,-1);
       texturePoints[2] = TexturePoint(-1,-1);
       isTexture = false;
+      ID = triangleID;
     }
 
-    ModelTriangle(glm::vec3 v0, glm::vec3 v1, glm::vec3 v2, TexturePoint t1, TexturePoint t2, TexturePoint t3)
+    ModelTriangle(glm::vec3 v0, glm::vec3 v1, glm::vec3 v2, TexturePoint t1, TexturePoint t2, TexturePoint t3, int triangleID)
     {
       vertices[0] = v0;
       vertices[1] = v1;
@@ -38,6 +41,7 @@ class ModelTriangle
       texturePoints[1] = t2;
       texturePoints[2] = t3;
       isTexture = true;
+      ID = triangleID;
     }
 };
 

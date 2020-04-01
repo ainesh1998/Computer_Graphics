@@ -95,7 +95,7 @@ glm::vec3 box_lightPos = glm::vec3(-0.2,4.8,-3.043);
 glm::vec3 box_lightPos1 = glm::vec3(2,4.8,-3.043);
 glm::vec3 logo_lightPos = glm::vec3(300,59,15);
 glm::vec3 lightPos = box_lightPos1;
-std::vector<vec3> light_positions = {box_lightPos1};
+std::vector<vec3> light_positions = {box_lightPos};
 glm::vec3 lightColour = glm::vec3(1,1,1);
 
 glm::mat3 cameraOrientation = glm::mat3();
@@ -139,15 +139,15 @@ int main(int argc, char* argv[])
     // calculate vertex normals for each triangle of the sphere - for gouraud and phong shading
     calcVertexNormals(sphere_triangles);
 
-    // scene["logo"] = logo_triangles;
+    scene["logo"] = logo_triangles;
     scene["box"] = box_triangles;
     scene["sphere"] = sphere_triangles;
 
     moveObject("logo",vec3(-35,-25,-100));
     rotateObject("logo",vec3(0,1.5,0));
     moveObject("logo",vec3(0,0,-120));
-    moveObject("sphere",vec3(35,100,-100)); // place sphere above red box
-    // moveObject("sphere", vec3(-70, 20, -70)); // place sphere in front of blue box
+    // moveObject("sphere",vec3(35,100,-100)); // place sphere above red box
+    moveObject("sphere", vec3(-70, 20, -70)); // place sphere in front of blue box
 
     int width = 5;
     double** grid = malloc2dArray(width, width);
@@ -905,12 +905,12 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                 // mirror
                 if (final_intersection.intersectedTriangle.isMirror) {
                     //calculate mirror vector
-                    // vec3 point = final_intersection.intersectionPoint;
-                    // vec3 mirrorRay = calcMirrorVec(point,final_intersection.intersectedTriangle);
-                    // // original_intersection is used to ensure mirror doesn't reflect itself
-                    // RayTriangleIntersection final_mirror_intersection = getFinalIntersection(triangles,mirrorRay,point,&final_intersection);
-                    // Colour c = final_mirror_intersection.intersectedTriangle.colour;
-                    // newColour = 0.8f *  vec3(c.red,c.green,c.blue); // 0.8 is to make mirror slightly darker than the real object
+                    vec3 point = final_intersection.intersectionPoint;
+                    vec3 mirrorRay = calcMirrorVec(point,final_intersection.intersectedTriangle);
+                    // original_intersection is used to ensure mirror doesn't reflect itself
+                    RayTriangleIntersection final_mirror_intersection = getFinalIntersection(triangles,mirrorRay,point,&final_intersection);
+                    Colour c = final_mirror_intersection.intersectedTriangle.colour;
+                    newColour = 0.8f *  vec3(c.red,c.green,c.blue); // 0.8 is to make mirror slightly darker than the real object
                 }
 
                 if(final_intersection.distanceFromCamera != infinity){
@@ -979,7 +979,6 @@ float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> t
         brightness = calcShadow(brightness, triangles, point, lightPos, t);
     }
 
-    //do shadow calc here
     return brightness;
 }
 

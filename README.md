@@ -20,17 +20,17 @@ Bold = done, italics = sort of
 - [x] **Diffuse lighting (proximity and angle-of-incidence)**
 
 ### 60s range
-- [ ] Gouraud shading
+- [x] **Gouraud shading**
 - [x]  **Naive (non-perspective corrected) texture mapping**
 - [ ] Simple animation (e.g. fly-through)
 - [ ] Some form of Physics (gravity, friction, bounce etc)
 - [ ] Basic culling (far-plane, near-plan, back-face)
-- [x] **Basic anti-aliasing**
+- [ ] Basic anti-aliasing
 
 ### 70s range
-- [ ] Phong Shading
+- [x] **Phong Shading**
 - [x] **Fairly “interesting” materials (e.g. mirrors)**
-- [ ] Complex anti-aliasing
+- [x] **Complex anti-aliasing**
 - [ ] Perspective corrected texture mapping
 - [ ] “Fancy” animation
 - [x] *Soft shadow*

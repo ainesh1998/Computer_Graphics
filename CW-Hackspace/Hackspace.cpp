@@ -173,8 +173,10 @@ int main(int argc, char* argv[])
         if (isUpdate) {
             update(translation, rotationAngles,light_translation);
 
-            std::cout << "light is at" << '\n';
-            print_vec3(light_positions[0]);
+            if(light_translation != vec3(0,0,0)){
+                std::cout << "light is at" << '\n';
+                print_vec3(light_positions[0]);
+            }
             if(mode!=4)drawScene();
             else {
                 drawBox(generatedTriangles, FOCALLENGTH);
@@ -843,7 +845,14 @@ vec3 getTextureColour(ModelTriangle triangle, vec3 solution, vec3 point) {
 
     return vec3(c.red, c.green, c.blue);
 }
-
+//Calculate if the ModelTriangle normal is facing the camera
+bool isFacing(ModelTriangle t, vec3 ray){
+    vec3 toCamera = -ray;
+    vec3 norm = computenorm(t);
+    float val = glm::dot(toCamera,norm);
+    // std::cout << val << '\n';
+    return (val>=0.f);
+}
 RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangles,vec3 ray,vec3 origin,RayTriangleIntersection* original_intersection){
     RayTriangleIntersection final_intersection;
     final_intersection.distanceFromCamera = infinity;
@@ -851,30 +860,32 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
     vec3 newColour;
     float minDist = infinity;
     for (size_t i = 0; i < triangles.size(); i++) {
-        RayTriangleIntersection intersection = getIntersection(ray,triangles[i],origin);
-        float distance = intersection.distanceFromCamera;
+        if(isFacing(triangles[i],ray)){
+            RayTriangleIntersection intersection = getIntersection(ray,triangles[i],origin);
+            float distance = intersection.distanceFromCamera;
 
-        //this is valid as you are setting distance to infinity if it's invalid
-        //!isEqualTriangle used to prevent acne from the mirror (doesn't affect the original raytrace)
-        bool hit = (original_intersection != nullptr && !isEqualTriangle(triangles[i],original_intersection->intersectedTriangle))
-                    || original_intersection == nullptr;
-        if(distance < minDist && hit){
-            vec3 oldColour = vec3(triangles[i].colour.red, triangles[i].colour.green, triangles[i].colour.blue);
+            //this is valid as you are setting distance to infinity if it's invalid
+            //!isEqualTriangle used to prevent acne from the mirror (doesn't affect the original raytrace)
+            bool hit = (original_intersection != nullptr && !isEqualTriangle(triangles[i],original_intersection->intersectedTriangle))
+                        || original_intersection == nullptr;
+            if(distance < minDist && hit){
+                vec3 oldColour = vec3(triangles[i].colour.red, triangles[i].colour.green, triangles[i].colour.blue);
 
-            // texture mapping
-            if (triangles[i].isTexture) {
-                oldColour = getTextureColour(triangles[i], intersection.solution, intersection.intersectionPoint);
+                // texture mapping
+                if (triangles[i].isTexture) {
+                    oldColour = getTextureColour(triangles[i], intersection.solution, intersection.intersectionPoint);
+                }
+
+                float brightness = calcBrightness(intersection.intersectionPoint,triangles[i],triangles,light_positions,intersection.solution);
+                vec3 lightColourCorrected = lightColour * brightness;
+
+                newColour = lightColourCorrected * oldColour;
+
+                Colour c = Colour(newColour.x, newColour.y, newColour.z);
+                intersection.intersectedTriangle.colour = c;
+                final_intersection = intersection;
+                minDist = distance;
             }
-
-            float brightness = calcBrightness(intersection.intersectionPoint,triangles[i],triangles,light_positions,intersection.solution);
-            vec3 lightColourCorrected = lightColour * brightness;
-
-            newColour = lightColourCorrected * oldColour;
-
-            Colour c = Colour(newColour.x, newColour.y, newColour.z);
-            intersection.intersectedTriangle.colour = c;
-            final_intersection = intersection;
-            minDist = distance;
         }
     }
     return final_intersection;
@@ -887,12 +898,12 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
             // complex anti-aliasing - firing multiple rays according to quincux pattern
 
             vec3 ray1 = computeRay((x+0.5),(y+0.5),FOV);
-            // vec3 ray2 = computeRay((x),(y),FOV);
+            vec3 ray2 = computeRay((x),(y),FOV);
             // vec3 ray3 = computeRay((x+1),(y),FOV);
             // vec3 ray4 = computeRay((x),(y+1),FOV);
             // vec3 ray5 = computeRay((x+1),(y+1),FOV);
             // std::vector<vec3> rays = {ray1,ray2,ray3,ray4,ray5};
-            std::vector<vec3> rays = {ray1};
+            std::vector<vec3> rays = {ray1,ray2};
             vec3 sumColour = vec3(0,0,0);
             for (size_t r = 0; r < rays.size(); r++) {
                 RayTriangleIntersection final_intersection;
@@ -905,12 +916,12 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                 // mirror
                 if (final_intersection.intersectedTriangle.isMirror) {
                     //calculate mirror vector
-                    vec3 point = final_intersection.intersectionPoint;
-                    vec3 mirrorRay = calcMirrorVec(point,final_intersection.intersectedTriangle);
-                    // original_intersection is used to ensure mirror doesn't reflect itself
-                    RayTriangleIntersection final_mirror_intersection = getFinalIntersection(triangles,mirrorRay,point,&final_intersection);
-                    Colour c = final_mirror_intersection.intersectedTriangle.colour;
-                    newColour = 0.8f *  vec3(c.red,c.green,c.blue); // 0.8 is to make mirror slightly darker than the real object
+                    // vec3 point = final_intersection.intersectionPoint;
+                    // vec3 mirrorRay = calcMirrorVec(point,final_intersection.intersectedTriangle);
+                    // // original_intersection is used to ensure mirror doesn't reflect itself
+                    // RayTriangleIntersection final_mirror_intersection = getFinalIntersection(triangles,mirrorRay,point,&final_intersection);
+                    // Colour c = final_mirror_intersection.intersectedTriangle.colour;
+                    // newColour = 0.8f *  vec3(c.red,c.green,c.blue); // 0.8 is to make mirror slightly darker than the real object
                 }
 
                 if(final_intersection.distanceFromCamera != infinity){
@@ -998,14 +1009,14 @@ float calcBrightness(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> 
 
 
 void calcVertexNormals(std::vector<ModelTriangle> triangles) {
-    for (int i = 0; i < triangles.size(); i++) {
+    for (size_t i = 0; i < triangles.size(); i++) {
         std::vector<vec3> vertexNormals;
         for (int j = 0; j < 3; j++) {
             vec3 point = triangles[i].vertices[j];
             vec3 avgSurfaceNormal = vec3(0, 0, 0);
             int normalCount = 0;
 
-            for (int k = 0; k < triangles.size(); k++) {
+            for (size_t k = 0; k < triangles.size(); k++) {
                 for (int l = 0; l < 3; l++) {
                     vec3 newPoint = triangles[k].vertices[l];
                     if (newPoint == point) {

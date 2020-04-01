@@ -140,15 +140,15 @@ int main(int argc, char* argv[])
     // calculate vertex normals for each triangle of the sphere - for gouraud and phong shading
     calcVertexNormals(sphere_triangles);
 
-    scene["logo"] = logo_triangles;
+    // scene["logo"] = logo_triangles;
     scene["box"] = box_triangles;
-    scene["sphere"] = sphere_triangles;
+    // scene["sphere"] = sphere_triangles;
 
-    moveObject("logo",vec3(-35,-25,-100));
-    rotateObject("logo",vec3(0,1.5,0));
-    moveObject("logo",vec3(0,0,-120));
-    // moveObject("sphere",vec3(35,100,-100)); // place sphere above red box
-    moveObject("sphere", vec3(-70, 20, -70)); // place sphere in front of blue box
+    // moveObject("logo",vec3(-35,-25,-100));
+    // rotateObject("logo",vec3(0,1.5,0));
+    // moveObject("logo",vec3(0,0,-120));
+    // // moveObject("sphere",vec3(35,100,-100)); // place sphere above red box
+    // moveObject("sphere", vec3(-70, 20, -70)); // place sphere in front of blue box
 
     int width = 5;
     double** grid = malloc2dArray(width, width);
@@ -738,9 +738,13 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
             CanvasPoint point = CanvasPoint(x, y,-wrtCamera.z, modelTriangles[i].texturePoints[j]);
             points.push_back(point);
         }
-        CanvasTriangle triangle = CanvasTriangle(points[0], points[1], points[2], modelTriangles[i].colour);
-        triangles.push_back(triangle);
+        if(points[0].depth >= 100 && points[0].depth <= 1000 ){ //near plane clipping
+            CanvasTriangle triangle = CanvasTriangle(points[0], points[1], points[2], modelTriangles[i].colour);
+            triangles.push_back(triangle);
+        }
+
     }
+    std::cout << far << '\n';
 
     for(int i = 0; i < (int)triangles.size(); i++){
         if (mode == 2 || mode == 4) {
@@ -894,6 +898,7 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
 
 void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
     // window.clearPixels();
+    float minDist = infinity;
     for (size_t x = 0; x < WIDTH; x++) {
         for (size_t y = 0; y < HEIGHT; y++) {
             // complex anti-aliasing - firing multiple rays according to quincux pattern
@@ -911,18 +916,19 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                 final_intersection.distanceFromCamera = infinity;
                 vec3 ray = rays[r];
                 final_intersection = getFinalIntersection(triangles,ray,cameraPos,nullptr);
+                if(final_intersection.distanceFromCamera< minDist) minDist = final_intersection.distanceFromCamera;
                 Colour c = final_intersection.intersectedTriangle.colour;
                 vec3 newColour = {c.red,c.green,c.blue};
 
                 // mirror
                 if (final_intersection.intersectedTriangle.isMirror) {
                     //calculate mirror vector
-                    // vec3 point = final_intersection.intersectionPoint;
-                    // vec3 mirrorRay = calcMirrorVec(point,final_intersection.intersectedTriangle);
-                    // // original_intersection is used to ensure mirror doesn't reflect itself
-                    // RayTriangleIntersection final_mirror_intersection = getFinalIntersection(triangles,mirrorRay,point,&final_intersection);
-                    // Colour c = final_mirror_intersection.intersectedTriangle.colour;
-                    // newColour = 0.8f *  vec3(c.red,c.green,c.blue); // 0.8 is to make mirror slightly darker than the real object
+                    vec3 point = final_intersection.intersectionPoint;
+                    vec3 mirrorRay = calcMirrorVec(point,final_intersection.intersectedTriangle);
+                    // original_intersection is used to ensure mirror doesn't reflect itself
+                    RayTriangleIntersection final_mirror_intersection = getFinalIntersection(triangles,mirrorRay,point,&final_intersection);
+                    Colour c = final_mirror_intersection.intersectedTriangle.colour;
+                    newColour = 0.8f *  vec3(c.red,c.green,c.blue); // 0.8 is to make mirror slightly darker than the real object
                 }
 
                 if(final_intersection.distanceFromCamera != infinity){
@@ -934,6 +940,7 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
             window.setPixelColour(x,y,c.packed_colour());
         }
     }
+    // std::cout << "distance:" << minDist <<'\n';
 }
 
 

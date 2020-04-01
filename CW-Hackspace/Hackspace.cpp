@@ -52,6 +52,7 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer,double 
 void drawBox(std::vector<ModelTriangle> triangles, float focalLength);
 
 // raytracer
+bool isFacing(ModelTriangle t, vec3 ray);
 vec3 calcMirrorVec(vec3 point,ModelTriangle t);
 vec3 getTextureColour(ModelTriangle triangle, vec3 solution, vec3 point);
 glm::vec3 computeRay(float x,float y,float fov);
@@ -847,7 +848,7 @@ vec3 getTextureColour(ModelTriangle triangle, vec3 solution, vec3 point) {
 }
 //Calculate if the ModelTriangle normal is facing the camera
 bool isFacing(ModelTriangle t, vec3 ray){
-    vec3 toCamera = -ray;
+    vec3 toCamera = -ray; //invert the ray to get the vertex pointing towards the camera
     vec3 norm = computenorm(t);
     float val = glm::dot(toCamera,norm);
     // std::cout << val << '\n';
@@ -898,12 +899,12 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
             // complex anti-aliasing - firing multiple rays according to quincux pattern
 
             vec3 ray1 = computeRay((x+0.5),(y+0.5),FOV);
-            vec3 ray2 = computeRay((x),(y),FOV);
+            // vec3 ray2 = computeRay((x),(y),FOV);
             // vec3 ray3 = computeRay((x+1),(y),FOV);
             // vec3 ray4 = computeRay((x),(y+1),FOV);
             // vec3 ray5 = computeRay((x+1),(y+1),FOV);
             // std::vector<vec3> rays = {ray1,ray2,ray3,ray4,ray5};
-            std::vector<vec3> rays = {ray1,ray2};
+            std::vector<vec3> rays = {ray1};
             vec3 sumColour = vec3(0,0,0);
             for (size_t r = 0; r < rays.size(); r++) {
                 RayTriangleIntersection final_intersection;

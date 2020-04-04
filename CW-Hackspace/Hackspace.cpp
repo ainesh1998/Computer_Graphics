@@ -529,105 +529,49 @@ void drawLine(CanvasPoint start,CanvasPoint end,Colour c){
     }
 }
 
-// swaps two numbers
-void swap(int* a , int*b)
-{
-    int temp = *a;
-    *a = *b;
-    *b = temp;
-}
-
-// returns absolute value of number
-float absolute(float x )
-{
-    if (x < 0) return -x;
-    else return x;
-}
-
-//returns integer part of a floating point number
-int iPartOfNumber(float x)
-{
-    return (int)x;
-}
-
-//rounds off a number
-int roundNumber(float x)
-{
-    return iPartOfNumber(x + 0.5) ;
-}
-
-//returns fractional part of a number
-float fPartOfNumber(float x)
-{
-    if (x>0) return x - iPartOfNumber(x);
-    else return x - (iPartOfNumber(x)+1);
-
-}
-
-//returns 1 - fractional part of number
-float rfPartOfNumber(float x)
-{
-    return 1 - fPartOfNumber(x);
-}
-
-void drawPixel( int x , int y , float brightness)
-{
-    int c = 255*(1-brightness);
-    std::cout << brightness << '\n';
-    // SDL_SetRenderDrawColor(pRenderer, c, c, c, 255);
-    // SDL_RenderDrawPoint(pRenderer, x, y);
-    window.setPixelColour(x, y, Colour(c, c, c).packed_colour());
-}
-
 void drawLineAntiAlias(CanvasPoint start, CanvasPoint end, Colour c) {
-    int x0 = start.x;
-    int x1 = end.x;
-    int y0 = start.y;
-    int y1 = end.y;
-    int steep = absolute(y1 - y0) > absolute(x1 - x0) ;
+    // https://www.geeksforgeeks.org/anti-aliased-line-xiaolin-wus-algorithm/
 
-   // swap the co-ordinates if slope > 1 or we
-   // draw backwards
-    if (steep)
+    vec3 newStart = start.toVec3();
+    vec3 newEnd = end.toVec3();
+    int isSteep = std::abs(end.y - start.y) > std::abs(end.x - start.x);
+
+   // swap the co-ordinates if steep so that all lines are shallow - swap back when drawing
+    if (isSteep)
     {
-       swap(&x0 , &y0);
-       swap(&x1 , &y1);
+       newStart = vec3(newStart.y, newStart.x, newStart.z);
+       newEnd = vec3(newEnd.y, newEnd.x, newEnd.z);
     }
-    if (x0 > x1)
+    // sort by x value
+    if (newStart.x > newEnd.x)
     {
-       swap(&x0 ,&x1);
-       swap(&y0 ,&y1);
+       vec3 temp = newStart;
+       newStart = newEnd;
+       newEnd = temp;
     }
 
-   //compute the slope
-    float dx = x1-x0;
-    float dy = y1-y0;
-    float gradient = dy/dx;
-    if (dx == 0.0) gradient = 1;
-    int xpxl1 = x0;
-    int xpxl2 = x1;
-    float intersectY = y0;
+   // interpolate the line
+    std::vector<vec3> line = interpolate3(newStart, newEnd, std::abs(newEnd.x - newStart.x)+1);
 
-    if (steep) {
-        int x;
-        for (x = xpxl1; x <= xpxl2; x++) {
-            // pixel coverage is determined by fractional
-            // part of y co-ordinate
-            // float yDist = std::abs(intersectY - (int) intersectY);
-            // vec3 smoothColour = vec3(c.red, c.green, c.blue) * (1-yDist);
-            drawPixel(iPartOfNumber(intersectY), x, rfPartOfNumber(intersectY));
-            drawPixel(iPartOfNumber(intersectY)-1, x, fPartOfNumber(intersectY));
-            intersectY += gradient;
+    for (int i = 0; i < line.size(); i++) {
+        int x = line[i].x;
+        float yLine = line[i].y; // the actual y-value at point x - could be between two pixels
+
+        // Since the y-value could be between two pixels, we calculate the distance of this y-value
+        // to the pixels above and below
+        float dist1 = std::abs(yLine - ((int) yLine)); // pixel above
+        float dist2 = 1 - dist1; // the distance between two pixels is 1, so dist2 = 1 - dist1
+
+        Colour newColour1 = Colour(c.toVec3() * dist1);
+        Colour newColour2 = Colour(c.toVec3() * dist2);
+
+        if (isSteep) {
+            window.setPixelColour((int) yLine, x, newColour1.packed_colour());
+            window.setPixelColour((int) (yLine-1), x, newColour2.packed_colour());
         }
-    }
-    else {
-        int x;
-        for (x = xpxl1; x <= xpxl2; x++) {
-            // pixel coverage is determined by fractional
-            // part of y co-ordinate
-            drawPixel(x, iPartOfNumber(intersectY), rfPartOfNumber(intersectY));
-            drawPixel(x, iPartOfNumber(intersectY)-1, fPartOfNumber(intersectY));
-            intersectY += gradient;
+        else {
+            window.setPixelColour(x, (int) yLine, newColour1.packed_colour());
+            window.setPixelColour(x, (int) (yLine-1), newColour2.packed_colour());
         }
     }
 }
@@ -663,15 +607,6 @@ void drawTriangle(CanvasTriangle triangle){
         drawLine(triangle.vertices[1],triangle.vertices[2],c);
         drawLine(triangle.vertices[2],triangle.vertices[0],c);
     }
-
-    // for (int x = 0; x < WIDTH; x++) {
-    //     for (int y = 0; y < HEIGHT; y++) {
-    //         window.setPixelColour(x, y, Colour(255,255,255).packed_colour());
-    //     }
-    // }
-    // drawLine(CanvasPoint(30,100), CanvasPoint(630, 200), Colour(255, 255, 255));
-    // drawLineAntiAlias(CanvasPoint(10,150), CanvasPoint(600,250), Colour(255, 255, 255));
-
 }
 
 double compute_depth(double depth,double near,double far){

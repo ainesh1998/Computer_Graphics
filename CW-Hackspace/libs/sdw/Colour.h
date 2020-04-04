@@ -28,9 +28,20 @@ class Colour
       blue = b;
     }
 
+    Colour(glm::vec3 c) {
+        name = "";
+        red = c.x;
+        green = c.y;
+        blue = c.z;
+    }
+
     uint32_t packed_colour(){
         uint32_t colour = (255<<24) + (int(red)<<16) + (int(green)<<8) + int(blue);
-        return colour;        
+        return colour;
+    }
+
+    glm::vec3 toVec3() {
+        return glm::vec3(red, green, blue);
     }
 };
 

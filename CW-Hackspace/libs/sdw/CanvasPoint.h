@@ -57,6 +57,10 @@ class CanvasPoint
       isTexture = (t.x != -1 && t.y != -1);
     }
 
+    glm::vec3 toVec3() {
+        return glm::vec3(x, y, depth);
+    }
+
 };
 
 std::ostream& operator<<(std::ostream& os, const CanvasPoint& point)

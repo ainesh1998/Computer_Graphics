@@ -45,6 +45,7 @@ void displayPicture(std::vector<Colour> payload,int width,int height);
 
 // rasteriser
 void drawLine(CanvasPoint start,CanvasPoint end,Colour c);
+void drawLineAntiAlias(CanvasPoint start, CanvasPoint end, Colour c);
 void drawRake(vec3 start,vec3 end,Colour c,double** depth_buffer);
 void drawTriangle(CanvasTriangle triangle);
 void drawFilledTriangle(CanvasTriangle triangle, double** depth_buffer,double near,double far);
@@ -519,15 +520,115 @@ void displayPicture(std::vector<Colour> payload,int width,int height){
 void drawLine(CanvasPoint start,CanvasPoint end,Colour c){
     float xDiff = end.x - start.x;
     float yDiff = end.y - start.y;
-    float zDiff = end.depth - start.depth;
-    float temp = std::max(abs(xDiff), abs(yDiff));
-    float numberOfSteps = std::max(temp, std::abs(zDiff));
+    float numberOfSteps = std::max(abs(xDiff), abs(yDiff));
 
     std::vector<vec3> line = interpolate3(vec3(start.x,start.y,start.depth), vec3(end.x,end.y,end.depth), numberOfSteps+1);
-    uint32_t colour = (255<<24) + (int(c.red)<<16) + (int(c.green)<<8) + int(c.blue);
 
     for (uint32_t i = 0; i < line.size(); i++) {
-        window.setPixelColour(line[i].x, line[i].y, colour);
+        window.setPixelColour(line[i].x, line[i].y, c.packed_colour());
+    }
+}
+
+// swaps two numbers
+void swap(int* a , int*b)
+{
+    int temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+// returns absolute value of number
+float absolute(float x )
+{
+    if (x < 0) return -x;
+    else return x;
+}
+
+//returns integer part of a floating point number
+int iPartOfNumber(float x)
+{
+    return (int)x;
+}
+
+//rounds off a number
+int roundNumber(float x)
+{
+    return iPartOfNumber(x + 0.5) ;
+}
+
+//returns fractional part of a number
+float fPartOfNumber(float x)
+{
+    if (x>0) return x - iPartOfNumber(x);
+    else return x - (iPartOfNumber(x)+1);
+
+}
+
+//returns 1 - fractional part of number
+float rfPartOfNumber(float x)
+{
+    return 1 - fPartOfNumber(x);
+}
+
+void drawPixel( int x , int y , float brightness)
+{
+    int c = 255*(1-brightness);
+    std::cout << brightness << '\n';
+    // SDL_SetRenderDrawColor(pRenderer, c, c, c, 255);
+    // SDL_RenderDrawPoint(pRenderer, x, y);
+    window.setPixelColour(x, y, Colour(c, c, c).packed_colour());
+}
+
+void drawLineAntiAlias(CanvasPoint start, CanvasPoint end, Colour c) {
+    int x0 = start.x;
+    int x1 = end.x;
+    int y0 = start.y;
+    int y1 = end.y;
+    int steep = absolute(y1 - y0) > absolute(x1 - x0) ;
+
+   // swap the co-ordinates if slope > 1 or we
+   // draw backwards
+    if (steep)
+    {
+       swap(&x0 , &y0);
+       swap(&x1 , &y1);
+    }
+    if (x0 > x1)
+    {
+       swap(&x0 ,&x1);
+       swap(&y0 ,&y1);
+    }
+
+   //compute the slope
+    float dx = x1-x0;
+    float dy = y1-y0;
+    float gradient = dy/dx;
+    if (dx == 0.0) gradient = 1;
+    int xpxl1 = x0;
+    int xpxl2 = x1;
+    float intersectY = y0;
+
+    if (steep) {
+        int x;
+        for (x = xpxl1; x <= xpxl2; x++) {
+            // pixel coverage is determined by fractional
+            // part of y co-ordinate
+            // float yDist = std::abs(intersectY - (int) intersectY);
+            // vec3 smoothColour = vec3(c.red, c.green, c.blue) * (1-yDist);
+            drawPixel(iPartOfNumber(intersectY), x, rfPartOfNumber(intersectY));
+            drawPixel(iPartOfNumber(intersectY)-1, x, fPartOfNumber(intersectY));
+            intersectY += gradient;
+        }
+    }
+    else {
+        int x;
+        for (x = xpxl1; x <= xpxl2; x++) {
+            // pixel coverage is determined by fractional
+            // part of y co-ordinate
+            drawPixel(x, iPartOfNumber(intersectY), rfPartOfNumber(intersectY));
+            drawPixel(x, iPartOfNumber(intersectY)-1, fPartOfNumber(intersectY));
+            intersectY += gradient;
+        }
     }
 }
 
@@ -549,10 +650,28 @@ void drawRake(vec3 start, vec3 end, Colour c, double** depth_buffer){
 }
 
 void drawTriangle(CanvasTriangle triangle){
-  Colour c = triangle.colour;
-  drawLine(triangle.vertices[0],triangle.vertices[1],c);
-  drawLine(triangle.vertices[1],triangle.vertices[2],c);
-  drawLine(triangle.vertices[2],triangle.vertices[0],c);
+    Colour c = triangle.colour;
+
+    if (mode == 1) {
+        drawLineAntiAlias(triangle.vertices[0],triangle.vertices[1],c);
+        drawLineAntiAlias(triangle.vertices[1],triangle.vertices[2],c);
+        drawLineAntiAlias(triangle.vertices[2],triangle.vertices[0],c);
+    }
+
+    else if (mode == 5) {
+        drawLine(triangle.vertices[0],triangle.vertices[1],c);
+        drawLine(triangle.vertices[1],triangle.vertices[2],c);
+        drawLine(triangle.vertices[2],triangle.vertices[0],c);
+    }
+
+    // for (int x = 0; x < WIDTH; x++) {
+    //     for (int y = 0; y < HEIGHT; y++) {
+    //         window.setPixelColour(x, y, Colour(255,255,255).packed_colour());
+    //     }
+    // }
+    // drawLine(CanvasPoint(30,100), CanvasPoint(630, 200), Colour(255, 255, 255));
+    // drawLineAntiAlias(CanvasPoint(10,150), CanvasPoint(600,250), Colour(255, 255, 255));
+
 }
 
 double compute_depth(double depth,double near,double far){
@@ -756,7 +875,7 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
             else drawFilledTriangle(triangles[i],depth_buffer,near,far);
         }
 
-        else if (mode == 1) {
+        else if (mode == 1 || mode == 5) {
             triangles[i].colour = Colour(255, 255, 255);
             drawTriangle(triangles[i]);
         }
@@ -1309,6 +1428,10 @@ bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAng
         if(event.key.keysym.sym == SDLK_4) {
             mode = 4;
             std::cout << "Testing generated geometry" << '\n';
+        }
+        if(event.key.keysym.sym == SDLK_5) {
+            mode = 5;
+            std::cout << "Aliased mode" << '\n';
         }
 
         // std::cout << translation->x << " " << translation->y << " " << translation->z << std::endl;

@@ -45,11 +45,11 @@ void displayPicture(std::vector<Colour> payload,int width,int height);
 
 // rasteriser
 void drawLine(CanvasPoint start,CanvasPoint end,Colour c);
-void drawLineAntiAlias(CanvasPoint start, CanvasPoint end, Colour c);
+void drawLineAntiAlias(CanvasPoint start, CanvasPoint end, Colour c, double** depth_buffer);
 void drawRake(vec3 start,vec3 end,Colour c,double** depth_buffer);
-void drawTriangle(CanvasTriangle triangle);
-void drawFilledTriangle(CanvasTriangle triangle, double** depth_buffer,double near,double far);
-void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer,double near,double far);
+void drawTriangle(CanvasTriangle triangle, double** depth_buffer);
+void drawFilledTriangle(CanvasTriangle triangle, double** depth_buffer);
+void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer);
 void drawBox(std::vector<ModelTriangle> triangles, float focalLength);
 
 // raytracer
@@ -179,7 +179,7 @@ int main(int argc, char* argv[])
                 std::cout << "light is at" << '\n';
                 print_vec3(light_positions[0]);
             }
-            if(mode!=4)drawScene();
+            if(mode!=4) drawScene();
             else {
                 drawBox(generatedTriangles, FOCALLENGTH);
             }
@@ -529,7 +529,7 @@ void drawLine(CanvasPoint start,CanvasPoint end,Colour c){
     }
 }
 
-void drawLineAntiAlias(CanvasPoint start, CanvasPoint end, Colour c) {
+void drawLineAntiAlias(CanvasPoint start, CanvasPoint end, Colour c, double** depth_buffer) {
     // https://www.geeksforgeeks.org/anti-aliased-line-xiaolin-wus-algorithm/
 
     vec3 newStart = start.toVec3();
@@ -562,16 +562,47 @@ void drawLineAntiAlias(CanvasPoint start, CanvasPoint end, Colour c) {
         float dist1 = std::abs(yLine - ((int) yLine)); // pixel above
         float dist2 = 1 - dist1; // the distance between two pixels is 1, so dist2 = 1 - dist1
 
-        Colour newColour1 = Colour(c.toVec3() * dist1);
-        Colour newColour2 = Colour(c.toVec3() * dist2);
+        int y1 = yLine; // pixel below
+        int y2 = yLine - 1; // pixel above
 
+        // Colour newColour1 = c;
+        // newColour1.alpha = dist1 * 255;
+        // Colour newColour2 = c;
+        // newColour2.alpha = dist2 * 255;
+        // vec3 newColourVec1 = c.toVec3() * dist1 +
+        // Colour newColour1 = Colour(c.toVec3() * dist1);
+        // Colour newColour2 = Colour(c.toVec3() * dist2);
+
+        if ((isSteep && x < HEIGHT)) {
+            // std::cout << isSteep << " " << x << " " << y1 << " " << y2 << '\n';
+            // window.setPixelColour(y1, x, Colour(255,255,255).packed_colour());
+            // std::cout << Colour(window.getPixelColour(y1, x)) << '\n';
+            // std::cout << " " << '\n';
+        }
+
+        // std::cout << x << " " << y1 << " " << y2 << '\n';
         if (isSteep) {
-            window.setPixelColour((int) yLine, x, newColour1.packed_colour());
-            window.setPixelColour((int) (yLine-1), x, newColour2.packed_colour());
+            // swap the coordinates back
+            if (x >= 0 && x < HEIGHT && y1 >= 0 && y1 < WIDTH){
+                if (depth_buffer[y1][x] > line[i].z) {
+                    Colour newColour1 = Colour(c.toVec3() * dist1 + Colour(window.getPixelColour(y1,x)).toVec3() * dist2);
+                    Colour newColour2 = Colour(c.toVec3() * dist2 + Colour(window.getPixelColour(y2,x)).toVec3() * dist1);
+                    window.setPixelColour(y1, x, newColour1.packed_colour());
+                    window.setPixelColour(y2, x, newColour2.packed_colour());
+                    depth_buffer[y1][x] = line[i].z;
+                }
+            }
         }
         else {
-            window.setPixelColour(x, (int) yLine, newColour1.packed_colour());
-            window.setPixelColour(x, (int) (yLine-1), newColour2.packed_colour());
+            if (x >= 0 && x < WIDTH && y1 >= 0 && y1 < HEIGHT){
+                if (depth_buffer[x][y1] > line[i].z) {
+                    Colour newColour1 = Colour(c.toVec3() * dist1 + Colour(window.getPixelColour(x,y1)).toVec3() * dist2);
+                    Colour newColour2 = Colour(c.toVec3() * dist2 + Colour(window.getPixelColour(x,y2)).toVec3() * dist1);
+                    window.setPixelColour(x, y1, newColour1.packed_colour());
+                    window.setPixelColour(x, y2, newColour2.packed_colour());
+                    depth_buffer[x][y1] = line[i].z;
+                }
+            }
         }
     }
 }
@@ -593,13 +624,13 @@ void drawRake(vec3 start, vec3 end, Colour c, double** depth_buffer){
     }
 }
 
-void drawTriangle(CanvasTriangle triangle){
+void drawTriangle(CanvasTriangle triangle, double** depth_buffer){
     Colour c = triangle.colour;
 
-    if (mode == 1) {
-        drawLineAntiAlias(triangle.vertices[0],triangle.vertices[1],c);
-        drawLineAntiAlias(triangle.vertices[1],triangle.vertices[2],c);
-        drawLineAntiAlias(triangle.vertices[2],triangle.vertices[0],c);
+    if (mode == 1 || mode == 2) {
+        drawLineAntiAlias(triangle.vertices[0],triangle.vertices[1],c,depth_buffer);
+        drawLineAntiAlias(triangle.vertices[1],triangle.vertices[2],c,depth_buffer);
+        drawLineAntiAlias(triangle.vertices[2],triangle.vertices[0],c,depth_buffer);
     }
 
     else if (mode == 5) {
@@ -607,6 +638,16 @@ void drawTriangle(CanvasTriangle triangle){
         drawLine(triangle.vertices[1],triangle.vertices[2],c);
         drawLine(triangle.vertices[2],triangle.vertices[0],c);
     }
+
+    // CanvasTriangle tempTriangle1 = CanvasTriangle(CanvasPoint(10,10), CanvasPoint(600,240), CanvasPoint(300, 400), Colour(255,0,0,255));
+    // CanvasTriangle tempTriangle2 = CanvasTriangle(CanvasPoint(150,10), CanvasPoint(300,240), CanvasPoint(600, 400), Colour(0,255,0,255));
+    //
+    // vec3 c1 = tempTriangle2.colour.toVec3() * 0.5f + vec3(0,0,0) * 0.5f;
+    // tempTriangle2.colour = Colour(c1);
+    //
+    // drawFilledTriangle(tempTriangle2, depth_buffer);
+    // drawFilledTriangle(tempTriangle1, depth_buffer);
+
 }
 
 double compute_depth(double depth,double near,double far){
@@ -617,15 +658,12 @@ double compute_depth(double depth,double near,double far){
     return z;
 }
 
-void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer,double near,double far){
+void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer){
     order_triangle(&triangle);
 
     CanvasPoint v1 = triangle.vertices[0];
     CanvasPoint v2 = triangle.vertices[1];
     CanvasPoint v3 = triangle.vertices[2];
-    v1.depth = compute_depth(v1.depth,near,far);
-    v2.depth = compute_depth(v2.depth,near,far);
-    v3.depth = compute_depth(v3.depth,near,far);
     double slope = (v2.y - v1.y)/(v3.y - v1.y);
     int newX = v1.x + slope * (v3.x - v1.x);
     double newZ = v1.depth +  (double)slope * (v3.depth - v1.depth);
@@ -640,6 +678,7 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer,double nea
         vec3 start = vec3((int) leftSide[i].x, leftSide[i].y, leftSide[i].z);
         vec3 end = vec3((int) rightSide[i].x, rightSide[i].y, rightSide[i].z);
         drawRake(start, end, c, depth_buffer);
+        // drawLineAntiAlias(CanvasPoint(start.x, start.y, start.z), CanvasPoint(end.x, end.y, end.z), c, depth_buffer);
     }
 
    //fill bottom triangle
@@ -651,20 +690,18 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer,double nea
         vec3 end = vec3((int) rightSide[i].x, rightSide[i].y, rightSide[i].z);
         drawRake(start, end, c, depth_buffer);
    }
+
+   drawTriangle(triangle, depth_buffer);
+
 }
 
-void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer, double near, double far){
+void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
     CanvasTriangle texturedTriangle = triangle.getTextureTriangle();
     order_textured_triangle(&triangle, &texturedTriangle);
 
     CanvasPoint v1 = triangle.vertices[0];
     CanvasPoint v2 = triangle.vertices[1];
     CanvasPoint v3 = triangle.vertices[2];
-
-    v1.depth = compute_depth(v1.depth,near,far);
-    v2.depth = compute_depth(v2.depth,near,far);
-    v3.depth = compute_depth(v3.depth,near,far);
-
 
     double slope = (v2.y - v1.y)/(v3.y - v1.y);
     int newX = v1.x + slope * (v3.x - v1.x);
@@ -792,6 +829,7 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
             if(-wrtCamera.z < near){
                 near = -wrtCamera.z;
             }
+
             CanvasPoint point = CanvasPoint(x, y,-wrtCamera.z, modelTriangles[i].texturePoints[j]);
             points.push_back(point);
         }
@@ -803,16 +841,20 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
     }
 
     for(int i = 0; i < (int)triangles.size(); i++){
+        for (int j = 0; j < 3; j++) {
+            triangles[i].vertices[j].depth = compute_depth(triangles[i].vertices[j].depth,near,far);
+        }
+
         if (mode == 2 || mode == 4) {
             if (triangles[i].isTexture) {
-                drawTexturedTriangle(triangles[i],depth_buffer,near,far);
+                drawTexturedTriangle(triangles[i],depth_buffer);
             }
-            else drawFilledTriangle(triangles[i],depth_buffer,near,far);
+            else drawFilledTriangle(triangles[i],depth_buffer);
         }
 
         else if (mode == 1 || mode == 5) {
             triangles[i].colour = Colour(255, 255, 255);
-            drawTriangle(triangles[i]);
+            drawTriangle(triangles[i], depth_buffer);
         }
     }
     free(depth_buffer);

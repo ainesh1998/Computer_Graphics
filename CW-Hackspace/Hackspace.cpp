@@ -565,22 +565,6 @@ void drawLineAntiAlias(CanvasPoint start, CanvasPoint end, Colour c, double** de
         int y1 = yLine; // pixel below
         int y2 = yLine - 1; // pixel above
 
-        // Colour newColour1 = c;
-        // newColour1.alpha = dist1 * 255;
-        // Colour newColour2 = c;
-        // newColour2.alpha = dist2 * 255;
-        // vec3 newColourVec1 = c.toVec3() * dist1 +
-        // Colour newColour1 = Colour(c.toVec3() * dist1);
-        // Colour newColour2 = Colour(c.toVec3() * dist2);
-
-        if ((isSteep && x < HEIGHT)) {
-            // std::cout << isSteep << " " << x << " " << y1 << " " << y2 << '\n';
-            // window.setPixelColour(y1, x, Colour(255,255,255).packed_colour());
-            // std::cout << Colour(window.getPixelColour(y1, x)) << '\n';
-            // std::cout << " " << '\n';
-        }
-
-        // std::cout << x << " " << y1 << " " << y2 << '\n';
         if (isSteep) {
             // swap the coordinates back
             if (x >= 0 && x < HEIGHT && y1 >= 0 && y1 < WIDTH){
@@ -638,16 +622,6 @@ void drawTriangle(CanvasTriangle triangle, double** depth_buffer){
         drawLine(triangle.vertices[1],triangle.vertices[2],c);
         drawLine(triangle.vertices[2],triangle.vertices[0],c);
     }
-
-    // CanvasTriangle tempTriangle1 = CanvasTriangle(CanvasPoint(10,10), CanvasPoint(600,240), CanvasPoint(300, 400), Colour(255,0,0,255));
-    // CanvasTriangle tempTriangle2 = CanvasTriangle(CanvasPoint(150,10), CanvasPoint(300,240), CanvasPoint(600, 400), Colour(0,255,0,255));
-    //
-    // vec3 c1 = tempTriangle2.colour.toVec3() * 0.5f + vec3(0,0,0) * 0.5f;
-    // tempTriangle2.colour = Colour(c1);
-    //
-    // drawFilledTriangle(tempTriangle2, depth_buffer);
-    // drawFilledTriangle(tempTriangle1, depth_buffer);
-
 }
 
 double compute_depth(double depth,double near,double far){
@@ -678,7 +652,6 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer){
         vec3 start = vec3((int) leftSide[i].x, leftSide[i].y, leftSide[i].z);
         vec3 end = vec3((int) rightSide[i].x, rightSide[i].y, rightSide[i].z);
         drawRake(start, end, c, depth_buffer);
-        // drawLineAntiAlias(CanvasPoint(start.x, start.y, start.z), CanvasPoint(end.x, end.y, end.z), c, depth_buffer);
     }
 
    //fill bottom triangle
@@ -691,7 +664,7 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer){
         drawRake(start, end, c, depth_buffer);
    }
 
-   drawTriangle(triangle, depth_buffer);
+   // drawTriangle(triangle, depth_buffer);
 
 }
 

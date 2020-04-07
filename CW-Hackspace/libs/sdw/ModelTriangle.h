@@ -12,6 +12,7 @@ class ModelTriangle
     TexturePoint texturePoints[3];
     bool isMirror = false;
     bool isTexture = false;
+    float velocity = 0;
 
     ModelTriangle()
     {

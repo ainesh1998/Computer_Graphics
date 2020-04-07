@@ -8,6 +8,7 @@
 #include <vector>
 #include <map>
 #include <glm/gtx/string_cast.hpp>
+#include <GameObject.h>
 
 
 #define WIDTH 640
@@ -128,38 +129,47 @@ int main(int argc, char* argv[])
     // }
 
     // SET UP SCENE
+
+    int width = 7;
+    double** grid = malloc2dArray(width, width);
+
     std::vector<ModelTriangle> logo_triangles = readOBJ("HackspaceLogo/logo.obj", "HackspaceLogo/materials.mtl", LOGO_SCALE );
 
     std::vector<ModelTriangle> box_triangles = readOBJ("cornell-box/cornell-box.obj", "cornell-box/cornell-box.mtl", BOX_SCALE );
 
     std::vector<ModelTriangle> sphere_triangles = readOBJ("extra-objects/sphere.obj", "", SPHERE_SCALE);
 
+    std::vector<ModelTriangle> generated_triangles = generateGeometry(grid, width, 50);
+
+
     for (size_t i = 0; i < light_positions.size(); i++) {
         light_positions[i] *= (float)BOX_SCALE; //cornell box light
     }
 
     // calculate vertex normals for each triangle of the sphere - for gouraud and phong shading
-    calcVertexNormals(sphere_triangles);
+    // calcVertexNormals(sphere_triangles);
 
     // scene["logo"] = logo_triangles;
-    scene["box"] = box_triangles;
+    // scene["box"] = box_triangles;
     // scene["sphere"] = sphere_triangles;
+    scene["terrain"] = generated_triangles;
 
     // moveObject("logo",vec3(-35,-25,-100));
-    // rotateObject("logo",vec3(0,1.5,0));
+    // moveObject("logo",vec3(-100,50,0)); // set logo to world origin
+
+    // moveObject("logo",vec3(-50,240,0));
+    // rotateObject("logo",vec3(0,90,0));
     // moveObject("logo",vec3(0,0,-120));
     // // moveObject("sphere",vec3(35,100,-100)); // place sphere above red box
     // moveObject("sphere", vec3(-70, 20, -70)); // place sphere in front of blue box
 
-    int width = 5;
-    double** grid = malloc2dArray(width, width);
-
-    std::vector<ModelTriangle> generatedTriangles = generateGeometry(grid, width, 50);
     drawScene();
 
     window.renderFrame();
 
-    int count = 0;
+    int count = 1;
+    float velocity = 0;
+
     while(true)
     {
         glm::vec3 translation = glm::vec3(0,0,0);
@@ -172,7 +182,24 @@ int main(int argc, char* argv[])
             isUpdate = handleEvent(event, &translation, &rotationAngles,&light_translation);
         }
 
+
+        // if (isUpdate) {
         if (isUpdate) {
+            // rotateObject("logo",vec3(0,1,0));
+            // moveObject("logo",vec3(0,-velocity,0));
+
+            // std::cout << scene["logo"][0].vertices[0].y << '\n';
+            // if(scene["logo"][0].vertices[0].y < -1000) {
+
+            // if(count % 30 == 0){
+            //     velocity *= -1;
+            //  }
+
+            // velocity++;
+            count++;
+            // std::cout << count << '\n';
+            // std::cout << velocity << '\n';
+
             update(translation, rotationAngles,light_translation);
 
             if(light_translation != vec3(0,0,0)){
@@ -180,16 +207,20 @@ int main(int argc, char* argv[])
                 print_vec3(light_positions[0]);
             }
             if(mode!=4) drawScene();
-            else {
-                drawBox(generatedTriangles, FOCALLENGTH);
-            }
+            // else if (mode == 4) {
+            //     window.clearPixels();
+            //     drawBox(generated_triangles, FOCALLENGTH);
+            // }
+            // else if(mode == 5){
+            //     window.clearPixels();
+            //     drawBoxRayTraced(generated_triangles);
+            // }
 
             // Need to render the frame at the end, or nothing actually gets shown on the screen !
             window.renderFrame();
             // std::vector<Colour> colours = loadColours();
             // std::string filename = "image" + std::to_string(count) + ".ppm";
             // writePPM(filename,WIDTH,HEIGHT,colours);
-            count++;
         }
     }
 }
@@ -576,6 +607,12 @@ void drawLineAntiAlias(CanvasPoint start, CanvasPoint end, Colour c, double** de
                     depth_buffer[y1][x] = line[i].z;
                 }
             }
+            else{
+                // velocity *= -1;
+                // std::cout << "test" << '\n';
+                // std::cout << velocity << '\n';
+            }
+
         }
         else {
             if (x >= 0 && x < WIDTH && y1 >= 0 && y1 < HEIGHT){
@@ -604,6 +641,8 @@ void drawRake(vec3 start, vec3 end, Colour c, double** depth_buffer){
                 depth_buffer[x][y] = depth;
                 window.setPixelColour(x, y, c.packed_colour());
             }
+        }else{
+            // velocity *= -1;
         }
     }
 }
@@ -617,11 +656,11 @@ void drawTriangle(CanvasTriangle triangle, double** depth_buffer){
         drawLineAntiAlias(triangle.vertices[2],triangle.vertices[0],c,depth_buffer);
     }
 
-    else if (mode == 5) {
-        drawLine(triangle.vertices[0],triangle.vertices[1],c);
-        drawLine(triangle.vertices[1],triangle.vertices[2],c);
-        drawLine(triangle.vertices[2],triangle.vertices[0],c);
-    }
+    // else if (mode == 5) {
+    //     drawLine(triangle.vertices[0],triangle.vertices[1],c);
+    //     drawLine(triangle.vertices[1],triangle.vertices[2],c);
+    //     drawLine(triangle.vertices[2],triangle.vertices[0],c);
+    // }
 }
 
 double compute_depth(double depth,double near,double far){
@@ -936,7 +975,7 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
     vec3 newColour;
     float minDist = infinity;
     for (size_t i = 0; i < triangles.size(); i++) {
-        if(isFacing(triangles[i],ray)){
+        if(isFacing(triangles[i],ray)||true){
             RayTriangleIntersection intersection = getIntersection(ray,triangles[i],origin);
             float distance = intersection.distanceFromCamera;
 
@@ -1227,7 +1266,7 @@ std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, in
     diamondSquare(pointHeights, width, width-1);
 
     // convert points into triangles to display
-    std::vector<ModelTriangle> generatedTriangles;
+    std::vector<ModelTriangle> generated_triangles;
 
     for (int x = 1; x < width; x++) {
         for (int y = 1; y < width; y++) {
@@ -1236,15 +1275,15 @@ std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, in
             vec3 v3 = vec3((x-1) * scale, pointHeights[x-1][y] * scale, -(y) * scale);
             vec3 v4 = vec3((x) * scale, pointHeights[x][y] * scale,  -(y) * scale);
 
-            ModelTriangle t1 = ModelTriangle(v1, v2, v3, Colour(255, 255, 255), newTriangleID);
-            ModelTriangle t2 = ModelTriangle(v2, v3, v4, Colour(255, 255, 255), newTriangleID+1);
+            ModelTriangle t1 = ModelTriangle(v1, v2, v3, Colour(255, 0, 0), newTriangleID);
+            ModelTriangle t2 = ModelTriangle(v2, v3, v4, Colour(255, 0, 0), newTriangleID+1);
             newTriangleID += 2;
 
-            generatedTriangles.push_back(t1);
-            generatedTriangles.push_back(t2);
+            generated_triangles.push_back(t1);
+            generated_triangles.push_back(t2);
         }
     }
-    return generatedTriangles;
+    return generated_triangles;
 }
 
 //SCENE//
@@ -1284,6 +1323,7 @@ void moveObject(std::string name,vec3 moveVec){
 
 void rotateObject(std::string name,vec3 rotationAngles){
     glm::mat3 rotation_matrix  = glm::mat3();
+    rotationAngles *= M_PI/180.0f;
     glm::mat3 rotationX = glm::transpose(glm::mat3(glm::vec3(1, 0, 0),
                                     glm::vec3(0, cos(rotationAngles.x), -sin(rotationAngles.x)),
                                     glm::vec3(0, sin(rotationAngles.x), cos(rotationAngles.x))));
@@ -1297,7 +1337,7 @@ void rotateObject(std::string name,vec3 rotationAngles){
     std::vector<ModelTriangle> triangles = scene[name];
     for (size_t i = 0; i < triangles.size(); i++) {
         for (size_t j = 0; j < 3; j++) {
-            triangles[i].vertices[j] = triangles[i].vertices[j] * rotation_matrix;
+            triangles[i].vertices[j] = rotation_matrix* triangles[i].vertices[j] ;
         }
         // std::cout << triangles[i] << '\n';
     }
@@ -1381,7 +1421,7 @@ bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAng
         }
         if(event.key.keysym.sym == SDLK_5) {
             mode = 5;
-            std::cout << "Aliased mode" << '\n';
+            std::cout << "Gen geometry with raytracer" << '\n';
         }
 
         // std::cout << translation->x << " " << translation->y << " " << translation->z << std::endl;

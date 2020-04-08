@@ -141,6 +141,10 @@ int main(int argc, char* argv[])
 
     std::vector<ModelTriangle> generated_triangles = generateGeometry(grid, width, 50);
 
+    std::vector<ModelTriangle> ground_triangles = {ModelTriangle(vec3(-500, -50, -500), vec3(500, -50, -500), vec3(500, -50, 500), Colour(0, 255, 0), newTriangleID),
+                                                   ModelTriangle(vec3(-500, -50, -500), vec3(-500, -50, 500), vec3(500, -50, 500), Colour(0, 255, 0), newTriangleID+1)};
+    newTriangleID += 2;
+
 
     for (size_t i = 0; i < light_positions.size(); i++) {
         light_positions[i] *= (float)BOX_SCALE; //cornell box light
@@ -149,13 +153,14 @@ int main(int argc, char* argv[])
     // calculate vertex normals for each triangle of the sphere - for gouraud and phong shading
     // calcVertexNormals(sphere_triangles);
 
-    // scene["logo"] = logo_triangles;
+    scene["logo"] = logo_triangles;
     // scene["box"] = box_triangles;
     // scene["sphere"] = sphere_triangles;
-    scene["terrain"] = generated_triangles;
+    // scene["terrain"] = generated_triangles;
+    scene["ground"] = ground_triangles;
 
     // moveObject("logo",vec3(-35,-25,-100));
-    // moveObject("logo",vec3(-100,50,0)); // set logo to world origin
+    moveObject("logo",vec3(-100,50,0)); // set logo to world origin
 
     // moveObject("logo",vec3(-50,240,0));
     // rotateObject("logo",vec3(0,90,0));
@@ -183,8 +188,8 @@ int main(int argc, char* argv[])
         }
 
 
-        // if (isUpdate) {
         if (isUpdate) {
+        // if (true) {
             // rotateObject("logo",vec3(0,1,0));
             // moveObject("logo",vec3(0,-velocity,0));
 
@@ -196,7 +201,7 @@ int main(int argc, char* argv[])
             //  }
 
             // velocity++;
-            count++;
+            // count++;
             // std::cout << count << '\n';
             // std::cout << velocity << '\n';
 
@@ -206,15 +211,7 @@ int main(int argc, char* argv[])
                 std::cout << "light is at" << '\n';
                 print_vec3(light_positions[0]);
             }
-            if(mode!=4) drawScene();
-            // else if (mode == 4) {
-            //     window.clearPixels();
-            //     drawBox(generated_triangles, FOCALLENGTH);
-            // }
-            // else if(mode == 5){
-            //     window.clearPixels();
-            //     drawBoxRayTraced(generated_triangles);
-            // }
+            drawScene();
 
             // Need to render the frame at the end, or nothing actually gets shown on the screen !
             window.renderFrame();
@@ -650,17 +647,9 @@ void drawRake(vec3 start, vec3 end, Colour c, double** depth_buffer){
 void drawTriangle(CanvasTriangle triangle, double** depth_buffer){
     Colour c = triangle.colour;
 
-    if (mode == 1 || mode == 2) {
-        drawLineAntiAlias(triangle.vertices[0],triangle.vertices[1],c,depth_buffer);
-        drawLineAntiAlias(triangle.vertices[1],triangle.vertices[2],c,depth_buffer);
-        drawLineAntiAlias(triangle.vertices[2],triangle.vertices[0],c,depth_buffer);
-    }
-
-    // else if (mode == 5) {
-    //     drawLine(triangle.vertices[0],triangle.vertices[1],c);
-    //     drawLine(triangle.vertices[1],triangle.vertices[2],c);
-    //     drawLine(triangle.vertices[2],triangle.vertices[0],c);
-    // }
+    drawLineAntiAlias(triangle.vertices[0],triangle.vertices[1],c,depth_buffer);
+    drawLineAntiAlias(triangle.vertices[1],triangle.vertices[2],c,depth_buffer);
+    drawLineAntiAlias(triangle.vertices[2],triangle.vertices[0],c,depth_buffer);
 }
 
 double compute_depth(double depth,double near,double far){
@@ -857,14 +846,14 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
             triangles[i].vertices[j].depth = compute_depth(triangles[i].vertices[j].depth,near,far);
         }
 
-        if (mode == 2 || mode == 4) {
+        if (mode == 2) {
             if (triangles[i].isTexture) {
                 drawTexturedTriangle(triangles[i],depth_buffer);
             }
             else drawFilledTriangle(triangles[i],depth_buffer);
         }
 
-        else if (mode == 1 || mode == 5) {
+        else if (mode == 1) {
             triangles[i].colour = Colour(255, 255, 255);
             drawTriangle(triangles[i], depth_buffer);
         }
@@ -1414,14 +1403,6 @@ bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAng
         if(event.key.keysym.sym == SDLK_3) {
             mode = 3;
             std::cout << "Switched to raytracer mode" << '\n';
-        }
-        if(event.key.keysym.sym == SDLK_4) {
-            mode = 4;
-            std::cout << "Testing generated geometry" << '\n';
-        }
-        if(event.key.keysym.sym == SDLK_5) {
-            mode = 5;
-            std::cout << "Gen geometry with raytracer" << '\n';
         }
 
         // std::cout << translation->x << " " << translation->y << " " << translation->z << std::endl;

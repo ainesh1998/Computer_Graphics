@@ -145,7 +145,7 @@ int main(int argc, char* argv[])
     vec3 b = vec3(500, -50, -500);
     vec3 c = vec3(500, -50, 500);
     vec3 d =  vec3(-500, -50, 500);
-    std::vector<ModelTriangle> ground_triangles = {ModelTriangle(a,b,c, Colour(0, 255, 0), newTriangleID),
+    std::vector<ModelTriangle> ground_triangles = {ModelTriangle(a,c,b, Colour(0, 255, 0), newTriangleID),
                                                    ModelTriangle(a,d,c, Colour(0, 255, 0), newTriangleID+1)};
     newTriangleID += 2;
 
@@ -970,7 +970,7 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
     vec3 newColour;
     float minDist = infinity;
     for (size_t i = 0; i < triangles.size(); i++) {
-        if(isFacing(triangles[i],ray)||true){
+        if(isFacing(triangles[i],ray)){
             RayTriangleIntersection intersection = getIntersection(ray,triangles[i],origin);
             float distance = intersection.distanceFromCamera;
 

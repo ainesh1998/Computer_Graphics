@@ -141,9 +141,12 @@ int main(int argc, char* argv[])
     std::vector<ModelTriangle> sphere_triangles = readOBJ("extra-objects/sphere.obj", "", SPHERE_SCALE);
 
     std::vector<ModelTriangle> generated_triangles = generateGeometry(grid, width, 50);
-
-    std::vector<ModelTriangle> ground_triangles = {ModelTriangle(vec3(-500, -50, -500), vec3(500, -50, -500), vec3(500, -50, 500), Colour(0, 255, 0), newTriangleID),
-                                                   ModelTriangle(vec3(-500, -50, -500), vec3(-500, -50, 500), vec3(500, -50, 500), Colour(0, 255, 0), newTriangleID+1)};
+    vec3 a = vec3(-500, -50, -500);
+    vec3 b = vec3(500, -50, -500);
+    vec3 c = vec3(500, -50, 500);
+    vec3 d =  vec3(-500, -50, 500);
+    std::vector<ModelTriangle> ground_triangles = {ModelTriangle(a,b,c, Colour(0, 255, 0), newTriangleID),
+                                                   ModelTriangle(a,d,c, Colour(0, 255, 0), newTriangleID+1)};
     newTriangleID += 2;
 
 

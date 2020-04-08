@@ -10,7 +10,6 @@
 #include <glm/gtx/string_cast.hpp>
 #include <GameObject.h>
 
-
 #define WIDTH 640
 #define HEIGHT 480
 #define FOCALLENGTH 250
@@ -88,6 +87,7 @@ void drawScene();
 // move object by vec3 vector
 void moveObject(std::string name,vec3 moveVec);
 void rotateObject(std::string name,vec3 rotationAngles);
+void scaleObject(std::string name,float scale);
 
 // GLOBAL VARIABLES //
 
@@ -97,8 +97,9 @@ glm::vec3 cameraPos = glm::vec3(0, 130, 180);
 glm::vec3 box_lightPos = glm::vec3(-0.2,4.8,-3.043);
 glm::vec3 box_lightPos1 = glm::vec3(2,4.8,-3.043);
 glm::vec3 logo_lightPos = glm::vec3(300,59,15);
+glm::vec3 scene_lightPos = glm::vec3(-10,260,97.85);
 glm::vec3 lightPos = box_lightPos1;
-std::vector<vec3> light_positions = {box_lightPos};
+std::vector<vec3> light_positions = {scene_lightPos};
 glm::vec3 lightColour = glm::vec3(1,1,1);
 
 glm::mat3 cameraOrientation = glm::mat3();
@@ -146,9 +147,9 @@ int main(int argc, char* argv[])
     newTriangleID += 2;
 
 
-    for (size_t i = 0; i < light_positions.size(); i++) {
-        light_positions[i] *= (float)BOX_SCALE; //cornell box light
-    }
+    // for (size_t i = 0; i < light_positions.size(); i++) {
+    //     light_positions[i] *= (float)BOX_SCALE; //cornell box light
+    // }
 
     // calculate vertex normals for each triangle of the sphere - for gouraud and phong shading
     // calcVertexNormals(sphere_triangles);
@@ -160,7 +161,9 @@ int main(int argc, char* argv[])
     scene["ground"] = ground_triangles;
 
     // moveObject("logo",vec3(-35,-25,-100));
-    moveObject("logo",vec3(-100,50,0)); // set logo to world origin
+    moveObject("logo",vec3(-100,50,-100)); // set logo to world origin
+    moveObject("ground",vec3(0,0,-550));
+    scaleObject("ground",0.5f);
 
     // moveObject("logo",vec3(-50,240,0));
     // rotateObject("logo",vec3(0,90,0));
@@ -172,8 +175,8 @@ int main(int argc, char* argv[])
 
     window.renderFrame();
 
-    int count = 1;
-    float velocity = 0;
+    // int count = 1;
+    // float velocity = 0;
 
     while(true)
     {
@@ -581,7 +584,7 @@ void drawLineAntiAlias(CanvasPoint start, CanvasPoint end, Colour c, double** de
    // interpolate the line
     std::vector<vec3> line = interpolate3(newStart, newEnd, std::abs(newEnd.x - newStart.x)+1);
 
-    for (int i = 0; i < line.size(); i++) {
+    for (uint32_t i = 0; i < line.size(); i++) {
         int x = line[i].x;
         float yLine = line[i].y; // the actual y-value at point x - could be between two pixels
 
@@ -1333,6 +1336,15 @@ void rotateObject(std::string name,vec3 rotationAngles){
     scene[name] = triangles;
 }
 
+void scaleObject(std::string name,float scale){
+    std::vector<ModelTriangle> triangles = scene[name];
+    for (size_t i = 0; i < triangles.size(); i++) {
+        for (size_t j = 0; j < 3; j++) {
+            triangles[i].vertices[j] *= scale;
+        }
+   }
+   scene[name] = triangles;
+}
 // EVENT HANDLING //
 
 

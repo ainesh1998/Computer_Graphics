@@ -79,7 +79,7 @@ float phong(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution, std::vect
 
 // generative geometry
 void diamondSquare(double** pointHeights, int width, double currentSize);
-std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, int scale);
+std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, float scale, int intensity, int count);
 
 // scene map
 void drawScene();
@@ -112,6 +112,9 @@ std::vector<Colour> texture = readPPM("HackspaceLogo/texture.ppm", &textureWidth
 std::map<std::string, std::vector<ModelTriangle>> scene;
 int newTriangleID = 0;
 std::map<int, std::vector<vec3>> triangleVertexNormals; //given a triangle ID, return its vertex normals
+int genCount = 0;
+int width = 60;
+double** grid = malloc2dArray(width, width);
 
 
 int main(int argc, char* argv[])
@@ -131,8 +134,14 @@ int main(int argc, char* argv[])
 
     // SET UP SCENE
 
-    int width = 7;
-    double** grid = malloc2dArray(width, width);
+
+    for (int x = 0; x < width; x++) {
+        for (int y = 0; y < width; y++) {
+            double temp = (rand() % (10 * 2)) - 10;
+            grid[x][y] = temp;
+        }
+    }
+
 
     std::vector<ModelTriangle> logo_triangles = readOBJ("HackspaceLogo/logo.obj", "HackspaceLogo/materials.mtl", LOGO_SCALE );
 
@@ -140,7 +149,7 @@ int main(int argc, char* argv[])
 
     std::vector<ModelTriangle> sphere_triangles = readOBJ("extra-objects/sphere.obj", "", SPHERE_SCALE);
 
-    std::vector<ModelTriangle> generated_triangles = generateGeometry(grid, width, 50);
+    std::vector<ModelTriangle> generated_triangles = generateGeometry(grid, width, 2.5, 10, genCount);
     vec3 a = vec3(-500, -50, -500);
     vec3 b = vec3(500, -50, -500);
     vec3 c = vec3(500, -50, 500);
@@ -157,16 +166,14 @@ int main(int argc, char* argv[])
     // calculate vertex normals for each triangle of the sphere - for gouraud and phong shading
     // calcVertexNormals(sphere_triangles);
 
-    scene["logo"] = logo_triangles;
+    // scene["logo"] = logo_triangles;
     // scene["box"] = box_triangles;
     // scene["sphere"] = sphere_triangles;
-    // scene["terrain"] = generated_triangles;
-    scene["ground"] = ground_triangles;
+    scene["terrain"] = generated_triangles;
+    // scene["ground"] = ground_triangles;
 
     // moveObject("logo",vec3(-35,-25,-100));
-    moveObject("logo",vec3(-100,50,-100)); // set logo to world origin
-    moveObject("ground",vec3(0,0,-550));
-    scaleObject("ground",0.5f);
+    // moveObject("logo",vec3(-100,50,0)); // set logo to world origin
 
     // moveObject("logo",vec3(-50,240,0));
     // rotateObject("logo",vec3(0,90,0));
@@ -1189,8 +1196,6 @@ double squareStep(double** pointHeights, double centreX, double centreY, double 
     double bottomLeft = pointHeights[rightX][bottomY];
     double bottomRight = pointHeights[rightX][bottomY];
 
-    // std::cout << rightX << " " << bottomY << " " << leftX << " " << topY << '\n';
-
     return (topLeft + topRight + bottomLeft + bottomRight)/4;
 }
 
@@ -1218,12 +1223,12 @@ double diamondStep(double** pointHeights, int width, int centreX, int centreY, i
 
 void diamondSquare(double** pointHeights, int width, double currentSize) {
     double half = (double) (currentSize)/2;
-    if (half < 1) return;
+    if (half < 0.1) return;
 
     // square step
     for (double x = half; x < width; x += currentSize) {
         for (double y = half; y < width; y += currentSize) {
-            // std::cout << x << " " << y << '\n';
+            std::cout << x << " " << y << '\n';
             pointHeights[(int) x][(int) y] = squareStep(pointHeights, x, y, half, true);
         }
     }
@@ -1233,49 +1238,52 @@ void diamondSquare(double** pointHeights, int width, double currentSize) {
     for (double x = 0; x <= width-1; x += half) {
         if (isSide) {
             for (double y = half; y <= width-half; y += currentSize) {
-                // std::cout << x << " " << y << '\n';
                 pointHeights[(int) x][(int) y] = diamondStep(pointHeights, width, x, y, half, true);
             }
         }
         else {
             for (double y = 0; y <= width; y += currentSize) {
+                // std::cout << pointHeights[(int)x][(int)y] << " " << diamondStep(pointHeights,width,  x, y, half, true) << '\n';
                 pointHeights[(int) x][(int) y] = diamondStep(pointHeights, width, x, y, half, true);
             }
         }
         isSide = !isSide;
     }
 
-    diamondSquare(pointHeights, width, half);
+    // diamondSquare(pointHeights, width, half);
 }
 
-std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, int scale) {
+std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, float scale, int intensity, int count) {
     // initialise grid with random values
-    for (int x = 0; x < width; x++) {
-        for (int y = 0; y < width; y++) {
-            double temp = rand()%width;
-            pointHeights[x][y] = temp;
-        }
-    }
 
+    double currentSize = width-1;
     // run algorithm
-    diamondSquare(pointHeights, width, width-1);
+    for (int i = 0; i < count; i++) {
+        diamondSquare(pointHeights, width, currentSize);
+        currentSize = currentSize/2;
+        std::cout << currentSize << '\n';
+    }
 
     // convert points into triangles to display
     std::vector<ModelTriangle> generated_triangles;
 
     for (int x = 1; x < width; x++) {
         for (int y = 1; y < width; y++) {
-            vec3 v1 = vec3((x-1) * scale, pointHeights[x-1][y-1] * scale, -(y-1) * scale);
-            vec3 v2 = vec3((x) * scale, pointHeights[x][y-1] * scale, -(y-1) * scale);
-            vec3 v3 = vec3((x-1) * scale, pointHeights[x-1][y] * scale, -(y) * scale);
-            vec3 v4 = vec3((x) * scale, pointHeights[x][y] * scale,  -(y) * scale);
+            // if (x >= width-2 || y >= width-2) {
+                vec3 v1 = vec3(x-1, pointHeights[x-1][y-1], y-1) * scale;
+                vec3 v2 = vec3(x, pointHeights[x][y-1], y-1) * scale;
+                vec3 v3 = vec3(x-1, pointHeights[x-1][y], y) * scale;
+                vec3 v4 = vec3(x, pointHeights[x][y], y) * scale;
 
-            ModelTriangle t1 = ModelTriangle(v1, v2, v3, Colour(255, 0, 0), newTriangleID);
-            ModelTriangle t2 = ModelTriangle(v2, v3, v4, Colour(255, 0, 0), newTriangleID+1);
-            newTriangleID += 2;
+                ModelTriangle t1 = ModelTriangle(v1, v2, v3, Colour(255, 0, 0), newTriangleID);
+                ModelTriangle t2 = ModelTriangle(v2, v3, v4, Colour(255, 0, 0), newTriangleID+1);
+                newTriangleID += 2;
 
-            generated_triangles.push_back(t1);
-            generated_triangles.push_back(t2);
+                // std::cout << t1 << " " << t2 << '\n';
+
+                generated_triangles.push_back(t1);
+                generated_triangles.push_back(t2);
+            // }
         }
     }
     return generated_triangles;
@@ -1307,11 +1315,7 @@ void moveObject(std::string name,vec3 moveVec){
     for (size_t i = 0; i < triangles.size(); i++) {
         for (size_t j = 0; j < 3; j++) {
             triangles[i].vertices[j] += moveVec;
-            // triangles[i].vertices[j].x += moveVec.x;
-            // triangles[i].vertices[j].y += moveVec.y;
-            // triangles[i].vertices[j].z += moveVec.z;
         }
-        // std::cout << triangles[i] << '\n';
     }
     scene[name] = triangles;
 }
@@ -1334,7 +1338,6 @@ void rotateObject(std::string name,vec3 rotationAngles){
         for (size_t j = 0; j < 3; j++) {
             triangles[i].vertices[j] = rotation_matrix* triangles[i].vertices[j] ;
         }
-        // std::cout << triangles[i] << '\n';
     }
     scene[name] = triangles;
 }
@@ -1355,9 +1358,7 @@ void lookAt(glm::vec3 point) {
     glm::vec3 forward = glm::normalize(cameraPos - point);
     glm::vec3 right = glm::normalize(glm::cross(forward, glm::vec3(0, -1, 0)));
     glm::vec3 up = glm::normalize(glm::cross(forward, right));
-    // std::cout << up.x << " " << up.y << " " << up.z <<  '\n';
     cameraOrientation = ((glm::mat3(right, up, forward)));
-    // std::cout << glm::to_string(cameraOrientation) << '\n';
 }
 
 bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAngles,glm::vec3* light_translation)
@@ -1419,6 +1420,11 @@ bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAng
             mode = 3;
             std::cout << "Switched to raytracer mode" << '\n';
         }
+        if(event.key.keysym.sym == SDLK_4) {
+            genCount++;
+            scene["terrain"] = generateGeometry(grid, width, 2.5, 10, genCount);
+        }
+
 
         // std::cout << translation->x << " " << translation->y << " " << translation->z << std::endl;
     }

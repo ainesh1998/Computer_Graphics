@@ -39,7 +39,8 @@ std::vector<Colour> loadColours();
 std::vector<Colour> readPPM(std::string filename,int* width, int* height);
 //given filename and dimensions create a ppm file
 void writePPM(std::string filename,int width, int height, std::vector<Colour> colours);
-std::map<std::string,Colour> readMTL(std::string filename);
+// std::map<std::string,Colour> readMTL(std::string filename);
+std::vector<Colour> readMTL(std::string filename);
 std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, float scale);
 void displayPicture(std::vector<Colour> payload,int width,int height);
 
@@ -133,8 +134,6 @@ int main(int argc, char* argv[])
     // }
 
     // SET UP SCENE
-
-
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < width; y++) {
             double temp = (rand() % (10 * 2)) - 10;
@@ -166,13 +165,15 @@ int main(int argc, char* argv[])
     // calculate vertex normals for each triangle of the sphere - for gouraud and phong shading
     // calcVertexNormals(sphere_triangles);
 
-    // scene["logo"] = logo_triangles;
-    // scene["box"] = box_triangles;
+    scene["logo"] = logo_triangles;
+    scene["box"] = box_triangles;
     // scene["sphere"] = sphere_triangles;
-    scene["terrain"] = generated_triangles;
+    // scene["terrain"] = generated_triangles;
     // scene["ground"] = ground_triangles;
 
     // moveObject("logo",vec3(-35,-25,-100));
+    moveObject("logo",vec3(-100,50,-100));
+    // moveObject("ground",vec3(0,0,-550));
     // moveObject("logo",vec3(-100,50,0)); // set logo to world origin
 
     // moveObject("logo",vec3(-50,240,0));
@@ -180,6 +181,7 @@ int main(int argc, char* argv[])
     // moveObject("logo",vec3(0,0,-120));
     // // moveObject("sphere",vec3(35,100,-100)); // place sphere above red box
     // moveObject("sphere", vec3(-70, 20, -70)); // place sphere in front of blue box
+    scaleObject("ground",0.5f);
 
     drawScene();
 
@@ -398,8 +400,9 @@ void writePPM(std::string filename,int width, int height, std::vector<Colour> co
     }
 }
 
-std::map<std::string,Colour> readMTL(std::string filename){
-    std::map<std::string,Colour> colourMap;
+std::vector<Colour> readMTL(std::string filename){
+    // std::map<std::string,Colour> colourMap;
+    std::vector<Colour> colours;
     std::ifstream stream;
     stream.open(filename, std::ifstream::in);
 
@@ -426,7 +429,8 @@ std::map<std::string,Colour> readMTL(std::string filename){
             int b = std::stof(bc) * 255;
 
             Colour c = Colour(colourName, r, g, b);
-            colourMap[colourName] = c;
+            // colourMap[colourName] = c;
+            colours.push_back(c);
 
             char newLine[256];
             stream.getline(newLine, 256);
@@ -449,7 +453,7 @@ std::map<std::string,Colour> readMTL(std::string filename){
     stream.clear();
     stream.close();
     // std::cout << "finished mtl file" << '\n';
-    return colourMap;
+    return colours;
 }
 
 std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, float scale) {
@@ -462,7 +466,8 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
     stream.getline(mtlFile,256,' '); //skip the mtllib
     stream.getline(mtlFile,256);
 
-    std::map<std::string,Colour> colourMap = readMTL(WORKING_DIRECTORY + (std::string) mtlName);
+    // std::map<std::string,Colour> colourMap = readMTL(WORKING_DIRECTORY + (std::string) mtlName);
+    std::vector<Colour> colours = readMTL(WORKING_DIRECTORY + (std::string) mtlName);
 
     std::vector<glm::vec3> vertices;
     std::vector<TexturePoint> texturePoints;
@@ -490,7 +495,12 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
         }
 
         else if(line[0] == 'u'){
-            colour = colourMap[contents[1]];
+            // colour = colourMap[contents[1]];
+            for (size_t i = 0; i < colours.size(); i++) {
+                if(colours[i].name.compare(contents[1]) == 0){
+                    colour = colours[i];
+                }
+            }
         }
 
         else if(line[0] == 'v'){

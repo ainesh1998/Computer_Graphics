@@ -107,9 +107,6 @@ glm::mat3 cameraOrientation = glm::mat3();
 float infinity = std::numeric_limits<float>::infinity();
 double depth_buffer[WIDTH][HEIGHT];
 int mode = 1;
-int textureWidth;
-int textureHeight;
-std::vector<Colour> texture = readPPM("HackspaceLogo/texture.ppm", &textureWidth, &textureHeight);
 std::map<std::string, std::vector<ModelTriangle>> scene;
 int newTriangleID = 0;
 std::map<int, std::vector<vec3>> triangleVertexNormals; //given a triangle ID, return its vertex normals
@@ -821,8 +818,13 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
             if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
                 if (depth < depth_buffer[x][y]) {
                     depth_buffer[x][y] = depth;
-                    Colour c = texture[(int) ui + (int) vi * textureWidth];
-                    window.setPixelColour(x, y, c.packed_colour());
+                    int texturePoint = ui + (vi*triangle.textureWidth);
+                    //Added if guard as there were cases when texturePoint was out of bounds
+                    if(texturePoint < triangle.textureWidth*triangle.textureHeight){
+                        Colour c = triangle.texture[texturePoint];
+                        window.setPixelColour(x, y, c.packed_colour());
+                    }
+
                 }
             }
         }
@@ -991,7 +993,7 @@ vec3 getTextureColour(ModelTriangle triangle, vec3 solution, vec3 point) {
     vec3 t3 = vec3(triangle.texturePoints[2].x, triangle.texturePoints[2].y, 0);
 
     vec3 texturePoint = t1 + u * (t2 - t1) + v * (t3 - t1);
-    Colour c = texture[(int) texturePoint.x + (int) texturePoint.y * textureWidth];
+    Colour c = triangle.texture[(int) texturePoint.x + (int) texturePoint.y * triangle.textureWidth];
 
     return vec3(c.red, c.green, c.blue);
 }

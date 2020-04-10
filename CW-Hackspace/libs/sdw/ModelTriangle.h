@@ -2,7 +2,7 @@
 #include "Colour.h"
 #include <string>
 #include "TexturePoint.h"
-
+#include <vector>
 class ModelTriangle
 {
   public:
@@ -13,6 +13,11 @@ class ModelTriangle
     bool isMirror = false;
     bool isTexture = false;
     float velocity = 0;
+
+    //Texture data
+    int textureWidth;
+    int textureHeight;
+    Colour *texture;
 
     ModelTriangle()
     {

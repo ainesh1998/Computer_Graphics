@@ -8,6 +8,11 @@ class CanvasTriangle
     Colour colour;
     bool isTexture;
 
+    //Texture data
+    int textureWidth;
+    int textureHeight;
+    Colour *texture;
+
     CanvasTriangle()
     {
     }

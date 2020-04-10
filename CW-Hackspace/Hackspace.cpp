@@ -139,22 +139,31 @@ int main(int argc, char* argv[])
     }
 
 
-    std::vector<ModelTriangle> logo_triangles = readOBJ("HackspaceLogo/logo.obj", "HackspaceLogo/materials.mtl", LOGO_SCALE );
+    // std::vector<ModelTriangle> logo_triangles = readOBJ("HackspaceLogo/logo.obj", "HackspaceLogo/materials.mtl", LOGO_SCALE );
 
-    std::vector<ModelTriangle> box_triangles = readOBJ("cornell-box/cornell-box.obj", "cornell-box/cornell-box.mtl", BOX_SCALE );
+    // std::vector<ModelTriangle> box_triangles = readOBJ("cornell-box/cornell-box.obj", "cornell-box/cornell-box.mtl", BOX_SCALE );
 
-    std::vector<ModelTriangle> sphere_triangles = readOBJ("extra-objects/sphere.obj", "", SPHERE_SCALE);
+    // std::vector<ModelTriangle> sphere_triangles = readOBJ("extra-objects/sphere.obj", "extra-objects/sphere.mtl", SPHERE_SCALE);
+    // //for sphere remove texture and set colour to be white
+    // for (size_t i = 0; i < sphere_triangles.size(); i++) {
+    //     sphere_triangles[i].colour = Colour(255,255,255);
+    //     sphere_triangles[i].isTexture = false;
+    //     for (size_t j = 0; j < 3; j++) {
+    //         sphere_triangles[i].texturePoints[j] = TexturePoint(-1,-1);
+    //     }
+    // }
 
-    std::vector<ModelTriangle> generated_triangles = generateGeometry(grid, width, 2.5, 10, genCount);
-    vec3 a = vec3(-500, -50, -500);
-    vec3 b = vec3(500, -50, -500);
-    vec3 c = vec3(500, -50, 500);
-    vec3 d =  vec3(-500, -50, 500);
-
-
-    std::vector<ModelTriangle> ground_triangles = {ModelTriangle(a,c,b, Colour(0, 255, 0), newTriangleID),
-                                                   ModelTriangle(a,d,c, Colour(0, 255, 0), newTriangleID+1)};
-    newTriangleID += 2;
+    // std::vector<ModelTriangle> generated_triangles = generateGeometry(grid, width, 2.5, 10, genCount);
+    // vec3 a = vec3(-500, -50, -500);
+    // vec3 b = vec3(500, -50, -500);
+    // vec3 c = vec3(500, -50, 500);
+    // vec3 d =  vec3(-500, -50, 500);
+    //
+    //
+    // std::vector<ModelTriangle> ground_triangles = {ModelTriangle(a,c,b, Colour(0, 255, 0), newTriangleID),
+    //                                                ModelTriangle(a,d,c, Colour(0, 255, 0), newTriangleID+1)};
+    std::vector<ModelTriangle> ground_triangles = readOBJ("extra-objects/ground.obj", "extra-objects/ground.mtl", 0.99);
+    // newTriangleID += 2;
 
 
     // for (size_t i = 0; i < light_positions.size(); i++) {
@@ -164,15 +173,15 @@ int main(int argc, char* argv[])
     // calculate vertex normals for each triangle of the sphere - for gouraud and phong shading
     // calcVertexNormals(sphere_triangles);
 
-    scene["logo"] = logo_triangles;
-    scene["box"] = box_triangles;
+    // scene["logo"] = logo_triangles;
+    // scene["box"] = box_triangles;
     // scene["sphere"] = sphere_triangles;
     // scene["terrain"] = generated_triangles;
-    // scene["ground"] = ground_triangles;
+    scene["ground"] = ground_triangles;
 
     // moveObject("logo",vec3(-35,-25,-100));
     moveObject("logo",vec3(-100,50,-100));
-    // moveObject("ground",vec3(0,0,-550));
+    moveObject("ground",vec3(0,0,-550));
     // moveObject("logo",vec3(-100,50,0)); // set logo to world origin
 
     // moveObject("logo",vec3(-50,240,0));
@@ -428,7 +437,6 @@ std::vector<Colour> readMTL(std::string filename,int* textureWidth, int* texture
             int b = std::stof(bc) * 255;
 
             Colour c = Colour(colourName, r, g, b);
-            // colourMap[colourName] = c;
             colours.push_back(c);
 
             char newLine[256];
@@ -440,10 +448,8 @@ std::vector<Colour> readMTL(std::string filename,int* textureWidth, int* texture
             stream.getline(textureFile, 256);
             // std::cout << textureFile << '\n';
             std::string* contents = split(filename,'/'); // Since te filename contains the directory
-            std::cout << contents[0] << '\n';
             contents[0] += "/";
             colours = readPPM( contents[0] + (std::string) textureFile, textureWidth, textureHeight);
-            std::cout << colours.size() << '\n';
             // for (int i = 0; i < textureMap.size(); i++) {
             //     colourMap.push_back(textureMap[i])
             // }
@@ -527,7 +533,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
 
             std::string directory = filename.substr(0, 13);
 
-            if (!notTextured && directory.compare("extra-objects") != 0) {
+            if (!notTextured) {
                 int textureIndex1 = std::stoi(indexes1[1]);
                 int textureIndex2 = std::stoi(indexes2[1]);
                 int textureIndex3 = std::stoi(indexes3[1]);

@@ -475,26 +475,24 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
     char line[256];
     Colour colour = Colour(255,255,255);
     bool mirrored = false;
-
     while(stream.getline(line,256)){
         std::string* contents = split(line,' ');
-
-        if(line[0]== 'o'){
+        if(contents[0].compare("o") == 0){
             mirrored = contents[1].compare("back_wall") == 0;
         }
 
-        if(line[0] == 'v' && line[1] == 't'){
+        if(contents[0].compare("vt")== 0){
             float x = (int) (std::stof(contents[1]) * textureWidth);
             float y = (int) (std::stof(contents[2]) * textureHeight);
             TexturePoint point = TexturePoint(x, y);
             texturePoints.push_back(point);
         }
 
-        else if(line[0] == 'v' && line[1] == 'n') {
+        else if(contents[0].compare("vn") == 0) {
             // vertex normals - don't think we need to do anything, it's just for the sphere
         }
 
-        else if(line[0] == 'u'){
+        else if(contents[0].compare("usemtl") == 0){
             // colour = colourMap[contents[1]];
             for (size_t i = 0; i < colours.size(); i++) {
                 if(colours[i].name.compare(contents[1]) == 0){
@@ -503,7 +501,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
             }
         }
 
-        else if(line[0] == 'v'){
+        else if(contents[0].compare("v") == 0){
             // if (filename.compare("extra-objects/sphere.obj")==0) std::cout << offset << '\n';
             float x = std::stof(contents[1]) * scale;
             float y = std::stof(contents[2]) * scale;
@@ -512,7 +510,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
             vertices.push_back(v);
         }
 
-        else if(line[0] == 'f'){
+        else if(contents[0].compare("f") == 0){
             bool notTextured = contents[1][contents[1].length()-1] == '/' ||
                               contents[2][contents[2].length()-1] == '/' ||
                               contents[3][contents[3].length()-1] == '/';

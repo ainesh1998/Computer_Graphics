@@ -113,9 +113,9 @@ std::map<std::string, std::vector<ModelTriangle>> scene;
 int newTriangleID = 0;
 std::map<int, std::vector<vec3>> triangleVertexNormals; //given a triangle ID, return its vertex normals
 int genCount = 0;
-int width = 15;
-float gridScale = 40;
-int gridIntensity = 40;
+int width = 30;
+float gridScale = 20;
+int gridIntensity = 10;
 double** grid = malloc2dArray(width, width);
 
 
@@ -1209,7 +1209,7 @@ double squareStep(double** pointHeights, int width, int centreX, int centreY, in
     double bottomLeft = pointHeights[rightX][bottomY];
     double bottomRight = pointHeights[rightX][bottomY];
 
-    return (topLeft + topRight + bottomLeft + bottomRight)/4 * rand()*0.001;
+    return (topLeft + topRight + bottomLeft + bottomRight)/4;
 }
 
 double diamondStep(double** pointHeights, int width, int centreX, int centreY, int distFromCentre) {
@@ -1237,7 +1237,7 @@ double diamondStep(double** pointHeights, int width, int centreX, int centreY, i
         count -= 1;
     }
 
-    return (left + right + top + bottom)/count * rand()*0.001;
+    return (left + right + top + bottom)/count;
 
 }
 

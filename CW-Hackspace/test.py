@@ -29,6 +29,7 @@ while tileWidth > 1:
     # set the diamond values (the centers of each tile)
     for x in range(0, heightmapWidth - 1, tileWidth):
         for y in range(0, heightmapWidth - 1, tileWidth):
+            # print(tileWidth, x, y)
             cornerSum = heightmap[x][y] + \
                         heightmap[x + tileWidth][y] + \
                         heightmap[x][y + tileWidth] + \
@@ -58,6 +59,7 @@ while tileWidth > 1:
             if y == 0:
                 heightmap[x][heightmapWidth - 1] = avg
 
+    print(heightmap)
     # reduce the randomness in each pass, making sure it never gets to 0
     randomness = max(randomness // 2, 1)
     tileWidth //= 2

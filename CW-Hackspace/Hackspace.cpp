@@ -113,8 +113,8 @@ std::map<std::string, std::vector<ModelTriangle>> scene;
 int newTriangleID = 0;
 std::map<int, std::vector<vec3>> triangleVertexNormals; //given a triangle ID, return its vertex normals
 int genCount = 0;
-int width = 30;
-float gridScale = 20;
+int width = 15;
+float gridScale = 40;
 int gridIntensity = 40;
 double** grid = malloc2dArray(width, width);
 
@@ -139,9 +139,12 @@ int main(int argc, char* argv[])
 
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < width; y++) {
-            double temp = (rand() % (gridIntensity * 2)) - gridIntensity;
-            // double temp = rand() % gridIntensity;
-            grid[x][y] = temp;
+            // if (x == 0 || x == width-1 || y == 0 || y == width-1) {
+                double temp = (rand() % (gridIntensity * 2)) - gridIntensity;
+                // double temp = rand() % gridIntensity;
+                grid[x][y] = temp;
+            // }
+            // else grid[x][y] == 0;
         }
     }
 
@@ -1206,7 +1209,7 @@ double squareStep(double** pointHeights, int width, int centreX, int centreY, in
     double bottomLeft = pointHeights[rightX][bottomY];
     double bottomRight = pointHeights[rightX][bottomY];
 
-    return (topLeft + topRight + bottomLeft + bottomRight)/4;
+    return (topLeft + topRight + bottomLeft + bottomRight)/4 * rand()*0.001;
 }
 
 double diamondStep(double** pointHeights, int width, int centreX, int centreY, int distFromCentre) {
@@ -1234,7 +1237,7 @@ double diamondStep(double** pointHeights, int width, int centreX, int centreY, i
         count -= 1;
     }
 
-    return (left + right + top + bottom)/count;
+    return (left + right + top + bottom)/count * rand()*0.001;
 
 }
 
@@ -1242,7 +1245,7 @@ std::vector<vec3> diamondSquare(double** pointHeights, int width, double current
     std::vector<vec3> updated_points;
 
     double half = (double) currentSize/2;
-    if (half < 1) return updated_points;
+    if (half < 0.01) return updated_points;
 
     // square step
     for (double x = half; x <= width-half; x += currentSize) {
@@ -1251,9 +1254,9 @@ std::vector<vec3> diamondSquare(double** pointHeights, int width, double current
             // int roundY = std::round(y);
             int roundX = (int) x;
             int roundY = (int) y;
-            // std::cout << "Square step centre: " << roundX << " " << roundY << '\n';
+            // std::cout << "Square step centre: " << roundX << " " << roundY << " half is " << half << '\n';
             pointHeights[roundX][roundY] = squareStep(pointHeights, width, roundX, roundY, half);
-            // updated_points.push_back(vec3(roundX, roundY, 0));
+            updated_points.push_back(vec3(roundX, roundY, 0));
         }
     }
 
@@ -1270,7 +1273,7 @@ std::vector<vec3> diamondSquare(double** pointHeights, int width, double current
                 int roundY = (int) y;
                 // std::cout << "Diamond step centre: " << roundX << " " << roundY << '\n';
                 pointHeights[roundX][roundY] = diamondStep(pointHeights, width, roundX, roundY, half);
-                // updated_points.push_back(vec3(roundX, roundY, 0));
+                updated_points.push_back(vec3(roundX, roundY, 0));
             }
         }
         else {
@@ -1282,7 +1285,7 @@ std::vector<vec3> diamondSquare(double** pointHeights, int width, double current
                 int roundY = (int) newY;
                 // std::cout << "Diamond step centre: " << roundX << " " << roundY << '\n';
                 pointHeights[roundX][roundY] = diamondStep(pointHeights, width, roundX, roundY, half);
-                // updated_points.push_back(vec3(roundX, roundY, 0));
+                updated_points.push_back(vec3(roundX, roundY, 0));
             }
         }
         isSide = !isSide;
@@ -1295,18 +1298,18 @@ std::vector<vec3> diamondSquare(double** pointHeights, int width, double current
 std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, float scale, int intensity, int count) {
     // initialise grid with random values
 
-    // std::vector<vec3> updated_points;
+    std::vector<vec3> updated_points;
     double currentSize = width;
     // run algorithm
 
     for (int i = 0; i < count; i++) {
-        // std::cout << "Current grid size is " << currentSize << " rounded to " << std::round(currentSize) <<'\n';
+        std::cout << "Current grid size is " << currentSize << " rounded to " << std::round(currentSize) <<'\n';
         std::vector<vec3> newUpd = diamondSquare(pointHeights, width, currentSize);
         currentSize = currentSize/2;
 
-        // for (int j = 0; j < newUpd.size(); j++) {
-        //     updated_points.push_back(newUpd[j]);
-        // }
+        for (int j = 0; j < newUpd.size(); j++) {
+            updated_points.push_back(newUpd[j]);
+        }
     }
 
     // convert points into triangles to display
@@ -1328,8 +1331,8 @@ std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, fl
             ModelTriangle t2 = ModelTriangle(v2, v3, v4, Colour(0, 255, 0), newTriangleID+1);
             newTriangleID += 2;
 
-            // for (int i = 0; i < updated_points.size(); i++) {
-            //     vec3 temp = updated_points[i] * scale;
+            for (int i = 0; i < updated_points.size(); i++) {
+                vec3 temp = updated_points[i] * scale;
                 // print_vec3(updated_points[i]);
                 // if (((temp.x == v1.x && temp.y == v1.z) || (temp.x == v2.x && temp.y == v2.z) || (temp.x == v3.x && temp.y == v3.z))) {
                     // t1.colour = Colour(255, 0, 0);
@@ -1338,15 +1341,15 @@ std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, fl
                     // std::cout << pointHeights[x][y] << '\n';
                     // generated_triangles.push_back(t2);
                 // }
-            // }
+            }
             generated_triangles.push_back(t1);
             generated_triangles.push_back(t2);
-            // std::cout << pointHeights[x][y] << " ";
+            std::cout << pointHeights[x][y] << " ";
         }
-        // std::cout << '\n';
+        std::cout << '\n';
     }
-    // std::cout  << '\n';
-    // std::cout << updated_points.size() << '\n';
+    std::cout  << '\n';
+    std::cout << updated_points.size() << '\n';
     return generated_triangles;
 }
 

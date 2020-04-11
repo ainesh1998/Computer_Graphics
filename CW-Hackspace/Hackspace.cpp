@@ -1202,7 +1202,7 @@ double squareStep(double** pointHeights, double centreX, double centreY, double 
     return (topLeft + topRight + bottomLeft + bottomRight)/4;
 }
 
-double diamondStep(double** pointHeights, int width, int centreX, int centreY, double distFromCentre) {
+double diamondStep(double** pointHeights, int width, double centreX, double centreY, double distFromCentre) {
     int count = 4;
 
     int rightX = centreX + distFromCentre;
@@ -1210,10 +1210,10 @@ double diamondStep(double** pointHeights, int width, int centreX, int centreY, d
     int leftX = centreX - distFromCentre;
     int topY = centreY - distFromCentre;
 
-    double left = centreX <= 0 ? 0 : pointHeights[leftX][centreY];
-    double right = centreX >= width-1 ? 0 : pointHeights[rightX][centreY];
-    double top = centreY <= 0 ? 0 : pointHeights[centreX][topY];
-    double bottom = centreY >= width-1 ? 0 : pointHeights[centreX][bottomY];
+    double left = centreX <= 0 ? 0 : pointHeights[leftX][(int) centreY];
+    double right = centreX >= width-1 ? 0 : pointHeights[rightX][(int) centreY];
+    double top = centreY <= 0 ? 0 : pointHeights[(int) centreX][topY];
+    double bottom = centreY >= width-1 ? 0 : pointHeights[(int) centreX][bottomY];
 
     // there will only be at most one point outside the grid
     if (centreX == 0 || centreY == 0 || centreX == width-1 || centreY == width-1) {
@@ -1326,6 +1326,7 @@ std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, fl
         // std::cout << '\n';
     }
     // std::cout  << '\n';
+    std::cout << updated_points.size() << '\n';
     return generated_triangles;
 }
 

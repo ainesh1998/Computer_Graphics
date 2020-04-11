@@ -141,9 +141,9 @@ int main(int argc, char* argv[])
     }
 
 
-    // std::vector<ModelTriangle> logo_triangles = readOBJ("HackspaceLogo/logo.obj", "HackspaceLogo/materials.mtl", LOGO_SCALE );
+    std::vector<ModelTriangle> logo_triangles = readOBJ("HackspaceLogo/logo.obj", "HackspaceLogo/materials.mtl", LOGO_SCALE );
 
-    std::vector<ModelTriangle> box_triangles = readOBJ("cornell-box/cornell-box.obj", "cornell-box/cornell-box.mtl", BOX_SCALE );
+    // std::vector<ModelTriangle> box_triangles = readOBJ("cornell-box/cornell-box.obj", "cornell-box/cornell-box.mtl", BOX_SCALE );
 
     // std::vector<ModelTriangle> sphere_triangles = readOBJ("extra-objects/sphere.obj", "extra-objects/sphere.mtl", SPHERE_SCALE);
     // //for sphere remove texture and set colour to be white
@@ -175,15 +175,15 @@ int main(int argc, char* argv[])
     // calculate vertex normals for each triangle of the sphere - for gouraud and phong shading
     // calcVertexNormals(sphere_triangles);
 
-    // scene["logo"] = logo_triangles;
-    scene["box"] = box_triangles;
+    scene["logo"] = logo_triangles;
+    // scene["box"] = box_triangles;
     // scene["sphere"] = sphere_triangles;
     // scene["terrain"] = generated_triangles;
-    scene["ground"] = ground_triangles;
+    // scene["ground"] = ground_triangles;
 
     // moveObject("logo",vec3(-35,-25,-100));
     // moveObject("logo",vec3(-100,50,-100));
-    moveObject("ground",vec3(0,0,-550));
+    // moveObject("ground",vec3(0,0,-550));
     // moveObject("logo",vec3(-100,50,0)); // set logo to world origin
 
     // moveObject("logo",vec3(-50,240,0));
@@ -633,7 +633,7 @@ void drawLineAntiAlias(CanvasPoint start, CanvasPoint end, Colour c, double** de
         if (isSteep) {
             // swap the coordinates back
             if (x >= 0 && x < HEIGHT && y1 >= 0 && y1 < WIDTH){
-                if (depth_buffer[y1][x] > line[i].z) {
+                if (depth_buffer[y1][x] <= line[i].z) {
                     Colour newColour1 = Colour(c.toVec3() * dist1 + Colour(window.getPixelColour(y1,x)).toVec3() * dist2);
                     Colour newColour2 = Colour(c.toVec3() * dist2 + Colour(window.getPixelColour(y2,x)).toVec3() * dist1);
                     window.setPixelColour(y1, x, newColour1.packed_colour());
@@ -650,7 +650,7 @@ void drawLineAntiAlias(CanvasPoint start, CanvasPoint end, Colour c, double** de
         }
         else {
             if (x >= 0 && x < WIDTH && y1 >= 0 && y1 < HEIGHT){
-                if (depth_buffer[x][y1] > line[i].z) {
+                if (line[i].z > depth_buffer[x][y1] ) {
                     Colour newColour1 = Colour(c.toVec3() * dist1 + Colour(window.getPixelColour(x,y1)).toVec3() * dist2);
                     Colour newColour2 = Colour(c.toVec3() * dist2 + Colour(window.getPixelColour(x,y2)).toVec3() * dist1);
                     window.setPixelColour(x, y1, newColour1.packed_colour());
@@ -675,8 +675,6 @@ void drawRake(vec3 start, vec3 end, Colour c, double** depth_buffer){
                 depth_buffer[x][y] = depth;
                 window.setPixelColour(x, y, c.packed_colour());
             }
-        }else{
-            // velocity *= -1;
         }
     }
 }
@@ -687,14 +685,6 @@ void drawTriangle(CanvasTriangle triangle, double** depth_buffer){
     drawLineAntiAlias(triangle.vertices[0],triangle.vertices[1],c,depth_buffer);
     drawLineAntiAlias(triangle.vertices[1],triangle.vertices[2],c,depth_buffer);
     drawLineAntiAlias(triangle.vertices[2],triangle.vertices[0],c,depth_buffer);
-}
-
-double compute_depth(double depth,double near,double far){
-    //saw equation online
-    // double z = (near + far)/(far - near) + 1/depth * ((-2 * far * near)/(far - near));
-    // z = 1/depth;
-    double z = (1/depth -1/near)/(1/far-1/near);
-    return z;
 }
 
 void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer){
@@ -746,54 +736,20 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
     CanvasPoint v2 = triangle.vertices[1];
     CanvasPoint v3 = triangle.vertices[2];
 
-    // std::cout << v1.depth << '\n';
-    // std::cout << v2.depth << '\n';
-    // std::cout << v3.depth << '\n';
-
-
-
-    // float z_far = std::max(v1.depth,std::max(v2.depth,v3.depth));
-    // std::cout << z_far << '\n';
-
-    // float z_near = std::min(v1.depth,std::min(v2.depth,v3.depth));
-    // std::cout << z_near << '\n';
-
     double slope = (v2.y - v1.y)/(v3.y - v1.y);
     int newX = v1.x + slope * (v3.x - v1.x);
     double newZ = v1.depth +  (double) slope * (v3.depth - v1.depth);
     CanvasPoint v4 = CanvasPoint(newX, v2.y, newZ);
 
-    // std::cout << v4.depth << '\n';
-
-//    if (v1.y == v3.y) return;
-
+    if (v1.y == v3.y) return;
     CanvasPoint u1 = texturedTriangle.vertices[0];
     CanvasPoint u2 = texturedTriangle.vertices[1];
     CanvasPoint u3 = texturedTriangle.vertices[2];
-
-    // float c_far;
-    // if(v1.depth == z_far) c_far= u1.y;
-    // else if (v2.depth == z_far) c_far= u2.y;
-    // else c_far = u3.y;
-    //
-    // float c_near;
-    // if(v1.depth == z_near) c_near= u1.y;
-    // else if (v2.depth == z_near) c_near= u2.y;
-    // else c_near = u3.y;
-
-
-    // float y_max = std::max(v1.y,std::max(v2.y,v3.y));
-
-
-
-    // std::cout << u3 << '\n';
 
     float k_x = (v3.x==v1.x)? 0 : (u3.x-u1.x)/(v3.x-v1.x);
     float k_y = (v3.y==v1.y)? 0 :(u3.y-u1.y)/(v3.y-v1.y);
     int u4_x = u1.x + k_x * (v4.x-v1.x);
     int u4_y = u1.y + k_y * (v4.y-v1.y);
-
-
 
     CanvasPoint u4 = CanvasPoint(u4_x,u4_y);
 
@@ -802,13 +758,10 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
     u3.x = u3.x * v3.depth;
     u4.x = u4.x * v4.depth;
 
-
     u1.y = u1.y * v1.depth;
     u2.y = u2.y * v2.depth;
     u3.y = u3.y * v3.depth;
     u4.y = u4.y * v4.depth;
-
-    // std::cout << u4 << '\n';
 
     //fill top triangle
     std::vector<vec3> triangleLeft = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v2.x,v2.y,v2.depth), (v2.y-v1.y)+1);
@@ -838,14 +791,13 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
             double depth = rakeTriangle[j].z;
             int ui = u/depth;
             int vi = v/depth;
-            // std::cout << ui << '\n';
-            // std::cout << vi << '\n';
+
 
             if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
                 if (depth >= depth_buffer[x][y]) {
                     depth_buffer[x][y] = depth;
                     int texturePoint = ui + (vi*triangle.textureWidth);
-                    // std::cout << depth << '\n';
+
                     //Added if guard as there were cases when texturePoint was out of bounds
                     if(texturePoint < triangle.textureWidth*triangle.textureHeight){
                         Colour c = triangle.texture[texturePoint];
@@ -891,7 +843,7 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
                     depth_buffer[x][y] = depth;
 
                     int texturePoint = ui + (vi*triangle.textureWidth);
-                    // std::cout << depth << '\n';
+
                     //Added if guard as there were cases when texturePoint was out of bounds
                     if(texturePoint < triangle.textureWidth*triangle.textureHeight){
                         Colour c = triangle.texture[texturePoint];
@@ -951,12 +903,6 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
             triangle.textureWidth = modelTriangles[i].textureWidth;
             triangle.textureHeight = modelTriangles[i].textureHeight;
             triangle.texture = modelTriangles[i].texture;
-            // if(i==0){
-            //     for (size_t j = 0; j < 300*300; j++) {
-            //         std::cout << triangle.texture[j] << '\n';
-            //     }
-            // }
-            // memcpy(triangle.texture,modelTriangles[i].texture,sizeof(Colour) * textureWidth * textureHeight);
             triangles.push_back(triangle);
         }
 

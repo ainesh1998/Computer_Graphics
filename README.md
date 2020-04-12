@@ -2,7 +2,8 @@
 Computer Graphics unit
 
 ## Checklist
-Bold = done, italics = sort of
+- \# = not mandatory to move to next range
+- Bold = done, italics = sort of
 
 ### 40s range
   - [x] **OBJ loading (geometry and materials)**
@@ -14,31 +15,31 @@ Bold = done, italics = sort of
 ### 50s range
 - [x] **Changing camera orientation (via orientation matrix)**
 - [x] **LookAt**
-- [x] **Hard Shadow**
-- [x] *Some form of generative geometry*
+- [x] *Some form of generative geometry* \#
 - [x] **Ambient lighting**
 - [x] **Diffuse lighting (proximity and angle-of-incidence)**
 
 ### 60s range
+- [x] **Hard Shadow**
 - [x] **Gouraud shading**
 - [x]  **Naive (non-perspective corrected) texture mapping**
 - [ ] Simple animation (e.g. fly-through)
-- [ ] Some form of Physics (gravity, friction, bounce etc)
+- [x] *Some form of Physics (gravity, friction, bounce etc) \#*
 - [x] **Basic culling (far-plane, near-plan, back-face)**
-- [x] *Basic anti-aliasing*
+- [x] *Basic anti-aliasing* \#
 
 ### 70s range
 - [x] **Phong Shading**
 - [x] **Fairly “interesting” materials (e.g. mirrors)**
 - [x] **Complex anti-aliasing**
-- [ ] Perspective corrected texture mapping
+- [x] *Perspective corrected texture mapping*
 - [ ] “Fancy” animation
 - [x] *Soft shadow*
 - [ ] Bump maps
-- [ ] Environment maps
 - [ ] Basic clipping (bounding box)
 
 ### 80s range
+- [ ] Environment maps
 - [ ] Complex “interesting” materials (e.g. glass)
 - [ ] Line drawing optimisations (e.g. Bresenham)
 - [ ] Advance clipping (frustum)

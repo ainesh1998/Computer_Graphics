@@ -121,11 +121,13 @@ double** grid = malloc2dArray(width, width);
 
 int main(int argc, char* argv[])
 {
-    for(int x = 0; x < WIDTH; x++){
-        for(int y = 0; y < HEIGHT; y++){
-            depth_buffer[x][y] = std::numeric_limits<float>::infinity();
-        }
-    }
+    // for(int x = 0; x < WIDTH; x++){
+    //     for(int y = 0; y < HEIGHT; y++){
+    //         // depth_buffer[x][y] = std::numeric_limits<float>::infinity();
+    //         depth_buffer[x][y] = 0;
+    //
+    //     }
+    // }
     SDL_Event event;
     // for (float i = -2; i <= 2; i+=0.5) {
     //     // std::cout << i << '\n';
@@ -181,11 +183,11 @@ int main(int argc, char* argv[])
     // scene["box"] = box_triangles;
     // scene["sphere"] = sphere_triangles;
     // scene["terrain"] = generated_triangles;
-    scene["ground"] = ground_triangles;
+    // scene["ground"] = ground_triangles;
 
     // moveObject("logo",vec3(-35,-25,-100));
-    moveObject("logo",vec3(-100,50,-100));
-    moveObject("ground",vec3(0,0,-550));
+    // moveObject("logo",vec3(-100,50,-100));
+    // moveObject("ground",vec3(0,0,-550));
     // moveObject("logo",vec3(-100,50,0)); // set logo to world origin
 
     // moveObject("logo",vec3(-50,240,0));
@@ -641,7 +643,7 @@ void drawLineAntiAlias(CanvasPoint start, CanvasPoint end, Colour c, double** de
         if (isSteep) {
             // swap the coordinates back
             if (x >= 0 && x < HEIGHT && y1 >= 0 && y1 < WIDTH){
-                if (depth_buffer[y1][x] > line[i].z) {
+                if (depth_buffer[y1][x] <= line[i].z) {
                     Colour newColour1 = Colour(c.toVec3() * dist1 + Colour(window.getPixelColour(y1,x)).toVec3() * dist2);
                     Colour newColour2 = Colour(c.toVec3() * dist2 + Colour(window.getPixelColour(y2,x)).toVec3() * dist1);
                     window.setPixelColour(y1, x, newColour1.packed_colour());
@@ -658,7 +660,7 @@ void drawLineAntiAlias(CanvasPoint start, CanvasPoint end, Colour c, double** de
         }
         else {
             if (x >= 0 && x < WIDTH && y1 >= 0 && y1 < HEIGHT){
-                if (depth_buffer[x][y1] > line[i].z) {
+                if (line[i].z > depth_buffer[x][y1] ) {
                     Colour newColour1 = Colour(c.toVec3() * dist1 + Colour(window.getPixelColour(x,y1)).toVec3() * dist2);
                     Colour newColour2 = Colour(c.toVec3() * dist2 + Colour(window.getPixelColour(x,y2)).toVec3() * dist1);
                     window.setPixelColour(x, y1, newColour1.packed_colour());
@@ -679,12 +681,10 @@ void drawRake(vec3 start, vec3 end, Colour c, double** depth_buffer){
     for (uint32_t i = 0; i < rake.size(); i++) {
         int x = rake[i].x; double depth = rake[i].z;
         if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
-            if (depth < depth_buffer[x][y]) {
+            if (depth > depth_buffer[x][y]) {
                 depth_buffer[x][y] = depth;
                 window.setPixelColour(x, y, c.packed_colour());
             }
-        }else{
-            // velocity *= -1;
         }
     }
 }
@@ -695,14 +695,6 @@ void drawTriangle(CanvasTriangle triangle, double** depth_buffer){
     drawLineAntiAlias(triangle.vertices[0],triangle.vertices[1],c,depth_buffer);
     drawLineAntiAlias(triangle.vertices[1],triangle.vertices[2],c,depth_buffer);
     drawLineAntiAlias(triangle.vertices[2],triangle.vertices[0],c,depth_buffer);
-}
-
-double compute_depth(double depth,double near,double far){
-    //saw equation online
-    // double z = (near + far)/(far - near) + 1/depth * ((-2 * far * near)/(far - near));
-    // z = 1/depth;
-    double z = (1/depth -1/near)/(1/far-1/near);
-    return z;
 }
 
 void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer){
@@ -741,6 +733,11 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer){
 
 }
 
+float compute_texture_row(float z_far,float z_near,float c_far,float c_near,float v,float textureHeight){
+    float term1 = (c_far/z_far)*(textureHeight - v) + (c_near/z_near)*v;
+    float term2 = (1/z_far)*(textureHeight - v) + (1/z_near)*v;
+    return term1/term2;
+}
 void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
     CanvasTriangle texturedTriangle = triangle.getTextureTriangle();
     order_textured_triangle(&triangle, &texturedTriangle);
@@ -755,7 +752,6 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
     CanvasPoint v4 = CanvasPoint(newX, v2.y, newZ);
 
     if (v1.y == v3.y) return;
-
     CanvasPoint u1 = texturedTriangle.vertices[0];
     CanvasPoint u2 = texturedTriangle.vertices[1];
     CanvasPoint u3 = texturedTriangle.vertices[2];
@@ -766,6 +762,16 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
     int u4_y = u1.y + k_y * (v4.y-v1.y);
 
     CanvasPoint u4 = CanvasPoint(u4_x,u4_y);
+
+    u1.x = u1.x * v1.depth;
+    u2.x = u2.x * v2.depth;
+    u3.x = u3.x * v3.depth;
+    u4.x = u4.x * v4.depth;
+
+    u1.y = u1.y * v1.depth;
+    u2.y = u2.y * v2.depth;
+    u3.y = u3.y * v3.depth;
+    u4.y = u4.y * v4.depth;
 
     //fill top triangle
     std::vector<vec3> triangleLeft = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v2.x,v2.y,v2.depth), (v2.y-v1.y)+1);
@@ -779,8 +785,9 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
         vec3 endTriangle = vec3((int) triangleRight[i].x, triangleRight[i].y, triangleRight[i].z);
         std::vector<vec3> rakeTriangle = interpolate3(startTriangle, endTriangle, std::abs(endTriangle.x-startTriangle.x)+1);
 
-        vec3 startTexture = vec3((int) textureLeft[i].x, (int) textureLeft[i].y, textureLeft[i].z);
-        vec3 endTexture = vec3((int) textureRight[i].x, (int) textureRight[i].y, textureRight[i].z);
+        vec3 startTexture = vec3( textureLeft[i].x, textureLeft[i].y, textureLeft[i].z);
+
+        vec3 endTexture = vec3(textureRight[i].x, textureRight[i].y, textureRight[i].z);
 
         std::vector<vec3> rakeTexture = interpolate3(startTexture, endTexture, std::abs(endTriangle.x-startTriangle.x)+1);
 
@@ -788,14 +795,19 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
 
         for (uint32_t j = 0; j < rakeTriangle.size(); j++) {
             int x = rakeTriangle[j].x;
-            int ui = rakeTexture[j].x;
-            int vi = rakeTexture[j].y;
+            float u = rakeTexture[j].x;
+            float v = rakeTexture[j].y;
+
             double depth = rakeTriangle[j].z;
+            int ui = u/depth;
+            int vi = v/depth;
+
 
             if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
-                if (depth < depth_buffer[x][y]) {
+                if (depth >= depth_buffer[x][y]) {
                     depth_buffer[x][y] = depth;
                     int texturePoint = ui + (vi*triangle.textureWidth);
+
                     //Added if guard as there were cases when texturePoint was out of bounds
                     if(texturePoint < triangle.textureWidth*triangle.textureHeight){
                         Colour c = triangle.texture[texturePoint];
@@ -805,6 +817,7 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
                 }
             }
         }
+
     }
 
     // fill bottom triangle
@@ -819,8 +832,8 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
         vec3 endTriangle = vec3((int) triangleRight[i].x, triangleRight[i].y, triangleRight[i].z);
         std::vector<vec3> rakeTriangle = interpolate3(startTriangle, endTriangle, std::abs(endTriangle.x-startTriangle.x)+1);
 
-        vec3 startTexture = vec3((int) textureLeft[i].x, (int) textureLeft[i].y, textureLeft[i].z);
-        vec3 endTexture = vec3((int) textureRight[i].x, (int) textureRight[i].y, textureRight[i].z);
+        vec3 startTexture = vec3( textureLeft[i].x,  textureLeft[i].y, textureLeft[i].z);
+        vec3 endTexture = vec3(textureRight[i].x, textureRight[i].y, textureRight[i].z);
 
         std::vector<vec3> rakeTexture = interpolate3(startTexture, endTexture, std::abs(endTriangle.x-startTriangle.x)+1);
 
@@ -828,13 +841,19 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
 
         for (uint32_t j = 0; j < rakeTriangle.size(); j++) {
             int x = rakeTriangle[j].x;
-            int ui = rakeTexture[j].x;
-            int vi = rakeTexture[j].y;
+            float u = rakeTexture[j].x;
+            float v = rakeTexture[j].y;
+
             double depth = rakeTriangle[j].z;
+            int ui = u/depth;
+            int vi = v/depth;
+
             if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
-                if (depth < depth_buffer[x][y]) {
+                if (depth >= depth_buffer[x][y]) {
                     depth_buffer[x][y] = depth;
+
                     int texturePoint = ui + (vi*triangle.textureWidth);
+
                     //Added if guard as there were cases when texturePoint was out of bounds
                     if(texturePoint < triangle.textureWidth*triangle.textureHeight){
                         Colour c = triangle.texture[texturePoint];
@@ -864,7 +883,7 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
 
     for(int x = 0; x < WIDTH; x++){
         for(int y = 0; y < HEIGHT; y++){
-            depth_buffer[x][y] = std::numeric_limits<float>::infinity();
+            depth_buffer[x][y] = 0;
         }
     }
 
@@ -894,12 +913,6 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
             triangle.textureWidth = modelTriangles[i].textureWidth;
             triangle.textureHeight = modelTriangles[i].textureHeight;
             triangle.texture = modelTriangles[i].texture;
-            // if(i==0){
-            //     for (size_t j = 0; j < 300*300; j++) {
-            //         std::cout << triangle.texture[j] << '\n';
-            //     }
-            // }
-            // memcpy(triangle.texture,modelTriangles[i].texture,sizeof(Colour) * textureWidth * textureHeight);
             triangles.push_back(triangle);
         }
 
@@ -907,7 +920,7 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
 
     for(int i = 0; i < (int)triangles.size(); i++){
         for (int j = 0; j < 3; j++) {
-            triangles[i].vertices[j].depth = compute_depth(triangles[i].vertices[j].depth,near,far);
+            triangles[i].vertices[j].depth = 1/triangles[i].vertices[j].depth ;
         }
 
         if (mode == 2) {

@@ -61,11 +61,6 @@ glm::vec3 computeRay(float x,float y,float fov);
 RayTriangleIntersection getIntersection(glm::vec3 ray,std::vector<ModelTriangle> modelTriangles,vec3 origin);
 void drawBoxRayTraced(std::vector<ModelTriangle> triangles);
 
-// event handling
-void lookAt(glm::vec3 point);
-bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAngles, glm::vec3* light_translation);
-void update(glm::vec3 translation, glm::vec3 rotationAngles,glm::vec3 light_translation);
-
 // lighting
 vec3 computenorm(ModelTriangle t);
 float calcIntensity(vec3 norm, vec3 lightPos, vec3 point);
@@ -89,6 +84,15 @@ void drawScene();
 void moveObject(std::string name,vec3 moveVec);
 void rotateObject(std::string name,vec3 rotationAngles);
 void scaleObject(std::string name,float scale);
+
+// physics
+bool isCollideGround(std::vector<ModelTriangle> o1, std::vector<ModelTriangle> o2);
+
+// event handling
+void lookAt(glm::vec3 point);
+bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAngles, glm::vec3* light_translation);
+void update(glm::vec3 translation, glm::vec3 rotationAngles,glm::vec3 light_translation);
+
 
 // GLOBAL VARIABLES //
 
@@ -139,7 +143,7 @@ int main(int argc, char* argv[])
     }
 
 
-    // std::vector<ModelTriangle> logo_triangles = readOBJ("HackspaceLogo/logo.obj", "HackspaceLogo/materials.mtl", LOGO_SCALE );
+    std::vector<ModelTriangle> logo_triangles = readOBJ("HackspaceLogo/logo.obj", "HackspaceLogo/materials.mtl", LOGO_SCALE );
 
     // std::vector<ModelTriangle> box_triangles = readOBJ("cornell-box/cornell-box.obj", "cornell-box/cornell-box.mtl", BOX_SCALE );
 
@@ -173,7 +177,7 @@ int main(int argc, char* argv[])
     // calculate vertex normals for each triangle of the sphere - for gouraud and phong shading
     // calcVertexNormals(sphere_triangles);
 
-    // scene["logo"] = logo_triangles;
+    scene["logo"] = logo_triangles;
     // scene["box"] = box_triangles;
     // scene["sphere"] = sphere_triangles;
     // scene["terrain"] = generated_triangles;
@@ -195,8 +199,9 @@ int main(int argc, char* argv[])
 
     window.renderFrame();
 
-    // int count = 1;
-    // float velocity = 0;
+    int count = 1;
+    float velocity = 0;
+    bool hasCollided = false;
 
     while(true)
     {
@@ -211,22 +216,27 @@ int main(int argc, char* argv[])
         }
 
 
-        if (isUpdate) {
-        // if (true) {
+        // if (isUpdate) {
+        if (true) {
             // rotateObject("logo",vec3(0,1,0));
-            // moveObject("logo",vec3(0,-velocity,0));
+            moveObject("logo",vec3(0,-velocity,0));
 
             // std::cout << scene["logo"][0].vertices[0].y << '\n';
             // if(scene["logo"][0].vertices[0].y < -1000) {
 
             // if(count % 30 == 0){
-            //     velocity *= -1;
-            //  }
+            if (isCollideGround(scene["ground"], scene["logo"]) && !hasCollided) {
+                velocity *= -1;
+                hasCollided = true;
+            }
+            else {
+                hasCollided = false;
+            }
 
-            // velocity++;
-            // count++;
+            velocity++;
+            count++;
             // std::cout << count << '\n';
-            // std::cout << velocity << '\n';
+            std::cout << velocity << '\n';
 
             update(translation, rotationAngles,light_translation);
 
@@ -1392,6 +1402,37 @@ void scaleObject(std::string name,float scale){
    }
    scene[name] = triangles;
 }
+
+
+// PHYSICS //
+
+
+// bool isCollideGroundTriangle(ModelTriangle ground, ModelTriangle t2) {
+//
+// }
+
+bool isCollideGround(std::vector<ModelTriangle> ground, std::vector<ModelTriangle> object) {
+    for (int i = 0; i < ground.size(); i++) {
+        float groundY = ground[i].vertices[0].y;
+
+        for (int j = 0; j < object.size(); j++) {
+            vec3 v1 = object[j].vertices[0];
+            vec3 v2 = object[j].vertices[1];
+            vec3 v3 = object[j].vertices[2];
+
+            CanvasTriangle triangle = CanvasTriangle(CanvasPoint(v1.x, v1.y, v1.z), CanvasPoint(v2.x, v2.y, v2.z), CanvasPoint(v3.x, v3.y, v3.z));
+            order_triangle(&triangle);
+
+            bool yBound = triangle.vertices[0].y <= groundY && triangle.vertices[2].y >= groundY;
+            if (yBound) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+
 // EVENT HANDLING //
 
 

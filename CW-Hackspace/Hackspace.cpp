@@ -201,9 +201,9 @@ int main(int argc, char* argv[])
 
     window.renderFrame();
 
-    int count = 1;
     float velocity = 0;
     bool hasCollided = false;
+    bool hasLanded = false;
 
     while(true)
     {
@@ -223,22 +223,24 @@ int main(int argc, char* argv[])
             // rotateObject("logo",vec3(0,1,0));
             moveObject("logo",vec3(0,-velocity,0));
 
-            // std::cout << scene["logo"][0].vertices[0].y << '\n';
-            // if(scene["logo"][0].vertices[0].y < -1000) {
-
-            // if(count % 30 == 0){
             if (isCollideGround(scene["ground"], scene["logo"]) && !hasCollided) {
                 velocity *= -1;
-                hasCollided = true;
+                hasCollided = true; // to remove multiple collision detections for the same collision
             }
+
             else {
                 hasCollided = false;
             }
 
-            velocity++;
-            count++;
-            // std::cout << count << '\n';
-            std::cout << velocity << '\n';
+            // only increase velocity if it hasn't landed (otherwise it'll fall through the ground)
+            if (!hasLanded) velocity++;
+
+            // it's landed
+            if (hasCollided && velocity == 0) {
+                velocity = 0;
+                hasLanded = true;
+            }
+
 
             update(translation, rotationAngles,light_translation);
 

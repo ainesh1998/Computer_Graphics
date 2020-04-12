@@ -27,6 +27,7 @@ using glm::vec3;
 void print_vec3(vec3 point);
 double **malloc2dArray(int dimX, int dimY);
 void order_triangle(CanvasTriangle *triangle);
+void order_triangle(ModelTriangle *triangle);
 void order_textured_triangle(CanvasTriangle *triangle, CanvasTriangle *texture);
 std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValues);
 vec3 cramer_rule(glm::mat3 DEMatrix,vec3 SPVector);
@@ -98,7 +99,7 @@ void update(glm::vec3 translation, glm::vec3 rotationAngles,glm::vec3 light_tran
 
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
-glm::vec3 cameraPos = glm::vec3(0, 130, 180);
+glm::vec3 cameraPos = glm::vec3(0, 130, 280);
 glm::vec3 box_lightPos = glm::vec3(-0.2,4.8,-3.043);
 glm::vec3 box_lightPos1 = glm::vec3(2,4.8,-3.043);
 glm::vec3 logo_lightPos = glm::vec3(300,59,15);
@@ -186,9 +187,9 @@ int main(int argc, char* argv[])
     scene["ground"] = ground_triangles;
 
     // moveObject("logo",vec3(-35,-25,-100));
-    moveObject("logo",vec3(-100,50,-100));
-    moveObject("ground",vec3(0,0,-550));
-    // moveObject("logo",vec3(-100,50,0)); // set logo to world origin
+    // moveObject("logo",vec3(-100,50,-100));
+    moveObject("ground",vec3(0,0,-300));
+    moveObject("logo",vec3(-100,50,0)); // set logo to world origin
 
     // moveObject("logo",vec3(-50,240,0));
     // rotateObject("logo",vec3(0,90,0));
@@ -321,6 +322,32 @@ void order_triangle(CanvasTriangle *triangle){
     if(triangle->vertices[2].y < triangle->vertices[1].y){
         std::swap(triangle->vertices[1],triangle->vertices[2]);
         if(triangle->vertices[1].y < triangle->vertices[0].y){
+            std::swap(triangle->vertices[1],triangle->vertices[0]);
+        }
+    }
+}
+
+void order_triangle_X(ModelTriangle *triangle){
+    if(triangle->vertices[1].x < triangle->vertices[0].x){
+        std::swap(triangle->vertices[0],triangle->vertices[1]);
+    }
+
+    if(triangle->vertices[2].x < triangle->vertices[1].x){
+        std::swap(triangle->vertices[1],triangle->vertices[2]);
+        if(triangle->vertices[1].x < triangle->vertices[0].x){
+            std::swap(triangle->vertices[1],triangle->vertices[0]);
+        }
+    }
+}
+
+void order_triangle_Z(ModelTriangle *triangle){
+    if(triangle->vertices[1].z < triangle->vertices[0].z){
+        std::swap(triangle->vertices[0],triangle->vertices[1]);
+    }
+
+    if(triangle->vertices[2].z < triangle->vertices[1].z){
+        std::swap(triangle->vertices[1],triangle->vertices[2]);
+        if(triangle->vertices[1].z < triangle->vertices[0].z){
             std::swap(triangle->vertices[1],triangle->vertices[0]);
         }
     }
@@ -1422,11 +1449,18 @@ void scaleObject(std::string name,float scale){
 // PHYSICS //
 
 
-// bool isCollideGroundTriangle(ModelTriangle ground, ModelTriangle t2) {
-//
-// }
-
 bool isCollideGround(std::vector<ModelTriangle> ground, std::vector<ModelTriangle> object) {
+    ModelTriangle orderX = ground[0];
+    ModelTriangle orderZ = ground[0];
+
+    order_triangle_X(&orderX);
+    order_triangle_Z(&orderZ);
+
+    float leftX = orderX.vertices[0].x;
+    float rightX = orderX.vertices[2].x;
+    float backZ = orderZ.vertices[0].z;
+    float frontZ = orderZ.vertices[2].z;
+
     for (int i = 0; i < ground.size(); i++) {
         float groundY = ground[i].vertices[0].y;
 
@@ -1438,8 +1472,16 @@ bool isCollideGround(std::vector<ModelTriangle> ground, std::vector<ModelTriangl
             CanvasTriangle triangle = CanvasTriangle(CanvasPoint(v1.x, v1.y, v1.z), CanvasPoint(v2.x, v2.y, v2.z), CanvasPoint(v3.x, v3.y, v3.z));
             order_triangle(&triangle);
 
+            bool xzBound = true;
+
+            for (int k = 0; k < 3; k++) {
+                bool temp = object[j].vertices[k].x >= leftX && object[j].vertices[k].x <= rightX &&
+                            object[j].vertices[k].z >= backZ && object[j].vertices[k].z <= frontZ;
+                xzBound = xzBound && temp;
+            }
+
             bool yBound = triangle.vertices[0].y <= groundY && triangle.vertices[2].y >= groundY;
-            if (yBound) {
+            if (yBound && xzBound) {
                 return true;
             }
         }
@@ -1520,6 +1562,10 @@ bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAng
         if(event.key.keysym.sym == SDLK_4) {
             genCount++;
             scene["terrain"] = generateGeometry(grid, width, 2.5, 10, genCount);
+        }
+
+        if(event.key.keysym.sym == SDLK_q) {
+            moveObject("logo", vec3(10, 0, 0));
         }
 
 

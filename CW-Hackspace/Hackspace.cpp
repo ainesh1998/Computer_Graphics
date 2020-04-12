@@ -183,11 +183,11 @@ int main(int argc, char* argv[])
     // scene["box"] = box_triangles;
     // scene["sphere"] = sphere_triangles;
     // scene["terrain"] = generated_triangles;
-    // scene["ground"] = ground_triangles;
+    scene["ground"] = ground_triangles;
 
     // moveObject("logo",vec3(-35,-25,-100));
-    // moveObject("logo",vec3(-100,50,-100));
-    // moveObject("ground",vec3(0,0,-550));
+    moveObject("logo",vec3(-100,50,-100));
+    moveObject("ground",vec3(0,0,-550));
     // moveObject("logo",vec3(-100,50,0)); // set logo to world origin
 
     // moveObject("logo",vec3(-50,240,0));

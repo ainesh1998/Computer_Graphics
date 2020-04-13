@@ -32,7 +32,7 @@ Computer Graphics unit
 - [x] **Phong Shading**
 - [x] **Fairly “interesting” materials (e.g. mirrors)**
 - [x] **Complex anti-aliasing**
-- [x] *Perspective corrected texture mapping*
+- [x] **Perspective corrected texture mapping**
 - [ ] “Fancy” animation
 - [x] *Soft shadow*
 - [ ] Bump maps

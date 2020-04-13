@@ -180,7 +180,7 @@ int main(int argc, char* argv[])
     // calculate vertex normals for each triangle of the sphere - for gouraud and phong shading
     // calcVertexNormals(sphere_triangles);
 
-    scene["logo"] = logo_triangles;
+    // scene["logo"] = logo_triangles;
     // scene["box"] = box_triangles;
     // scene["sphere"] = sphere_triangles;
     // scene["terrain"] = generated_triangles;
@@ -189,7 +189,7 @@ int main(int argc, char* argv[])
     // moveObject("logo",vec3(-35,-25,-100));
     // moveObject("logo",vec3(-100,50,-100));
     moveObject("ground",vec3(0,0,-300));
-    moveObject("logo",vec3(-100,50,0)); // set logo to world origin
+    // moveObject("logo",vec3(-100,50,0)); // set logo to world origin
 
     // moveObject("logo",vec3(-50,240,0));
     // rotateObject("logo",vec3(0,90,0));
@@ -219,28 +219,28 @@ int main(int argc, char* argv[])
         }
 
 
-        // if (isUpdate) {
-        if (true) {
-            // rotateObject("logo",vec3(0,1,0));
-            moveObject("logo",vec3(0,-velocity,0));
-
-            if (isCollideGround(scene["ground"], scene["logo"]) && !hasCollided) {
-                velocity *= -1;
-                hasCollided = true; // to remove multiple collision detections for the same collision
-            }
-
-            else {
-                hasCollided = false;
-            }
-
-            // only increase velocity if it hasn't landed (otherwise it'll fall through the ground)
-            if (!hasLanded) velocity++;
-
-            // it's landed
-            if (hasCollided && velocity == 0) {
-                velocity = 0;
-                hasLanded = true;
-            }
+        if (isUpdate) {
+        // if (true) {
+            // // rotateObject("logo",vec3(0,1,0));
+            // moveObject("logo",vec3(0,-velocity,0));
+            //
+            // if (isCollideGround(scene["ground"], scene["logo"]) && !hasCollided) {
+            //     velocity *= -1;
+            //     hasCollided = true; // to remove multiple collision detections for the same collision
+            // }
+            //
+            // else {
+            //     hasCollided = false;
+            // }
+            //
+            // // only increase velocity if it hasn't landed (otherwise it'll fall through the ground)
+            // if (!hasLanded) velocity++;
+            //
+            // // it's landed
+            // if (hasCollided && velocity == 0) {
+            //     velocity = 0;
+            //     hasLanded = true;
+            // }
 
 
             update(translation, rotationAngles,light_translation);
@@ -785,22 +785,25 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
     CanvasPoint u2 = texturedTriangle.vertices[1];
     CanvasPoint u3 = texturedTriangle.vertices[2];
 
-    float k_x = (v3.x==v1.x)? 0 : (u3.x-u1.x)/(v3.x-v1.x);
-    float k_y = (v3.y==v1.y)? 0 :(u3.y-u1.y)/(v3.y-v1.y);
-    int u4_x = u1.x + k_x * (v4.x-v1.x);
-    int u4_y = u1.y + k_y * (v4.y-v1.y);
-
-    CanvasPoint u4 = CanvasPoint(u4_x,u4_y);
+    float inv_z0 = std::min(v1.depth,std::min(v2.depth,v3.depth));
+    float inv_z1 = std::min(v1.depth,std::min(v2.depth,v3.depth));
 
     u1.x = u1.x * v1.depth;
     u2.x = u2.x * v2.depth;
     u3.x = u3.x * v3.depth;
-    u4.x = u4.x * v4.depth;
 
     u1.y = u1.y * v1.depth;
     u2.y = u2.y * v2.depth;
     u3.y = u3.y * v3.depth;
-    u4.y = u4.y * v4.depth;
+
+    float k_x = (v3.x==v1.x)? 0 : (u3.x-u1.x)/(v3.x-v1.x);
+    float k_y = (v3.y==v1.y)? 0 : (u3.y-u1.y)/(v3.y-v1.y);
+    float u4_x = u1.x + k_x * (v4.x-v1.x);
+    float u4_y = u1.y + k_y * (v4.y-v1.y);
+
+    CanvasPoint u4 = CanvasPoint(u4_x,u4_y);
+
+
 
     //fill top triangle
     std::vector<vec3> triangleLeft = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v2.x,v2.y,v2.depth), (v2.y-v1.y)+1);
@@ -916,8 +919,6 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
         }
     }
 
-    double near = infinity;
-    double far = 0;
     for (int i = 0; i < (int) modelTriangles.size(); i++) {
         std::vector<CanvasPoint> points;
         for (int j = 0; j < 3; j++) {
@@ -926,13 +927,6 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
 
             int x = wrtCamera.x * ratio + WIDTH/2;
             int y = (-wrtCamera.y) * ratio + HEIGHT/2;
-
-            if(-wrtCamera.z > far){
-                far = -wrtCamera.z;
-            }
-            if(-wrtCamera.z < near){
-                near = -wrtCamera.z;
-            }
 
             CanvasPoint point = CanvasPoint(x, y,-wrtCamera.z, modelTriangles[i].texturePoints[j]);
             points.push_back(point);

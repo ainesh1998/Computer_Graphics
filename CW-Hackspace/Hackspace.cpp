@@ -219,10 +219,10 @@ int main(int argc, char* argv[])
         }
 
 
-        // if (isUpdate) {
-        if (true) {
+        if (isUpdate) {
+        // if (true) {
             // rotateObject("logo",vec3(0,1,0));
-            moveObject("logo",vec3(0,-velocity,0));
+            // moveObject("logo",vec3(0,-velocity,0));
 
             if (isCollideGround(scene["ground"], scene["logo"]) && !hasCollided) {
                 velocity *= -1;
@@ -388,11 +388,20 @@ std::vector<Colour> readPPM(std::string filename,int* width, int* height){
 
     char comment[256];
     stream.getline(comment,256);
+
     char widthText[256];
     char heightText[256];
 
-    stream.getline(widthText,256,' ');
-    stream.getline(heightText,256);
+    if (comment[0] == '#') {
+        stream.getline(widthText,256,' ');
+        stream.getline(heightText,256);
+    }
+    else {
+        std::string* widthHeight = split(comment, ' ');
+        std::strcpy(widthText, widthHeight[0].c_str());
+        std::strcpy(heightText, widthHeight[1].c_str());
+    }
+
     *width = std::stoi(widthText);
     *height = std::stoi(heightText);
 
@@ -495,10 +504,18 @@ std::vector<Colour> readMTL(std::string filename,int* textureWidth, int* texture
             //     colourMap.push_back(textureMap[i])
             // }
         }
+
+        else if (strcmp(newmtl, "map_Bump") == 0) {
+            // read bump map
+            char textureFile[256];
+            stream.getline(textureFile, 256);
+            std::string* contents = split(filename,'/'); // Since te filename contains the directory
+            contents[0] += "/";
+            colours = readPPM( contents[0] + (std::string) textureFile, textureWidth, textureHeight);
+        }
     }
     stream.clear();
     stream.close();
-    // std::cout << "finished mtl file" << '\n';
     return colours;
 }
 
@@ -1564,12 +1581,6 @@ bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAng
             scene["terrain"] = generateGeometry(grid, width, 2.5, 10, genCount);
         }
 
-        if(event.key.keysym.sym == SDLK_q) {
-            moveObject("logo", vec3(10, 0, 0));
-        }
-
-
-        // std::cout << translation->x << " " << translation->y << " " << translation->z << std::endl;
     }
     else if(event.type == SDL_MOUSEBUTTONDOWN) {
         std::cout << "MOUSE CLICKED" << std::endl;

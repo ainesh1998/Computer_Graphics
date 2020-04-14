@@ -35,7 +35,7 @@ Computer Graphics unit
 - [x] **Perspective corrected texture mapping**
 - [ ] “Fancy” animation
 - [x] *Soft shadow*
-- [ ] Bump maps
+- [x] **Bump maps**
 - [ ] Basic clipping (bounding box)
 
 ### 80s range

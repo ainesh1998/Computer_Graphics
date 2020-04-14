@@ -9,9 +9,10 @@ class CanvasTriangle
     bool isTexture;
 
     //Texture data
-    int textureWidth;
-    int textureHeight;
-    Colour *texture;
+    // int textureWidth;
+    // int textureHeight;
+    // Colour *texture;
+    int textureIndex;
 
     CanvasTriangle()
     {

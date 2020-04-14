@@ -15,9 +15,10 @@ class ModelTriangle
     float velocity = 0;
 
     //Texture data
-    int textureWidth;
-    int textureHeight;
-    Colour *texture;
+    int textureIndex;
+    // int textureWidth;
+    // int textureHeight;
+    // Colour *texture;
 
     ModelTriangle()
     {

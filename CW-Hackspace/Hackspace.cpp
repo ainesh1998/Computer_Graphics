@@ -119,6 +119,9 @@ int genCount = 0;
 int width = 60;
 double** grid = malloc2dArray(width, width);
 
+std::vector<std::vector<Colour>> textures;
+std::vector<glm::vec2> textureDimensions;
+
 
 int main(int argc, char* argv[])
 {
@@ -169,7 +172,7 @@ int main(int argc, char* argv[])
     //
     // std::vector<ModelTriangle> ground_triangles = {ModelTriangle(a,c,b, Colour(0, 255, 0), newTriangleID),
     //                                                ModelTriangle(a,d,c, Colour(0, 255, 0), newTriangleID+1)};
-    std::vector<ModelTriangle> ground_triangles = readOBJ("extra-objects/ground.obj", "extra-objects/ground.mtl", 0.99);
+    // std::vector<ModelTriangle> ground_triangles = readOBJ("extra-objects/ground.obj", "extra-objects/ground.mtl", 0.99);
     // newTriangleID += 2;
 
 
@@ -184,11 +187,11 @@ int main(int argc, char* argv[])
     // scene["box"] = box_triangles;
     // scene["sphere"] = sphere_triangles;
     // scene["terrain"] = generated_triangles;
-    scene["ground"] = ground_triangles;
+    // scene["ground"] = ground_triangles;
 
     // moveObject("logo",vec3(-35,-25,-100));
     // moveObject("logo",vec3(-100,50,-100));
-    moveObject("ground",vec3(0,0,-300));
+    // moveObject("ground",vec3(0,0,-300));
     moveObject("logo",vec3(-100,50,0)); // set logo to world origin
 
     // moveObject("logo",vec3(-50,240,0));
@@ -196,7 +199,7 @@ int main(int argc, char* argv[])
     // moveObject("logo",vec3(0,0,-120));
     // // moveObject("sphere",vec3(35,100,-100)); // place sphere above red box
     // moveObject("sphere", vec3(-70, 20, -70)); // place sphere in front of blue box
-    scaleObject("ground",0.5f);
+    // scaleObject("ground",0.5f);
 
     drawScene();
 
@@ -224,23 +227,23 @@ int main(int argc, char* argv[])
             // rotateObject("logo",vec3(0,1,0));
             // moveObject("logo",vec3(0,-velocity,0));
 
-            if (isCollideGround(scene["ground"], scene["logo"]) && !hasCollided) {
-                velocity *= -1;
-                hasCollided = true; // to remove multiple collision detections for the same collision
-            }
-
-            else {
-                hasCollided = false;
-            }
-
-            // only increase velocity if it hasn't landed (otherwise it'll fall through the ground)
-            if (!hasLanded) velocity++;
-
-            // it's landed
-            if (hasCollided && velocity == 0) {
-                velocity = 0;
-                hasLanded = true;
-            }
+            // if (isCollideGround(scene["ground"], scene["logo"]) && !hasCollided) {
+            //     velocity *= -1;
+            //     hasCollided = true; // to remove multiple collision detections for the same collision
+            // }
+            //
+            // else {
+            //     hasCollided = false;
+            // }
+            //
+            // // only increase velocity if it hasn't landed (otherwise it'll fall through the ground)
+            // if (!hasLanded) velocity++;
+            //
+            // // it's landed
+            // if (hasCollided && velocity == 0) {
+            //     velocity = 0;
+            //     hasLanded = true;
+            // }
 
 
             update(translation, rotationAngles,light_translation);
@@ -459,7 +462,6 @@ void writePPM(std::string filename,int width, int height, std::vector<Colour> co
 }
 
 std::vector<Colour> readMTL(std::string filename,int* textureWidth, int* textureHeight){
-    // std::map<std::string,Colour> colourMap;
     std::vector<Colour> colours;
     std::ifstream stream;
     stream.open(filename, std::ifstream::in);
@@ -496,22 +498,23 @@ std::vector<Colour> readMTL(std::string filename,int* textureWidth, int* texture
         else if (strcmp(newmtl, "map_Kd") == 0) {
             char textureFile[256];
             stream.getline(textureFile, 256);
-            // std::cout << textureFile << '\n';
             std::string* contents = split(filename,'/'); // Since te filename contains the directory
             contents[0] += "/";
             colours = readPPM( contents[0] + (std::string) textureFile, textureWidth, textureHeight);
-            // for (int i = 0; i < textureMap.size(); i++) {
-            //     colourMap.push_back(textureMap[i])
-            // }
         }
 
         else if (strcmp(newmtl, "map_Bump") == 0) {
             // read bump map
-            char textureFile[256];
-            stream.getline(textureFile, 256);
-            std::string* contents = split(filename,'/'); // Since te filename contains the directory
-            contents[0] += "/";
-            colours = readPPM( contents[0] + (std::string) textureFile, textureWidth, textureHeight);
+            // char textureFile[256];
+            // stream.getline(textureFile, 256);
+            // std::string* contents = split(filename,'/'); // Since te filename contains the directory
+            // contents[0] += "/";
+            // std::vector<Colour> tempColours = readPPM( contents[0] + (std::string) textureFile, textureWidth, textureHeight);
+            //
+            // for (int i = 0; i < tempColours.size(); i++) {
+            //     vec3 normal = vec3(tempColours[i].red, tempColours[i].green, tempColours[i].blue);
+            //     bump_map->push_back(normal);
+            // }
         }
     }
     stream.clear();
@@ -520,8 +523,6 @@ std::vector<Colour> readMTL(std::string filename,int* textureWidth, int* texture
 }
 
 std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, float scale) {
-    //The colour map is getting initialised with dummy values
-
     std::ifstream stream;
     stream.open(WORKING_DIRECTORY + filename, std::ifstream::in);
 
@@ -531,16 +532,21 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
 
     int textureWidth;
     int textureHeight;
+    // std::vector<vec3> bump_map;
 
     // std::map<std::string,Colour> colourMap = readMTL(WORKING_DIRECTORY + (std::string) mtlName);
     std::vector<Colour> colours = readMTL(WORKING_DIRECTORY + (std::string) mtlName,&textureWidth,&textureHeight);
 
     std::vector<glm::vec3> vertices;
     std::vector<TexturePoint> texturePoints;
+    // std::vector<TexturePoint> bumpNormals;
     std::vector<ModelTriangle> modelTriangles;
     char line[256];
     Colour colour = Colour(255,255,255);
     bool mirrored = false;
+    bool isTextured = false;
+    int textureIndex = textures.size();
+
     while(stream.getline(line,256)){
         std::string* contents = split(line,' ');
         if(contents[0].compare("o") == 0){
@@ -567,13 +573,20 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
             }
         }
 
+        else if (contents[0].compare("vb") == 0) { // don't think this is legit obj
+            // float x = (int) (std::stof(contents[1]) * textureWidth);
+            // float y = (int) (std::stof(contents[2]) * textureHeight);
+            // TexturePoint point = TexturePoint(x, y);
+            // bumpNormals.push_back(point);
+        }
+
         else if(contents[0].compare("v") == 0){
             // if (filename.compare("extra-objects/sphere.obj")==0) std::cout << offset << '\n';
             float x = std::stof(contents[1]) * scale;
             float y = std::stof(contents[2]) * scale;
             float z = std::stof(contents[3]) * scale;
-            glm::vec3 v(x,y,z);
-            vertices.push_back(v);
+            vec3 newPoint = vec3(x,y,z);
+            vertices.push_back(newPoint);
         }
 
         else if(contents[0].compare("f") == 0){
@@ -599,23 +612,36 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
                 ModelTriangle m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1],
                                                 texturePoints[textureIndex1-1], texturePoints[textureIndex2-1],
                                                 texturePoints[textureIndex3-1], newTriangleID);
-                m.textureWidth = textureWidth;
-                m.textureHeight = textureHeight;
-                m.texture = (Colour*)malloc(sizeof(Colour) * textureWidth * textureHeight);
-                memcpy(m.texture,colours.data(),sizeof(Colour) * textureWidth * textureHeight);
-                // m.texture = &colours;
-                // std::cout << "/* message */" << '\n';
+                // m.textureWidth = textureWidth;
+                // m.textureHeight = textureHeight;
+                // m.texture = (Colour*)malloc(sizeof(Colour) * textureWidth * textureHeight);
+                // memcpy(m.texture,colours.data(),sizeof(Colour) * textureWidth * textureHeight);
+
+                m.textureIndex = textureIndex;
                 modelTriangles.push_back(m);
                 newTriangleID++;
+                isTextured = true;
             }
 
             else {
-                if (directory.compare("extra-objects") == 0) colour = Colour(255,255,255);
                 ModelTriangle m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1], colour, newTriangleID);
                 m.isMirror = mirrored;
                 modelTriangles.push_back(m);
                 newTriangleID++;
             }
+        }
+    }
+
+    if (isTextured) {
+        textureDimensions.push_back(glm::vec2(textureWidth, textureHeight));
+        textures.push_back(colours);
+    }
+
+    for (int i = 0; i < textures.size(); i++) {
+        // std::cout << "dim :" << textureDimensions[i].x << " " << textureDimensions[i].y << '\n';
+
+        for (int j = 0; j < textures[i].size(); j++) {
+            // std::cout << textures[i][j] << " ";
         }
     }
 
@@ -696,11 +722,6 @@ void drawLineAntiAlias(CanvasPoint start, CanvasPoint end, Colour c, double** de
                     window.setPixelColour(y2, x, newColour2.packed_colour());
                     depth_buffer[y1][x] = line[i].z;
                 }
-            }
-            else{
-                // velocity *= -1;
-                // std::cout << "test" << '\n';
-                // std::cout << velocity << '\n';
             }
 
         }
@@ -852,11 +873,13 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
             if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
                 if (depth >= depth_buffer[x][y]) {
                     depth_buffer[x][y] = depth;
-                    int texturePoint = ui + (vi*triangle.textureWidth);
+                    int textureWidth = textureDimensions[triangle.textureIndex].x;
+                    int textureHeight = textureDimensions[triangle.textureIndex].y;
+                    int texturePoint = ui + (vi*textureWidth);
 
                     //Added if guard as there were cases when texturePoint was out of bounds
-                    if(texturePoint < triangle.textureWidth*triangle.textureHeight){
-                        Colour c = triangle.texture[texturePoint];
+                    if(texturePoint < textureWidth*textureHeight){
+                        Colour c = textures[triangle.textureIndex][texturePoint];
                         window.setPixelColour(x, y, c.packed_colour());
                     }
 
@@ -898,11 +921,13 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
                 if (depth >= depth_buffer[x][y]) {
                     depth_buffer[x][y] = depth;
 
-                    int texturePoint = ui + (vi*triangle.textureWidth);
+                    int textureWidth = textureDimensions[triangle.textureIndex].x;
+                    int textureHeight = textureDimensions[triangle.textureIndex].y;
+                    int texturePoint = ui + (vi*textureWidth);
 
                     //Added if guard as there were cases when texturePoint was out of bounds
-                    if(texturePoint < triangle.textureWidth*triangle.textureHeight){
-                        Colour c = triangle.texture[texturePoint];
+                    if(texturePoint < textureWidth*textureHeight){
+                        Colour c = textures[triangle.textureIndex][texturePoint];
                         window.setPixelColour(x, y, c.packed_colour());
                     }
 
@@ -956,9 +981,10 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
         }
         if(inRange(points[0].depth,100,1000)&& inRange(points[1].depth,100,1000) && inRange(points[2].depth,100,1000)){ //near plane clipping
             CanvasTriangle triangle = CanvasTriangle(points[0], points[1], points[2], modelTriangles[i].colour);
-            triangle.textureWidth = modelTriangles[i].textureWidth;
-            triangle.textureHeight = modelTriangles[i].textureHeight;
-            triangle.texture = modelTriangles[i].texture;
+            // triangle.textureWidth = modelTriangles[i].textureWidth;
+            // triangle.textureHeight = modelTriangles[i].textureHeight;
+            // triangle.texture = modelTriangles[i].texture;
+            triangle.textureIndex = modelTriangles[i].textureIndex;
             triangles.push_back(triangle);
         }
 
@@ -966,7 +992,7 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
 
     for(int i = 0; i < (int)triangles.size(); i++){
         for (int j = 0; j < 3; j++) {
-            triangles[i].vertices[j].depth = 1/triangles[i].vertices[j].depth ;
+            triangles[i].vertices[j].depth = 1/triangles[i].vertices[j].depth;
         }
 
         if (mode == 2) {
@@ -1068,10 +1094,13 @@ vec3 getTextureColour(ModelTriangle triangle, vec3 solution, vec3 point) {
     vec3 t3 = vec3(triangle.texturePoints[2].x, triangle.texturePoints[2].y, 0);
 
     vec3 texturePoint = t1 + u * (t2 - t1) + v * (t3 - t1);
-    Colour c = triangle.texture[(int) texturePoint.x + (int) texturePoint.y * triangle.textureWidth];
+
+    int textureWidth = textureDimensions[triangle.textureIndex].x;
+    Colour c = textures[triangle.textureIndex][(int) texturePoint.x + (int) texturePoint.y * textureWidth];
 
     return vec3(c.red, c.green, c.blue);
 }
+
 //Calculate if the ModelTriangle normal is facing the camera
 bool isFacing(ModelTriangle t, vec3 ray){
     vec3 toCamera = -ray; //invert the ray to get the vertex pointing towards the camera

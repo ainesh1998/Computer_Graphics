@@ -559,7 +559,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
     while(stream.getline(line,256)){
         std::string* contents = split(line,' ');
         if(contents[0].compare("o") == 0){
-            mirrored = contents[1].compare("back_wall") == 0;
+            mirrored = contents[1].compare("mirror") == 0;
         }
 
         if(contents[0].compare("vt")== 0){
@@ -841,9 +841,6 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
     CanvasPoint u1 = texturedTriangle.vertices[0];
     CanvasPoint u2 = texturedTriangle.vertices[1];
     CanvasPoint u3 = texturedTriangle.vertices[2];
-
-    float inv_z0 = std::min(v1.depth,std::min(v2.depth,v3.depth));
-    float inv_z1 = std::min(v1.depth,std::min(v2.depth,v3.depth));
 
     u1.x = u1.x * v1.depth;
     u2.x = u2.x * v2.depth;

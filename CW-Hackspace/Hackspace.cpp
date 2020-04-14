@@ -74,6 +74,9 @@ void calcVertexNormals(std::vector<ModelTriangle> triangles);
 float gouraud(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution, std::vector<ModelTriangle> triangles);
 float phong(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution, std::vector<ModelTriangle> triangles);
 
+// bump mapping
+vec3 calcBumpNormal(ModelTriangle t, vec3 solution);
+
 // generative geometry
 void diamondSquare(double** pointHeights, int width, double currentSize);
 std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, float scale, int intensity, int count);
@@ -1117,6 +1120,7 @@ bool isFacing(ModelTriangle t, vec3 ray){
     // std::cout << val << '\n';
     return (val>=0.f);
 }
+
 RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangles,vec3 ray,vec3 origin,RayTriangleIntersection* original_intersection){
     RayTriangleIntersection final_intersection;
     final_intersection.distanceFromCamera = infinity;
@@ -1242,6 +1246,11 @@ float calcShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 po
 
 float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos, vec3 solution){
     vec3 norm = computenorm(t);
+
+    if (t.isBump) {
+        std::cout << "/* message */" << '\n';
+        norm = calcBumpNormal(t, solution);}
+
     float brightness = calcIntensity(norm, lightPos, point);
 
     // true if we precalculated the vertex normals for this triangle
@@ -1327,6 +1336,30 @@ float phong(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution, std::vect
     // shadow calculation - not using the shadow ray so I'm not too sure
     if (dot <= 0) brightness = AMBIENCE/2;
     return brightness;
+}
+
+
+// BUMP MAPPING //
+
+
+vec3 calcBumpNormal(ModelTriangle t, vec3 solution) {
+    float u = solution.y;
+    float v = solution.z;
+
+    vec3 b1 = vec3(t.bumpPoints[0].x, t.bumpPoints[0].y, 0);
+    vec3 b2 = vec3(t.bumpPoints[1].x, t.bumpPoints[1].y, 0);
+    vec3 b3 = vec3(t.bumpPoints[2].x, t.bumpPoints[2].y, 0);
+
+    vec3 bumpPoint = b1 + u * (b2 - b1) + v * (b3 - b1);
+
+    int bumpWidth = bumpDimensions[t.bumpIndex].x;
+    vec3 norm = bump_maps[t.bumpIndex][(int) bumpPoint.x + (int) bumpPoint.y * bumpWidth];
+    norm = glm::normalize(norm);
+
+    // print_vec3(norm);
+
+    // return computenorm(t);
+    return norm;
 }
 
 // GENERATIVE GEOMETRY //

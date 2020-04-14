@@ -1121,13 +1121,13 @@ bool isFacing(ModelTriangle t, vec3 ray){
 
 
 //https://www.scratchapixel.com/lessons/3d-basic-rendering/introduction-to-shading/reflection-refraction-fresnel
-vec3 refract(vec3 ray,vec3 norm,float refraction_index){
+vec3 refract(vec3 ray,vec3 norm,float refractive_index){
     float cosi = glm::dot(ray,norm);
     //keep cosi within -1 and 1
     if(cosi < -1) cosi = -1;
     else if(cosi > 1) cosi = 1;
     float etai = 1; //refractive index of medium the ray is in i.e air
-    float etat = refraction_index; //refractive index of medium the ray is entering i.e 1.5 for glass
+    float etat = refractive_index; //refractive index of medium the ray is entering i.e 1.5 for glass
     vec3 n = norm;
     if(cosi < 0){
         cosi = -cosi;
@@ -1142,6 +1142,28 @@ vec3 refract(vec3 ray,vec3 norm,float refraction_index){
     return k < 0 ? vec3(0,0,0) : eta * ray + (eta * cosi - sqrtf(k)) * n;
 }
 
+//https://www.scratchapixel.com/lessons/3d-basic-rendering/introduction-to-shading/reflection-refraction-fresnel
+// Defines proportions for refractive and reflected colour to be mixed
+float fresnel(vec3 ray,vec3 norm,float refractive_index){
+    float kr;
+    float cosi = glm::dot(ray,norm);
+    //keep cosi within -1 and 1
+    if(cosi < -1) cosi = -1;
+    else if(cosi > 1) cosi = 1;
+    float etai = 1; //refractive index of medium the ray is in i.e air
+    float etat = refractive_index; //refractive index of medium the ray is entering i.e 1.5 for glass
+    float sint = etai/etat * sqrtf(std::max(0.f,1-cosi*cosi));
+    if(sint >= 1) kr = 1;
+    else{
+
+        float cost = sqrtf(std::max(0.f, 1 - sint * sint));
+        cosi = fabsf(cosi); //same as abs but to specify it's a float
+        float rs = ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost));
+        float rp = ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost));
+        kr = (rs * rs + rp * rp) / 2;
+    }
+    return kr;
+}
 RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangles,vec3 ray,vec3 origin,RayTriangleIntersection* original_intersection,int depth){
     RayTriangleIntersection final_intersection;
     final_intersection.distanceFromCamera = infinity;
@@ -1150,7 +1172,7 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
     if(depth < 5){
         float minDist = infinity;
         for (size_t i = 0; i < triangles.size(); i++) {
-            if(isFacing(triangles[i],ray) || true){
+            if(isFacing(triangles[i],ray)){
                 RayTriangleIntersection intersection = getIntersection(ray,triangles[i],origin);
                 float distance = intersection.distanceFromCamera;
 
@@ -1179,16 +1201,31 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
             }
         }
         // glass
-        // if (final_intersection.intersectedTriangle.isGlass) {
-        //     vec3 norm = computenorm(final_intersection.intersectedTriangle);
-        //     //calculate refraction vector
-        //     vec3 point = final_intersection.intersectionPoint;
-        //     vec3 glassRay = refract(ray,norm,1.5);
-        //     // vec3 glassReflectedRay = calcReflectedRay(final_intersection.intersectedTriangle,final_intersection.intersectedPoint);
-        //     RayTriangleIntersection final_glass_intersection = getFinalIntersection(triangles,glassRay,point,&final_intersection,depth+1);
-        //     Colour c = final_glass_intersection.intersectedTriangle.colour;
-        //     final_intersection = final_glass_intersection;
-        // }
+        if (final_intersection.intersectedTriangle.isGlass) {
+            //reflection
+            vec3 point = final_intersection.intersectionPoint;
+            vec3 glassReflectedRay = calcReflectedRay(ray,final_intersection.intersectedTriangle);
+            RayTriangleIntersection glass_reflected_intersection = getFinalIntersection(triangles,glassReflectedRay,point,&final_intersection,depth+1);
+            Colour r =glass_reflected_intersection.intersectedTriangle.colour;
+            vec3 reflected_colour = vec3(r.red,r.green,r.blue);
+
+            //refraction
+            //calculate refraction vector
+            float refractive_index = 1.5; //made this a variable in case we want to change it later
+            vec3 norm = computenorm(final_intersection.intersectedTriangle);
+            vec3 glassRefractedRay = refract(ray,norm,refractive_index);
+            RayTriangleIntersection final_glass_intersection = getFinalIntersection(triangles,glassRefractedRay,point,&final_intersection,depth+1);
+            Colour c = final_glass_intersection.intersectedTriangle.colour;
+            vec3 refracted_colour = vec3(c.red,c.green,c.blue);
+
+            //final colour should be a mixture of both reflection and refraction
+            //fresnel defines proportion
+            float kr = fresnel(ray,norm,refractive_index);
+            vec3 fin_colour = reflected_colour * kr + refracted_colour * (1-kr);
+            final_intersection.intersectedTriangle.colour = Colour(fin_colour.x,fin_colour.y,fin_colour.z);
+            // final_intersection = glass_reflected_intersection;
+
+        }
 
         // mirror
         if (final_intersection.intersectedTriangle.isMirror) {

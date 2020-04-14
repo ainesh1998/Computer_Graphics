@@ -1,1 +1,3 @@
-map_Kd checkerboard.ppm
+map_Bump bump-map.ppm
+newmtl Green
+Kd 0.000000 1.000000 0.000000

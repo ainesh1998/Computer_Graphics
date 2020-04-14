@@ -560,7 +560,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
     while(stream.getline(line,256)){
         std::string* contents = split(line,' ');
         if(contents[0].compare("o") == 0){
-            mirrored = contents[1].compare("mirror") == 0;
+            // mirrored = contents[1].compare("mirror") == 0;
             isGlass = contents[1].compare("short_box") == 0;
         }
 
@@ -1155,7 +1155,27 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
     }
     return final_intersection;
 }
+//https://www.scratchapixel.com/lessons/3d-basic-rendering/introduction-to-shading/reflection-refraction-fresnel
+vec3 refract(vec3 ray,vec3 norm,float refraction_index){
+    float cosi = glm::dot(ray,norm);
+    //keep cosi within -1 and 1
+    if(cosi < -1) cosi = -1;
+    else if(cosi > 1) cosi = 1;
+    float etai = 1; //refractive index of medium the ray is in i.e air
+    float etat = refraction_index; //refractive index of medium the ray is entering i.e 1.5 for glass
+    vec3 n = norm;
+    if(cosi < 0){
+        cosi = -cosi;
+    }else{
+        //I think this is if the ray is leaving the surface
+        std::swap(etai,etat);
+        n = -norm;
+    }
 
+    float eta = etai/etat; //snell's law
+    float k = 1 - eta * eta * (1 - cosi * cosi);
+    return k < 0 ? vec3(0,0,0) : eta * ray + (eta * cosi - sqrtf(k)) * n;
+}
 void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
     // window.clearPixels();
     float minDist = infinity;
@@ -1181,6 +1201,7 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                 vec3 newColour = {c.red,c.green,c.blue};
 
                 // mirror
+                vec3 norm = computenorm(final_intersection.intersectedTriangle);
                 if (final_intersection.intersectedTriangle.isMirror) {
                     //calculate mirror vector
                     vec3 point = final_intersection.intersectionPoint;
@@ -1189,6 +1210,17 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                     RayTriangleIntersection final_mirror_intersection = getFinalIntersection(triangles,mirrorRay,point,&final_intersection);
                     Colour c = final_mirror_intersection.intersectedTriangle.colour;
                     newColour = 0.8f *  vec3(c.red,c.green,c.blue); // 0.8 is to make mirror slightly darker than the real object
+                }
+
+                // glass
+                if (final_intersection.intersectedTriangle.isGlass) {
+                    // newColour = vec3(0,255,100);
+                    //calculate refraction vector
+                    vec3 point = final_intersection.intersectionPoint;
+                    vec3 glassRay = refract(ray,norm,1.5);
+                    RayTriangleIntersection final_glass_intersection = getFinalIntersection(triangles,glassRay,point,&final_intersection);
+                    Colour c = final_glass_intersection.intersectedTriangle.colour;
+                    newColour = 0.9f* vec3(c.red,c.green,c.blue);
                 }
 
                 if(final_intersection.distanceFromCamera != infinity){

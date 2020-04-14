@@ -9,6 +9,7 @@
 #include <map>
 #include <glm/gtx/string_cast.hpp>
 #include <GameObject.h>
+#include <string>
 
 #define WIDTH 640
 #define HEIGHT 480
@@ -407,8 +408,8 @@ std::vector<Colour> readPPM(std::string filename,int* width, int* height){
     }
     else {
         std::string* widthHeight = split(comment, ' ');
-        std::strcpy(widthText, widthHeight[0].c_str());
-        std::strcpy(heightText, widthHeight[1].c_str());
+        strcpy(widthText, widthHeight[0].c_str());
+        strcpy(heightText, widthHeight[1].c_str());
     }
 
     *width = std::stoi(widthText);
@@ -503,7 +504,7 @@ std::vector<Colour> readMTL(std::string filename,int* textureWidth, int* texture
         else if (strcmp(newmtl, "map_Kd") == 0) {
             char textureFile[256];
             stream.getline(textureFile, 256);
-            std::string* contents = split(filename,'/'); // Since te filename contains the directory
+            std::string* contents = split(filename,'/'); // Since the filename contains the directory
             contents[0] += "/";
             colours = readPPM( contents[0] + (std::string) textureFile, textureWidth, textureHeight);
         }
@@ -512,7 +513,7 @@ std::vector<Colour> readMTL(std::string filename,int* textureWidth, int* texture
             // read bump map
             char textureFile[256];
             stream.getline(textureFile, 256);
-            std::string* contents = split(filename,'/'); // Since te filename contains the directory
+            std::string* contents = split(filename,'/'); // Since the filename contains the directory
             contents[0] += "/";
             std::vector<Colour> tempColours = readPPM( contents[0] + (std::string) textureFile, textureWidth, textureHeight);
 

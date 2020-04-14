@@ -58,7 +58,8 @@ void drawBox(std::vector<ModelTriangle> triangles, float focalLength);
 
 // raytracer
 bool isFacing(ModelTriangle t, vec3 ray);
-vec3 calcMirrorVec(vec3 point,ModelTriangle t);
+vec3 calcReflectedRay(vec3 ray,ModelTriangle t);
+vec3 refract(vec3 ray,vec3 norm,float refraction_index);
 vec3 getTextureColour(ModelTriangle triangle, vec3 solution, vec3 point);
 glm::vec3 computeRay(float x,float y,float fov);
 RayTriangleIntersection getIntersection(glm::vec3 ray,std::vector<ModelTriangle> modelTriangles,vec3 origin);
@@ -1084,9 +1085,9 @@ glm::vec3 computeRay(float x,float y,float fov){
     return rayDirection;
 }
 
-vec3 calcMirrorVec(vec3 point,ModelTriangle t){
+vec3 calcReflectedRay(vec3 ray,ModelTriangle t){
     //not sure how to use mirror with multiple light sources
-    vec3 incidence = glm::normalize(point - cameraPos);
+    vec3 incidence = ray;
     vec3 norm = computenorm(t);
     vec3 reflect = incidence -  2.f *(norm * (glm::dot(incidence,norm)));
     reflect = glm::normalize(reflect);
@@ -1149,7 +1150,7 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
     if(depth < 5){
         float minDist = infinity;
         for (size_t i = 0; i < triangles.size(); i++) {
-            if(isFacing(triangles[i],ray)){
+            if(isFacing(triangles[i],ray) || true){
                 RayTriangleIntersection intersection = getIntersection(ray,triangles[i],origin);
                 float distance = intersection.distanceFromCamera;
 
@@ -1178,21 +1179,22 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
             }
         }
         // glass
-        if (final_intersection.intersectedTriangle.isGlass) {
-            vec3 norm = computenorm(final_intersection.intersectedTriangle);
-            //calculate refraction vector
-            vec3 point = final_intersection.intersectionPoint;
-            vec3 glassRay = refract(ray,norm,1.5);
-            RayTriangleIntersection final_glass_intersection = getFinalIntersection(triangles,glassRay,point,&final_intersection,depth+1);
-            Colour c = final_glass_intersection.intersectedTriangle.colour;
-            final_intersection = final_glass_intersection;
-        }
+        // if (final_intersection.intersectedTriangle.isGlass) {
+        //     vec3 norm = computenorm(final_intersection.intersectedTriangle);
+        //     //calculate refraction vector
+        //     vec3 point = final_intersection.intersectionPoint;
+        //     vec3 glassRay = refract(ray,norm,1.5);
+        //     // vec3 glassReflectedRay = calcReflectedRay(final_intersection.intersectedTriangle,final_intersection.intersectedPoint);
+        //     RayTriangleIntersection final_glass_intersection = getFinalIntersection(triangles,glassRay,point,&final_intersection,depth+1);
+        //     Colour c = final_glass_intersection.intersectedTriangle.colour;
+        //     final_intersection = final_glass_intersection;
+        // }
 
         // mirror
         if (final_intersection.intersectedTriangle.isMirror) {
             //calculate mirror vector
             vec3 point = final_intersection.intersectionPoint;
-            vec3 mirrorRay = calcMirrorVec(point,final_intersection.intersectedTriangle);
+            vec3 mirrorRay = calcReflectedRay(ray,final_intersection.intersectedTriangle);
             // original_intersection is used to ensure mirror doesn't reflect itself
             RayTriangleIntersection final_mirror_intersection = getFinalIntersection(triangles,mirrorRay,point,&final_intersection,1);
             Colour c = final_mirror_intersection.intersectedTriangle.colour;

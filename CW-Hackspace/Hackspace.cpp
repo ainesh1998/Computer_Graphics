@@ -121,6 +121,8 @@ double** grid = malloc2dArray(width, width);
 
 std::vector<std::vector<Colour>> textures;
 std::vector<glm::vec2> textureDimensions;
+std::vector<std::vector<vec3>> bump_maps;
+std::vector<glm::vec2> bumpDimensions;
 
 
 int main(int argc, char* argv[])
@@ -469,7 +471,6 @@ std::vector<Colour> readMTL(std::string filename,int* textureWidth, int* texture
     char newmtl[256];
 
     while(stream.getline(newmtl, 256, ' ')) {
-
         if (strcmp(newmtl, "newmtl") == 0) {
             char colourName[256];
             stream.getline(colourName, 256);
@@ -538,13 +539,15 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
 
     std::vector<glm::vec3> vertices;
     std::vector<TexturePoint> texturePoints;
-    std::vector<TexturePoint> bumpNormals;
+    std::vector<BumpPoint> bumpPoints;
     std::vector<ModelTriangle> modelTriangles;
     char line[256];
     Colour colour = Colour(255,255,255);
     bool mirrored = false;
     bool isTextured = false;
+    bool isBumped = false;
     int textureIndex = textures.size();
+    int bumpIndex = bump_maps.size();
 
     while(stream.getline(line,256)){
         std::string* contents = split(line,' ');
@@ -572,10 +575,10 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
         }
 
         else if (contents[0].compare("vb") == 0) { // don't think this is legit obj
-            float x = (int) (std::stof(contents[1]) * textureWidth);
-            float y = (int) (std::stof(contents[2]) * textureHeight);
-            TexturePoint point = TexturePoint(x, y);
-            bumpNormals.push_back(point);
+            float x = (int) (std::stof(contents[1]) * (textureWidth-1));
+            float y = (int) (std::stof(contents[2]) * (textureHeight-1));
+            BumpPoint point = BumpPoint(x, y);
+            bumpPoints.push_back(point);
         }
 
         else if(contents[0].compare("v") == 0){
@@ -601,33 +604,56 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
 
             std::string directory = filename.substr(0, 13);
 
-            if (!notTextured) {
+            ModelTriangle m;
+
+            // for now a surface must either be textured, bumped, a mirror or regular
+            // might be cool to have a bumped mirror
+
+            if (bump_map.size() > 0) {
+                int bumpIndex1 = std::stoi(indexes1[2]);
+                int bumpIndex2 = std::stoi(indexes2[2]);
+                int bumpIndex3 = std::stoi(indexes3[2]);
+
+                m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1],
+                                  bumpPoints[bumpIndex1-1], bumpPoints[bumpIndex2-1],
+                                  bumpPoints[bumpIndex3-1], newTriangleID);
+                m.bumpIndex = bumpIndex;
+                m.colour = colour;
+                isBumped = true;
+            }
+
+            else if (!notTextured) {
                 int textureIndex1 = std::stoi(indexes1[1]);
                 int textureIndex2 = std::stoi(indexes2[1]);
                 int textureIndex3 = std::stoi(indexes3[1]);
 
-                ModelTriangle m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1],
-                                                texturePoints[textureIndex1-1], texturePoints[textureIndex2-1],
-                                                texturePoints[textureIndex3-1], newTriangleID);
+                m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1],
+                                  texturePoints[textureIndex1-1], texturePoints[textureIndex2-1],
+                                  texturePoints[textureIndex3-1], newTriangleID);
 
                 m.textureIndex = textureIndex;
-                modelTriangles.push_back(m);
-                newTriangleID++;
                 isTextured = true;
             }
 
             else {
-                ModelTriangle m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1], colour, newTriangleID);
+                m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1], colour, newTriangleID);
                 m.isMirror = mirrored;
-                modelTriangles.push_back(m);
-                newTriangleID++;
+
             }
+
+            modelTriangles.push_back(m);
+            newTriangleID++;
         }
     }
 
     if (isTextured) {
         textureDimensions.push_back(glm::vec2(textureWidth, textureHeight));
         textures.push_back(colours);
+    }
+
+    if (isBumped) {
+        bumpDimensions.push_back(glm::vec2(textureWidth, textureHeight));
+        bump_maps.push_back(bump_map);
     }
 
     stream.clear();
@@ -860,7 +886,7 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
                 if (depth >= depth_buffer[x][y]) {
                     depth_buffer[x][y] = depth;
                     int textureWidth = textureDimensions[triangle.textureIndex].x;
-                    int textureHeight = textureDimensions[triangle.textureIndex].y;
+                    // int textureHeight = textureDimensions[triangle.textureIndex].y;
                     int texturePoint = ui + (vi*textureWidth);
 
                     //Added if guard as there were cases when texturePoint was out of bounds
@@ -908,7 +934,7 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
                     depth_buffer[x][y] = depth;
 
                     int textureWidth = textureDimensions[triangle.textureIndex].x;
-                    int textureHeight = textureDimensions[triangle.textureIndex].y;
+                    // int textureHeight = textureDimensions[triangle.textureIndex].y;
                     int texturePoint = ui + (vi*textureWidth);
 
                     //Added if guard as there were cases when texturePoint was out of bounds

@@ -16,6 +16,7 @@
 #define FOV 90
 #define INTENSITY 300000
 #define AMBIENCE 0.4
+#define SHADOW_INTENSITY 0.5
 #define WORKING_DIRECTORY ""
 #define BOX_SCALE 50
 #define LOGO_SCALE 0.3
@@ -517,7 +518,8 @@ std::vector<Colour> readMTL(std::string filename,int* textureWidth, int* texture
 
             for (int i = 0; i < tempColours.size(); i++) {
                 vec3 normal = vec3(tempColours[i].red, tempColours[i].green, tempColours[i].blue);
-                // normal = (glm::normalize(normal) * 2.0f) - vec3(1,1,1);
+                normal = glm::normalize(normal);
+                normal = vec3(normal.x, normal.z, normal.y);
                 bump_map->push_back(normal);
             }
         }
@@ -1220,9 +1222,11 @@ float calcIntensity(vec3 norm, vec3 lightPos, vec3 point) {
     lightDir = glm::normalize(lightDir);
     float dot_product = glm::dot(lightDir,norm);
     float distance = glm::distance(lightPos,point);
-    float brightness = (float) INTENSITY * std::max(0.f,dot_product)*(1/(2*M_PI* distance * distance));
+    float brightness = (float) INTENSITY*(1/(2*M_PI* distance * distance));
     if (brightness > 1) brightness = 1;
     if (brightness < AMBIENCE) brightness = AMBIENCE;
+
+    brightness *= std::max(0.f,dot_product);
 
     return brightness;
 }
@@ -1241,7 +1245,7 @@ float calcShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 po
             break;
         }
     }
-    if(isShadow) newBrightness = AMBIENCE/2;
+    if(isShadow) newBrightness *= SHADOW_INTENSITY;
     return newBrightness;
 }
 
@@ -1353,13 +1357,7 @@ vec3 calcBumpNormal(ModelTriangle t, vec3 solution) {
 
     int bumpWidth = bumpDimensions[t.bumpIndex].x;
     vec3 norm = bump_maps[t.bumpIndex][(int) bumpPoint.x + (int) bumpPoint.y * bumpWidth];
-    norm = glm::normalize(norm);
 
-    norm = vec3(norm.x, norm.z, norm.y);
-
-    print_vec3(norm);
-
-    // return computenorm(t);
     return norm;
 }
 

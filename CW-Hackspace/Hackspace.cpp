@@ -1219,9 +1219,10 @@ float calcIntensity(vec3 norm, vec3 lightPos, vec3 point) {
     float distance = glm::distance(lightPos,point);
     float brightness = (float) INTENSITY*(1/(2*M_PI* distance * distance));
     if (brightness > 1) brightness = 1;
-    if (brightness < AMBIENCE) brightness = AMBIENCE;
 
     brightness *= std::max(0.f,dot_product);
+
+    if (brightness < AMBIENCE) brightness = AMBIENCE;
 
     return brightness;
 }

@@ -1,6 +1,7 @@
 mtllib sphere.mtl
 
 o Sphere_Sphere
+usemtl White
 
 v 0.0 0.5 -2.54558420181
 

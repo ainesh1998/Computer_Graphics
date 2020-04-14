@@ -553,6 +553,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
     bool mirrored = false;
     bool isTextured = false;
     bool isBumped = false;
+    bool isGlass = false;
     int textureIndex = textures.size();
     int bumpIndex = bump_maps.size();
 
@@ -560,6 +561,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
         std::string* contents = split(line,' ');
         if(contents[0].compare("o") == 0){
             mirrored = contents[1].compare("mirror") == 0;
+            isGlass = contents[1].compare("short_box") == 0;
         }
 
         if(contents[0].compare("vt")== 0){
@@ -645,7 +647,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
             else {
                 m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1], colour, newTriangleID);
                 m.isMirror = mirrored;
-
+                m.isGlass = isGlass;
             }
 
             modelTriangles.push_back(m);

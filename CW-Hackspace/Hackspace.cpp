@@ -517,6 +517,7 @@ std::vector<Colour> readMTL(std::string filename,int* textureWidth, int* texture
 
             for (int i = 0; i < tempColours.size(); i++) {
                 vec3 normal = vec3(tempColours[i].red, tempColours[i].green, tempColours[i].blue);
+                // normal = (glm::normalize(normal) * 2.0f) - vec3(1,1,1);
                 bump_map->push_back(normal);
             }
         }
@@ -1247,9 +1248,7 @@ float calcShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 po
 float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos, vec3 solution){
     vec3 norm = computenorm(t);
 
-    if (t.isBump) {
-        std::cout << "/* message */" << '\n';
-        norm = calcBumpNormal(t, solution);}
+    if (t.isBump) norm = calcBumpNormal(t, solution);
 
     float brightness = calcIntensity(norm, lightPos, point);
 
@@ -1356,7 +1355,9 @@ vec3 calcBumpNormal(ModelTriangle t, vec3 solution) {
     vec3 norm = bump_maps[t.bumpIndex][(int) bumpPoint.x + (int) bumpPoint.y * bumpWidth];
     norm = glm::normalize(norm);
 
-    // print_vec3(norm);
+    norm = vec3(norm.x, norm.z, norm.y);
+
+    print_vec3(norm);
 
     // return computenorm(t);
     return norm;

@@ -1172,7 +1172,7 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
     if(depth < 5){
         float minDist = infinity;
         for (size_t i = 0; i < triangles.size(); i++) {
-            if(isFacing(triangles[i],ray)){
+            if(isFacing(triangles[i],ray)||triangles[i].isGlass){
                 RayTriangleIntersection intersection = getIntersection(ray,triangles[i],origin);
                 float distance = intersection.distanceFromCamera;
 
@@ -1222,6 +1222,7 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
             //fresnel defines proportion
             float kr = fresnel(ray,norm,refractive_index);
             vec3 fin_colour = reflected_colour * kr + refracted_colour * (1-kr);
+            // if(glassRefractedRay == vec3(0,0,0)) fin_colour = reflected_colour;
             final_intersection.intersectedTriangle.colour = Colour(fin_colour.x,fin_colour.y,fin_colour.z);
             // final_intersection = glass_reflected_intersection;
 

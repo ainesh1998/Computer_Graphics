@@ -67,7 +67,7 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles);
 
 // lighting
 vec3 computenorm(ModelTriangle t);
-float calcIntensity(vec3 norm, vec3 lightPos, vec3 point);
+float calcIntensity(vec3 norm, vec3 lightPos, vec3 point, bool isBump);
 float calcShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t);
 float calcProximity(vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos, vec3 solution);
 float calcBrightness(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,std::vector<vec3> light_positions, vec3 solution);
@@ -90,6 +90,7 @@ void drawScene();
 // move object by vec3 vector
 void moveObject(std::string name,vec3 moveVec);
 void rotateObject(std::string name,vec3 rotationAngles);
+void rotateAroundAxis(std::string name,vec3 rotationAngles);
 void scaleObject(std::string name,float scale);
 
 // physics
@@ -111,7 +112,7 @@ glm::vec3 box_lightPos1 = glm::vec3(2,4.8,-3.043);
 glm::vec3 logo_lightPos = glm::vec3(300,59,15);
 glm::vec3 scene_lightPos = glm::vec3(-10,260,97.85);
 glm::vec3 lightPos = box_lightPos1;
-std::vector<vec3> light_positions = {box_lightPos};
+std::vector<vec3> light_positions = {scene_lightPos};
 glm::vec3 lightColour = glm::vec3(1,1,1);
 
 glm::mat3 cameraOrientation = glm::mat3();
@@ -157,9 +158,9 @@ int main(int argc, char* argv[])
     }
 
 
-    // std::vector<ModelTriangle> logo_triangles = readOBJ("HackspaceLogo/logo.obj", "HackspaceLogo/materials.mtl", LOGO_SCALE );
+    std::vector<ModelTriangle> logo_triangles = readOBJ("HackspaceLogo/logo.obj", "HackspaceLogo/materials.mtl", LOGO_SCALE );
 
-    std::vector<ModelTriangle> box_triangles = readOBJ("cornell-box/cornell-box.obj", "cornell-box/cornell-box.mtl", BOX_SCALE );
+    // std::vector<ModelTriangle> box_triangles = readOBJ("cornell-box/cornell-box.obj", "cornell-box/cornell-box.mtl", BOX_SCALE );
 
     // std::vector<ModelTriangle> sphere_triangles = readOBJ("extra-objects/sphere.obj", "extra-objects/sphere.mtl", SPHERE_SCALE);
     // //for sphere remove texture and set colour to be white
@@ -172,42 +173,36 @@ int main(int argc, char* argv[])
     // }
 
     // std::vector<ModelTriangle> generated_triangles = generateGeometry(grid, width, 2.5, 10, genCount);
-    // vec3 a = vec3(-500, -50, -500);
-    // vec3 b = vec3(500, -50, -500);
-    // vec3 c = vec3(500, -50, 500);
-    // vec3 d =  vec3(-500, -50, 500);
-    //
-    //
-    // std::vector<ModelTriangle> ground_triangles = {ModelTriangle(a,c,b, Colour(0, 255, 0), newTriangleID),
-    //                                                ModelTriangle(a,d,c, Colour(0, 255, 0), newTriangleID+1)};
-    // std::vector<ModelTriangle> ground_triangles = readOBJ("extra-objects/ground.obj", "extra-objects/ground.mtl", 0.99);
-    // newTriangleID += 2;
 
+    std::vector<ModelTriangle> ground_triangles = readOBJ("extra-objects/ground.obj", "extra-objects/ground.mtl", 0.99);
 
-    for (size_t i = 0; i < light_positions.size(); i++) {
-        light_positions[i] *= (float)BOX_SCALE; //cornell box light
-    }
+    std::vector<ModelTriangle> empty_box_triangles = readOBJ("extra-objects/empty-box.obj", "extra-objects/empty-box.mtl", BOX_SCALE);
+
+    // for (size_t i = 0; i < light_positions.size(); i++) {
+    //     light_positions[i] *= (float)BOX_SCALE; //cornell box light
+    // }
 
     // calculate vertex normals for each triangle of the sphere - for gouraud and phong shading
     // calcVertexNormals(sphere_triangles);
 
-    // scene["logo"] = logo_triangles;
-    scene["box"] = box_triangles;
+    scene["logo"] = logo_triangles;
+    // scene["box"] = box_triangles;
     // scene["sphere"] = sphere_triangles;
     // scene["terrain"] = generated_triangles;
-    // scene["ground"] = ground_triangles;
+    scene["ground"] = ground_triangles;
+    scene["box"] = empty_box_triangles;
 
     // moveObject("logo",vec3(-35,-25,-100));
     // moveObject("logo",vec3(-100,50,-100));
-    // moveObject("ground",vec3(0,0,-300));
-    // moveObject("logo",vec3(-100,50,0)); // set logo to world origin
+    moveObject("ground",vec3(0,0,-300));
+    moveObject("logo",vec3(-100,50,0)); // set logo to world origin
 
     // moveObject("logo",vec3(-50,240,0));
     // rotateObject("logo",vec3(0,90,0));
     // moveObject("logo",vec3(0,0,-120));
     // // moveObject("sphere",vec3(35,100,-100)); // place sphere above red box
     // moveObject("sphere", vec3(-70, 20, -70)); // place sphere in front of blue box
-    // scaleObject("ground",0.5f);
+    scaleObject("ground",0.5f);
 
     drawScene();
 
@@ -232,26 +227,26 @@ int main(int argc, char* argv[])
 
         if (isUpdate) {
         // if (true) {
-        //     rotateObject("logo",vec3(0,1,0));
-        //     moveObject("logo",vec3(0,-velocity,0));
-        //
-        //     if (isCollideGround(scene["ground"], scene["logo"]) && !hasCollided) {
-        //         velocity *= -1;
-        //         hasCollided = true; // to remove multiple collision detections for the same collision
-        //     }
-        //
-        //     else {
-        //         hasCollided = false;
-        //     }
-        //
-        //     // only increase velocity if it hasn't landed (otherwise it'll fall through the ground)
-        //     if (!hasLanded) velocity++;
-        //
-        //     // it's landed
-        //     if (hasCollided && velocity == 0) {
-        //         velocity = 0;
-        //         hasLanded = true;
-        //     }
+            rotateObject("logo",vec3(0,1,0));
+            moveObject("logo",vec3(0,-velocity,0));
+
+            if (isCollideGround(scene["ground"], scene["logo"]) && !hasCollided) {
+                velocity *= -1;
+                hasCollided = true; // to remove multiple collision detections for the same collision
+            }
+
+            else {
+                hasCollided = false;
+            }
+
+            // only increase velocity if it hasn't landed (otherwise it'll fall through the ground)
+            if (!hasLanded) velocity++;
+
+            // it's landed
+            if (hasCollided && velocity == 0) {
+                velocity = 0;
+                hasLanded = true;
+            }
 
 
             update(translation, rotationAngles,light_translation);
@@ -1286,19 +1281,22 @@ vec3 computenorm(ModelTriangle t) {
     return norm;
 }
 
-float calcIntensity(vec3 norm, vec3 lightPos, vec3 point) {
+float calcIntensity(vec3 norm, vec3 lightPos, vec3 point, bool isBump) {
     vec3 lightDir = lightPos - point;
     lightDir = glm::normalize(lightDir);
     float dot_product = glm::dot(lightDir,norm);
     float distance = glm::distance(lightPos,point);
     float brightness = (float) INTENSITY*(1/(2*M_PI* distance * distance));
-    if (brightness > 1) brightness = 1;
-
     brightness *= std::max(0.f,dot_product);
 
+    if (!isBump) brightness *= std::max(0.f,dot_product);
+
+    if (brightness > 1) brightness = 1;
     if (brightness < AMBIENCE) brightness = AMBIENCE;
 
-    return brightness;
+    if (isBump) brightness *= std::max(0.f,dot_product);
+
+   return brightness;
 }
 
 float calcShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t) {
@@ -1324,7 +1322,7 @@ float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> t
 
     if (t.isBump) norm = calcBumpNormal(t, solution);
 
-    float brightness = calcIntensity(norm, lightPos, point);
+    float brightness = calcIntensity(norm, lightPos, point, t.isBump);
 
     // true if we precalculated the vertex normals for this triangle
     if (triangleVertexNormals.find(t.ID) != triangleVertexNormals.end()) {
@@ -1383,9 +1381,9 @@ void calcVertexNormals(std::vector<ModelTriangle> triangles) {
 
 float gouraud(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution, std::vector<ModelTriangle> triangles) {
     std::vector<vec3> vertexNormals = triangleVertexNormals[t.ID];
-    float brightness0 = calcIntensity(vertexNormals[0], lightPos, t.vertices[0]);
-    float brightness1 = calcIntensity(vertexNormals[1], lightPos, t.vertices[1]);
-    float brightness2 = calcIntensity(vertexNormals[2], lightPos, t.vertices[2]);
+    float brightness0 = calcIntensity(vertexNormals[0], lightPos, t.vertices[0], false);
+    float brightness1 = calcIntensity(vertexNormals[1], lightPos, t.vertices[1], false);
+    float brightness2 = calcIntensity(vertexNormals[2], lightPos, t.vertices[2], false);
 
     float dot0 = (glm::dot(glm::normalize(lightPos-t.vertices[0]), vertexNormals[0]));
     float dot1 = (glm::dot(glm::normalize(lightPos-t.vertices[1]), vertexNormals[1]));
@@ -1404,7 +1402,7 @@ float phong(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution, std::vect
     std::vector<vec3> vertexNormals = triangleVertexNormals[t.ID];
     vec3 norm = vertexNormals[0] + solution.y*(vertexNormals[1]-vertexNormals[0]) + solution.z*(vertexNormals[2]-vertexNormals[0]);
     float dot = glm::dot(glm::normalize(lightPos-point), norm);
-    float brightness = calcIntensity(norm, lightPos, point);
+    float brightness = calcIntensity(norm, lightPos, point, false);
 
     // shadow calculation - not using the shadow ray so I'm not too sure
     if (dot <= 0) brightness = AMBIENCE/2;
@@ -1568,7 +1566,37 @@ void moveObject(std::string name,vec3 moveVec){
     }
     scene[name] = triangles;
 }
+void rotateAroundAxis(std::string name,vec3 rotationAngles){
+    //get centre of mass
+    std::vector<ModelTriangle> triangles = scene[name];
+    vec3 centroid = vec3(0,0,0);
+    for (size_t i = 0; i < triangles.size(); i++) {
+        for (size_t j = 0; j < 3; j++) {
+            centroid += triangles[i].vertices[j] ;
+        }
+    }
+    centroid = (float)(1/(triangles.size()*3)) * centroid;
+    // moveObject(name,vec3(-centroid.x,-centroid.y,-centroid.z));
+    glm::mat3 rotation_matrix  = glm::mat3();
+    rotationAngles *= M_PI/180.0f;
+    glm::mat3 rotationX = glm::transpose(glm::mat3(glm::vec3(1, 0, 0),
+                                    glm::vec3(0, cos(rotationAngles.x), -sin(rotationAngles.x)),
+                                    glm::vec3(0, sin(rotationAngles.x), cos(rotationAngles.x))));
 
+    glm::mat3 rotationY = glm::transpose(glm::mat3(glm::vec3(cos(rotationAngles.y), 0.0, sin(rotationAngles.y)),
+                                    glm::vec3(0.0, 1.0, 0.0),
+                                    glm::vec3(-sin(rotationAngles.y), 0.0, cos(rotationAngles.y))));
+    rotation_matrix *= rotationX;
+    rotation_matrix *= rotationY;
+
+    for (size_t i = 0; i < triangles.size(); i++) {
+        for (size_t j = 0; j < 3; j++) {
+            triangles[i].vertices[j] = (rotation_matrix* triangles[i].vertices[j]);
+        }
+    }
+    // moveObject(name, vec3(centroid.x,centroid.y,centroid.z));
+    scene[name]= triangles;
+}
 void rotateObject(std::string name,vec3 rotationAngles){
     glm::mat3 rotation_matrix  = glm::mat3();
     rotationAngles *= M_PI/180.0f;

@@ -66,7 +66,7 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles);
 
 // lighting
 vec3 computenorm(ModelTriangle t);
-float calcIntensity(vec3 norm, vec3 lightPos, vec3 point);
+float calcIntensity(vec3 norm, vec3 lightPos, vec3 point, bool isBump);
 float calcShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t);
 float calcProximity(vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos, vec3 solution);
 float calcBrightness(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,std::vector<vec3> light_positions, vec3 solution);
@@ -190,7 +190,7 @@ int main(int argc, char* argv[])
     // calculate vertex normals for each triangle of the sphere - for gouraud and phong shading
     // calcVertexNormals(sphere_triangles);
 
-    // scene["logo"] = logo_triangles;
+    scene["logo"] = logo_triangles;
     // scene["box"] = box_triangles;
     // scene["sphere"] = sphere_triangles;
     // scene["terrain"] = generated_triangles;
@@ -199,7 +199,7 @@ int main(int argc, char* argv[])
     // moveObject("logo",vec3(-35,-25,-100));
     // moveObject("logo",vec3(-100,50,-100));
     moveObject("ground",vec3(0,0,-300));
-    // moveObject("logo",vec3(-100,50,0)); // set logo to world origin
+    moveObject("logo",vec3(-100,50,0)); // set logo to world origin
 
     // moveObject("logo",vec3(-50,240,0));
     // rotateObject("logo",vec3(0,90,0));
@@ -1212,16 +1212,19 @@ vec3 computenorm(ModelTriangle t) {
     return norm;
 }
 
-float calcIntensity(vec3 norm, vec3 lightPos, vec3 point) {
+float calcIntensity(vec3 norm, vec3 lightPos, vec3 point, bool isBump) {
     vec3 lightDir = lightPos - point;
     lightDir = glm::normalize(lightDir);
     float dot_product = glm::dot(lightDir,norm);
     float distance = glm::distance(lightPos,point);
     float brightness = (float) INTENSITY*(1/(2*M_PI* distance * distance));
+
+    if (!isBump) brightness *= std::max(0.f,dot_product);
+
     if (brightness > 1) brightness = 1;
     if (brightness < AMBIENCE) brightness = AMBIENCE;
 
-    brightness *= std::max(0.f,dot_product);
+    if (isBump) brightness *= std::max(0.f,dot_product);
 
     return brightness;
 }
@@ -1249,7 +1252,7 @@ float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> t
 
     if (t.isBump) norm = calcBumpNormal(t, solution);
 
-    float brightness = calcIntensity(norm, lightPos, point);
+    float brightness = calcIntensity(norm, lightPos, point, t.isBump);
 
     // true if we precalculated the vertex normals for this triangle
     if (triangleVertexNormals.find(t.ID) != triangleVertexNormals.end()) {
@@ -1308,9 +1311,9 @@ void calcVertexNormals(std::vector<ModelTriangle> triangles) {
 
 float gouraud(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution, std::vector<ModelTriangle> triangles) {
     std::vector<vec3> vertexNormals = triangleVertexNormals[t.ID];
-    float brightness0 = calcIntensity(vertexNormals[0], lightPos, t.vertices[0]);
-    float brightness1 = calcIntensity(vertexNormals[1], lightPos, t.vertices[1]);
-    float brightness2 = calcIntensity(vertexNormals[2], lightPos, t.vertices[2]);
+    float brightness0 = calcIntensity(vertexNormals[0], lightPos, t.vertices[0], false);
+    float brightness1 = calcIntensity(vertexNormals[1], lightPos, t.vertices[1], false);
+    float brightness2 = calcIntensity(vertexNormals[2], lightPos, t.vertices[2], false);
 
     float dot0 = (glm::dot(glm::normalize(lightPos-t.vertices[0]), vertexNormals[0]));
     float dot1 = (glm::dot(glm::normalize(lightPos-t.vertices[1]), vertexNormals[1]));
@@ -1329,7 +1332,7 @@ float phong(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution, std::vect
     std::vector<vec3> vertexNormals = triangleVertexNormals[t.ID];
     vec3 norm = vertexNormals[0] + solution.y*(vertexNormals[1]-vertexNormals[0]) + solution.z*(vertexNormals[2]-vertexNormals[0]);
     float dot = glm::dot(glm::normalize(lightPos-point), norm);
-    float brightness = calcIntensity(norm, lightPos, point);
+    float brightness = calcIntensity(norm, lightPos, point, false);
 
     // shadow calculation - not using the shadow ray so I'm not too sure
     if (dot <= 0) brightness = AMBIENCE/2;

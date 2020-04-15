@@ -58,7 +58,8 @@ void drawBox(std::vector<ModelTriangle> triangles, float focalLength);
 
 // raytracer
 bool isFacing(ModelTriangle t, vec3 ray);
-vec3 calcMirrorVec(vec3 point,ModelTriangle t);
+vec3 calcReflectedRay(vec3 ray,ModelTriangle t);
+vec3 refract(vec3 ray,vec3 norm,float refraction_index);
 vec3 getTextureColour(ModelTriangle triangle, vec3 solution, vec3 point);
 glm::vec3 computeRay(float x,float y,float fov);
 RayTriangleIntersection getIntersection(glm::vec3 ray,std::vector<ModelTriangle> modelTriangles,vec3 origin);
@@ -110,7 +111,7 @@ glm::vec3 box_lightPos1 = glm::vec3(2,4.8,-3.043);
 glm::vec3 logo_lightPos = glm::vec3(300,59,15);
 glm::vec3 scene_lightPos = glm::vec3(-10,260,97.85);
 glm::vec3 lightPos = box_lightPos1;
-std::vector<vec3> light_positions = {scene_lightPos};
+std::vector<vec3> light_positions = {box_lightPos};
 glm::vec3 lightColour = glm::vec3(1,1,1);
 
 glm::mat3 cameraOrientation = glm::mat3();
@@ -156,9 +157,9 @@ int main(int argc, char* argv[])
     }
 
 
-    std::vector<ModelTriangle> logo_triangles = readOBJ("HackspaceLogo/logo.obj", "HackspaceLogo/materials.mtl", LOGO_SCALE );
+    // std::vector<ModelTriangle> logo_triangles = readOBJ("HackspaceLogo/logo.obj", "HackspaceLogo/materials.mtl", LOGO_SCALE );
 
-    // std::vector<ModelTriangle> box_triangles = readOBJ("cornell-box/cornell-box.obj", "cornell-box/cornell-box.mtl", BOX_SCALE );
+    std::vector<ModelTriangle> box_triangles = readOBJ("cornell-box/cornell-box.obj", "cornell-box/cornell-box.mtl", BOX_SCALE );
 
     // std::vector<ModelTriangle> sphere_triangles = readOBJ("extra-objects/sphere.obj", "extra-objects/sphere.mtl", SPHERE_SCALE);
     // //for sphere remove texture and set colour to be white
@@ -179,26 +180,26 @@ int main(int argc, char* argv[])
     //
     // std::vector<ModelTriangle> ground_triangles = {ModelTriangle(a,c,b, Colour(0, 255, 0), newTriangleID),
     //                                                ModelTriangle(a,d,c, Colour(0, 255, 0), newTriangleID+1)};
-    std::vector<ModelTriangle> ground_triangles = readOBJ("extra-objects/ground.obj", "extra-objects/ground.mtl", 0.99);
+    // std::vector<ModelTriangle> ground_triangles = readOBJ("extra-objects/ground.obj", "extra-objects/ground.mtl", 0.99);
     // newTriangleID += 2;
 
 
-    // for (size_t i = 0; i < light_positions.size(); i++) {
-    //     light_positions[i] *= (float)BOX_SCALE; //cornell box light
-    // }
+    for (size_t i = 0; i < light_positions.size(); i++) {
+        light_positions[i] *= (float)BOX_SCALE; //cornell box light
+    }
 
     // calculate vertex normals for each triangle of the sphere - for gouraud and phong shading
     // calcVertexNormals(sphere_triangles);
 
     // scene["logo"] = logo_triangles;
-    // scene["box"] = box_triangles;
+    scene["box"] = box_triangles;
     // scene["sphere"] = sphere_triangles;
     // scene["terrain"] = generated_triangles;
-    scene["ground"] = ground_triangles;
+    // scene["ground"] = ground_triangles;
 
     // moveObject("logo",vec3(-35,-25,-100));
     // moveObject("logo",vec3(-100,50,-100));
-    moveObject("ground",vec3(0,0,-300));
+    // moveObject("ground",vec3(0,0,-300));
     // moveObject("logo",vec3(-100,50,0)); // set logo to world origin
 
     // moveObject("logo",vec3(-50,240,0));
@@ -206,7 +207,7 @@ int main(int argc, char* argv[])
     // moveObject("logo",vec3(0,0,-120));
     // // moveObject("sphere",vec3(35,100,-100)); // place sphere above red box
     // moveObject("sphere", vec3(-70, 20, -70)); // place sphere in front of blue box
-    scaleObject("ground",0.5f);
+    // scaleObject("ground",0.5f);
 
     drawScene();
 
@@ -553,13 +554,15 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
     bool mirrored = false;
     bool isTextured = false;
     bool isBumped = false;
+    bool isGlass = false;
     int textureIndex = textures.size();
     int bumpIndex = bump_maps.size();
 
     while(stream.getline(line,256)){
         std::string* contents = split(line,' ');
         if(contents[0].compare("o") == 0){
-            mirrored = contents[1].compare("back_wall") == 0;
+            mirrored = contents[1].compare("mirror") == 0;
+            isGlass = contents[1].compare("short_box") == 0;
         }
 
         if(contents[0].compare("vt")== 0){
@@ -645,7 +648,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
             else {
                 m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1], colour, newTriangleID);
                 m.isMirror = mirrored;
-
+                m.isGlass = isGlass;
             }
 
             modelTriangles.push_back(m);
@@ -841,9 +844,6 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
     CanvasPoint u1 = texturedTriangle.vertices[0];
     CanvasPoint u2 = texturedTriangle.vertices[1];
     CanvasPoint u3 = texturedTriangle.vertices[2];
-
-    float inv_z0 = std::min(v1.depth,std::min(v2.depth,v3.depth));
-    float inv_z1 = std::min(v1.depth,std::min(v2.depth,v3.depth));
 
     u1.x = u1.x * v1.depth;
     u2.x = u2.x * v2.depth;
@@ -1085,9 +1085,9 @@ glm::vec3 computeRay(float x,float y,float fov){
     return rayDirection;
 }
 
-vec3 calcMirrorVec(vec3 point,ModelTriangle t){
+vec3 calcReflectedRay(vec3 ray,ModelTriangle t){
     //not sure how to use mirror with multiple light sources
-    vec3 incidence = glm::normalize(point - cameraPos);
+    vec3 incidence = ray;
     vec3 norm = computenorm(t);
     vec3 reflect = incidence -  2.f *(norm * (glm::dot(incidence,norm)));
     reflect = glm::normalize(reflect);
@@ -1119,39 +1119,126 @@ bool isFacing(ModelTriangle t, vec3 ray){
     return (val>=0.f);
 }
 
-RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangles,vec3 ray,vec3 origin,RayTriangleIntersection* original_intersection){
+
+//https://www.scratchapixel.com/lessons/3d-basic-rendering/introduction-to-shading/reflection-refraction-fresnel
+vec3 refract(vec3 ray,vec3 norm,float refractive_index){
+    float cosi = glm::dot(ray,norm);
+    //keep cosi within -1 and 1
+    if(cosi < -1) cosi = -1;
+    else if(cosi > 1) cosi = 1;
+    float etai = 1; //refractive index of medium the ray is in i.e air
+    float etat = refractive_index; //refractive index of medium the ray is entering i.e 1.5 for glass
+    vec3 n = norm;
+    if(cosi < 0){
+        cosi = -cosi;
+    }else{
+        //I think this is if the ray is leaving the surface
+        std::swap(etai,etat);
+        n = -norm;
+    }
+
+    float eta = etai/etat; //snell's law
+    float k = 1 - eta * eta * (1 - cosi * cosi);
+    return k < 0 ? vec3(0,0,0) : eta * ray + (eta * cosi - sqrtf(k)) * n;
+}
+
+//https://www.scratchapixel.com/lessons/3d-basic-rendering/introduction-to-shading/reflection-refraction-fresnel
+// Defines proportions for refractive and reflected colour to be mixed
+float fresnel(vec3 ray,vec3 norm,float refractive_index){
+    float kr;
+    float cosi = glm::dot(ray,norm);
+    //keep cosi within -1 and 1
+    if(cosi < -1) cosi = -1;
+    else if(cosi > 1) cosi = 1;
+    float etai = 1; //refractive index of medium the ray is in i.e air
+    float etat = refractive_index; //refractive index of medium the ray is entering i.e 1.5 for glass
+    float sint = etai/etat * sqrtf(std::max(0.f,1-cosi*cosi));
+    if(sint >= 1) kr = 1;
+    else{
+
+        float cost = sqrtf(std::max(0.f, 1 - sint * sint));
+        cosi = fabsf(cosi); //same as abs but to specify it's a float
+        float rs = ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost));
+        float rp = ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost));
+        kr = (rs * rs + rp * rp) / 2;
+    }
+    return kr;
+}
+RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangles,vec3 ray,vec3 origin,RayTriangleIntersection* original_intersection,int depth){
     RayTriangleIntersection final_intersection;
     final_intersection.distanceFromCamera = infinity;
     final_intersection.intersectedTriangle.colour = Colour(0,0,0);
     vec3 newColour;
-    float minDist = infinity;
-    for (size_t i = 0; i < triangles.size(); i++) {
-        if(isFacing(triangles[i],ray)){
-            RayTriangleIntersection intersection = getIntersection(ray,triangles[i],origin);
-            float distance = intersection.distanceFromCamera;
+    if(depth < 5){
+        float minDist = infinity;
+        for (size_t i = 0; i < triangles.size(); i++) {
+            if(isFacing(triangles[i],ray)||triangles[i].isGlass){
+                RayTriangleIntersection intersection = getIntersection(ray,triangles[i],origin);
+                float distance = intersection.distanceFromCamera;
 
-            //this is valid as you are setting distance to infinity if it's invalid
-            //!isEqualTriangle used to prevent acne from the mirror (doesn't affect the original raytrace)
-            bool hit = (original_intersection != nullptr && !isEqualTriangle(triangles[i],original_intersection->intersectedTriangle))
-                        || original_intersection == nullptr;
-            if(distance < minDist && hit){
-                vec3 oldColour = vec3(triangles[i].colour.red, triangles[i].colour.green, triangles[i].colour.blue);
+                //this is valid as you are setting distance to infinity if it's invalid
+                //!isEqualTriangle used to prevent acne from the mirror (doesn't affect the original raytrace)
+                bool hit = (original_intersection != nullptr && !isEqualTriangle(triangles[i],original_intersection->intersectedTriangle))
+                            || original_intersection == nullptr;
+                if(distance < minDist && hit){
+                    vec3 oldColour = vec3(triangles[i].colour.red, triangles[i].colour.green, triangles[i].colour.blue);
 
-                // texture mapping
-                if (triangles[i].isTexture) {
-                    oldColour = getTextureColour(triangles[i], intersection.solution, intersection.intersectionPoint);
+                    // texture mapping
+                    if (triangles[i].isTexture) {
+                        oldColour = getTextureColour(triangles[i], intersection.solution, intersection.intersectionPoint);
+                    }
+
+                    float brightness = calcBrightness(intersection.intersectionPoint,triangles[i],triangles,light_positions,intersection.solution);
+                    vec3 lightColourCorrected = lightColour * brightness;
+
+                    newColour = lightColourCorrected * oldColour;
+
+                    Colour c = Colour(newColour.x, newColour.y, newColour.z);
+                    intersection.intersectedTriangle.colour = c;
+                    final_intersection = intersection;
+                    minDist = distance;
                 }
-
-                float brightness = calcBrightness(intersection.intersectionPoint,triangles[i],triangles,light_positions,intersection.solution);
-                vec3 lightColourCorrected = lightColour * brightness;
-
-                newColour = lightColourCorrected * oldColour;
-
-                Colour c = Colour(newColour.x, newColour.y, newColour.z);
-                intersection.intersectedTriangle.colour = c;
-                final_intersection = intersection;
-                minDist = distance;
             }
+        }
+        // glass
+        if (final_intersection.intersectedTriangle.isGlass) {
+            //reflection
+            vec3 point = final_intersection.intersectionPoint;
+            vec3 glassReflectedRay = calcReflectedRay(ray,final_intersection.intersectedTriangle);
+            RayTriangleIntersection glass_reflected_intersection = getFinalIntersection(triangles,glassReflectedRay,point,&final_intersection,depth+1);
+            Colour r =glass_reflected_intersection.intersectedTriangle.colour;
+            vec3 reflected_colour = vec3(r.red,r.green,r.blue);
+
+            //refraction
+            //calculate refraction vector
+            float refractive_index = 1.5; //made this a variable in case we want to change it later
+            vec3 norm = computenorm(final_intersection.intersectedTriangle);
+            vec3 glassRefractedRay = refract(ray,norm,refractive_index);
+            RayTriangleIntersection final_glass_intersection = getFinalIntersection(triangles,glassRefractedRay,point,&final_intersection,depth+1);
+            Colour c = final_glass_intersection.intersectedTriangle.colour;
+            vec3 refracted_colour = vec3(c.red,c.green,c.blue);
+
+            //final colour should be a mixture of both reflection and refraction
+            //fresnel defines proportion
+            float kr = fresnel(ray,norm,refractive_index);
+            vec3 fin_colour = reflected_colour * kr + refracted_colour * (1-kr);
+            // if(glassRefractedRay == vec3(0,0,0)) fin_colour = reflected_colour;
+            final_intersection.intersectedTriangle.colour = Colour(fin_colour.x,fin_colour.y,fin_colour.z);
+            // final_intersection = glass_reflected_intersection;
+
+        }
+
+        // mirror
+        if (final_intersection.intersectedTriangle.isMirror) {
+            //calculate mirror vector
+            vec3 point = final_intersection.intersectionPoint;
+            vec3 mirrorRay = calcReflectedRay(ray,final_intersection.intersectedTriangle);
+            // original_intersection is used to ensure mirror doesn't reflect itself
+            RayTriangleIntersection final_mirror_intersection = getFinalIntersection(triangles,mirrorRay,point,&final_intersection,1);
+            Colour c = final_mirror_intersection.intersectedTriangle.colour;
+            newColour = 0.8f *  vec3(c.red,c.green,c.blue); // 0.8 is to make mirror slightly darker than the real object
+            final_mirror_intersection.intersectedTriangle.colour = Colour(newColour.x,newColour.y,newColour.z);
+            final_intersection = final_mirror_intersection;
         }
     }
     return final_intersection;
@@ -1159,7 +1246,6 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
 
 void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
     // window.clearPixels();
-    float minDist = infinity;
     for (size_t x = 0; x < WIDTH; x++) {
         for (size_t y = 0; y < HEIGHT; y++) {
             // complex anti-aliasing - firing multiple rays according to quincux pattern
@@ -1176,21 +1262,9 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                 RayTriangleIntersection final_intersection;
                 final_intersection.distanceFromCamera = infinity;
                 vec3 ray = rays[r];
-                final_intersection = getFinalIntersection(triangles,ray,cameraPos,nullptr);
-                if(final_intersection.distanceFromCamera< minDist) minDist = final_intersection.distanceFromCamera;
+                final_intersection = getFinalIntersection(triangles,ray,cameraPos,nullptr,1);
                 Colour c = final_intersection.intersectedTriangle.colour;
                 vec3 newColour = {c.red,c.green,c.blue};
-
-                // mirror
-                if (final_intersection.intersectedTriangle.isMirror) {
-                    //calculate mirror vector
-                    vec3 point = final_intersection.intersectionPoint;
-                    vec3 mirrorRay = calcMirrorVec(point,final_intersection.intersectedTriangle);
-                    // original_intersection is used to ensure mirror doesn't reflect itself
-                    RayTriangleIntersection final_mirror_intersection = getFinalIntersection(triangles,mirrorRay,point,&final_intersection);
-                    Colour c = final_mirror_intersection.intersectedTriangle.colour;
-                    newColour = 0.8f *  vec3(c.red,c.green,c.blue); // 0.8 is to make mirror slightly darker than the real object
-                }
 
                 if(final_intersection.distanceFromCamera != infinity){
                      sumColour += newColour;
@@ -1219,9 +1293,10 @@ float calcIntensity(vec3 norm, vec3 lightPos, vec3 point) {
     float distance = glm::distance(lightPos,point);
     float brightness = (float) INTENSITY*(1/(2*M_PI* distance * distance));
     if (brightness > 1) brightness = 1;
-    if (brightness < AMBIENCE) brightness = AMBIENCE;
 
     brightness *= std::max(0.f,dot_product);
+
+    if (brightness < AMBIENCE) brightness = AMBIENCE;
 
     return brightness;
 }

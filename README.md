@@ -24,7 +24,7 @@ Computer Graphics unit
 - [x] **Gouraud shading**
 - [x]  **Naive (non-perspective corrected) texture mapping**
 - [ ] Simple animation (e.g. fly-through)
-- [x] *Some form of Physics (gravity, friction, bounce etc) \#*
+- [x] **Some form of Physics (gravity, friction, bounce etc) \#**
 - [x] **Basic culling (far-plane, near-plan, back-face)**
 - [x] *Basic anti-aliasing* \#
 

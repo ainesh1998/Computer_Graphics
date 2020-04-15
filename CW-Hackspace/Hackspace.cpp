@@ -1260,7 +1260,7 @@ float calcSoftShadow(float brightness, std::vector<ModelTriangle> triangles, vec
     float newBrightness = brightness;
     float heightStep = 1.0f;
     vec3 norm = computenorm(t);
-    vec3 lightDir = glm::normalize(lightPos - point);
+    // vec3 lightDir = glm::normalize(lightPos - point);
     vec3 highPoint = calcVirtualPoint(point, norm, heightStep);
     vec3 lowPoint = calcVirtualPoint(point, norm, -heightStep);
     bool highShadow = isShadow(triangles, highPoint, lightPos);
@@ -1270,7 +1270,6 @@ float calcSoftShadow(float brightness, std::vector<ModelTriangle> triangles, vec
     // print_vec3(point);
     // print_vec3(lowPoint);
     // std::cout << highShadow << " " << lowShadow << "\n\n";
-    print_vec3(norm);
 
     if (highShadow && lowShadow) {
         newBrightness = AMBIENCE/2;
@@ -1280,6 +1279,35 @@ float calcSoftShadow(float brightness, std::vector<ModelTriangle> triangles, vec
         // std::cout << highShadow << " " << lowShadow << '\n';
         // newBrightness = AMBIENCE/1.5;
         // std::cout << "only one" << '\n';
+
+        // find out how far point is from being under light
+        if (lowShadow) {
+            // project lightDir onto triangle
+            vec3 lightDir = glm::normalize(lightPos - lowPoint);
+            vec3 lightStep = glm::cross(glm::cross(-lightDir, norm), norm);
+            bool tempShadow = true;
+
+            while (tempShadow) {
+                lowPoint += lightStep;
+                tempShadow = isShadow(triangles, lowPoint, lightPos);
+                newBrightness -= 0.0001;
+                std::cout << newBrightness << '\n';
+                if (newBrightness < AMBIENCE/2) newBrightness = AMBIENCE/2;
+            }
+
+        }
+        else if (highShadow) {
+            vec3 lightDir = glm::normalize(lightPos - highPoint);
+            vec3 lightStep = glm::cross(glm::cross(lightDir, norm), norm);
+            bool tempShadow = true;
+
+            while (tempShadow) {
+                highPoint += lightStep;
+                tempShadow = isShadow(triangles, highPoint, lightPos);
+                newBrightness -= 0.0001;
+                if (newBrightness < AMBIENCE/2) newBrightness = AMBIENCE/2;
+            }
+        }
     }
     return newBrightness;
 }

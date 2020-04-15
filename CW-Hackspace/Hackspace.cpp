@@ -19,7 +19,7 @@
 #define AMBIENCE 0.4
 #define SHADOW_INTENSITY 0.5
 #define WORKING_DIRECTORY ""
-#define BOX_SCALE 50
+#define BOX_SCALE 25
 #define LOGO_SCALE 0.3
 #define SPHERE_SCALE 10
 
@@ -98,7 +98,7 @@ bool isCollideGround(std::vector<ModelTriangle> o1, std::vector<ModelTriangle> o
 
 // event handling
 void lookAt(glm::vec3 point);
-bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAngles, glm::vec3* light_translation);
+bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAngles, glm::vec3* light_translation, bool* isStart);
 void update(glm::vec3 translation, glm::vec3 rotationAngles,glm::vec3 light_translation);
 
 
@@ -160,7 +160,7 @@ int main(int argc, char* argv[])
 
     std::vector<ModelTriangle> logo_triangles = readOBJ("HackspaceLogo/logo.obj", "HackspaceLogo/materials.mtl", LOGO_SCALE );
 
-    // std::vector<ModelTriangle> box_triangles = readOBJ("cornell-box/cornell-box.obj", "cornell-box/cornell-box.mtl", BOX_SCALE );
+    std::vector<ModelTriangle> box_triangles = readOBJ("cornell-box/cornell-box.obj", "cornell-box/cornell-box.mtl", BOX_SCALE );
 
     // std::vector<ModelTriangle> sphere_triangles = readOBJ("extra-objects/sphere.obj", "extra-objects/sphere.mtl", SPHERE_SCALE);
     // //for sphere remove texture and set colour to be white
@@ -174,9 +174,9 @@ int main(int argc, char* argv[])
 
     // std::vector<ModelTriangle> generated_triangles = generateGeometry(grid, width, 2.5, 10, genCount);
 
-    std::vector<ModelTriangle> ground_triangles = readOBJ("extra-objects/ground.obj", "extra-objects/ground.mtl", 0.99);
+    std::vector<ModelTriangle> ground_triangles = readOBJ("extra-objects/ground.obj", "extra-objects/ground.mtl", 0.3);
 
-    std::vector<ModelTriangle> empty_box_triangles = readOBJ("extra-objects/empty-box.obj", "extra-objects/empty-box.mtl", BOX_SCALE);
+    // std::vector<ModelTriangle> empty_box_triangles = readOBJ("extra-objects/empty-box.obj", "extra-objects/empty-box.mtl", BOX_SCALE);
 
     // for (size_t i = 0; i < light_positions.size(); i++) {
     //     light_positions[i] *= (float)BOX_SCALE; //cornell box light
@@ -186,23 +186,24 @@ int main(int argc, char* argv[])
     // calcVertexNormals(sphere_triangles);
 
     scene["logo"] = logo_triangles;
-    // scene["box"] = box_triangles;
+    scene["box"] = box_triangles;
     // scene["sphere"] = sphere_triangles;
     // scene["terrain"] = generated_triangles;
     scene["ground"] = ground_triangles;
-    scene["box"] = empty_box_triangles;
+    // scene["box"] = empty_box_triangles;
 
     // moveObject("logo",vec3(-35,-25,-100));
     // moveObject("logo",vec3(-100,50,-100));
-    moveObject("ground",vec3(0,0,-300));
-    moveObject("logo",vec3(-100,50,0)); // set logo to world origin
+    // moveObject("ground",vec3(0,0,0));
+    moveObject("logo",vec3(-100,100,0)); // set logo to world origin
+    moveObject("box",vec3(0,-170,90));
 
     // moveObject("logo",vec3(-50,240,0));
     // rotateObject("logo",vec3(0,90,0));
     // moveObject("logo",vec3(0,0,-120));
     // // moveObject("sphere",vec3(35,100,-100)); // place sphere above red box
     // moveObject("sphere", vec3(-70, 20, -70)); // place sphere in front of blue box
-    scaleObject("ground",0.5f);
+    // scaleObject("ground",0.5f);
 
     drawScene();
 
@@ -211,7 +212,9 @@ int main(int argc, char* argv[])
     float velocity = 0;
     bool hasCollided = false;
     bool hasLanded = false;
-
+    bool isStart = false;
+    int riseCount = 0;
+    int count = 0;
     while(true)
     {
         glm::vec3 translation = glm::vec3(0,0,0);
@@ -221,32 +224,42 @@ int main(int argc, char* argv[])
 
         // We MUST poll for events - otherwise the window will freeze !
         if(window.pollForInputEvents(&event)) {
-            isUpdate = handleEvent(event, &translation, &rotationAngles,&light_translation);
+            isUpdate = handleEvent(event, &translation, &rotationAngles,&light_translation,&isStart);
         }
 
 
-        if (isUpdate) {
+        if (isUpdate || isStart) {
         // if (true) {
-            rotateObject("logo",vec3(0,1,0));
-            moveObject("logo",vec3(0,-velocity,0));
+            if (isStart) {
+                moveObject("logo",vec3(0,-velocity,0));
 
-            if (isCollideGround(scene["ground"], scene["logo"]) && !hasCollided) {
-                velocity *= -1;
-                hasCollided = true; // to remove multiple collision detections for the same collision
+                if (isCollideGround(scene["ground"], scene["logo"]) && !hasCollided) {
+                    velocity *= -1;
+                    hasCollided = true; // to remove multiple collision detections for the same collision
+                }
+
+                else {
+                    hasCollided = false;
+                }
+
+                // only increase velocity if it hasn't landed (otherwise it'll fall through the ground)
+                if (!hasLanded) velocity++;
+                else {
+                    rotateObject("logo",vec3(0,1,0));
+                    if (riseCount < 100) {
+                        moveObject("logo",vec3(0,2,0));
+                        moveObject("box",vec3(0,2,0));
+                        riseCount++;
+                    }
+                }
+
+                // it's landed
+                if (hasCollided && velocity == 0) {
+                    velocity = 0;
+                    hasLanded = true;
+                }
             }
 
-            else {
-                hasCollided = false;
-            }
-
-            // only increase velocity if it hasn't landed (otherwise it'll fall through the ground)
-            if (!hasLanded) velocity++;
-
-            // it's landed
-            if (hasCollided && velocity == 0) {
-                velocity = 0;
-                hasLanded = true;
-            }
 
 
             update(translation, rotationAngles,light_translation);
@@ -259,9 +272,10 @@ int main(int argc, char* argv[])
 
             // Need to render the frame at the end, or nothing actually gets shown on the screen !
             window.renderFrame();
-            // std::vector<Colour> colours = loadColours();
-            // std::string filename = "image" + std::to_string(count) + ".ppm";
-            // writePPM(filename,WIDTH,HEIGHT,colours);
+            std::vector<Colour> colours = loadColours();
+            std::string filename = "video/image" + std::to_string(count) + ".ppm";
+            count++;
+            writePPM(filename,WIDTH,HEIGHT,colours);
         }
     }
 }
@@ -1684,7 +1698,7 @@ void lookAt(glm::vec3 point) {
     cameraOrientation = ((glm::mat3(right, up, forward)));
 }
 
-bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAngles,glm::vec3* light_translation)
+bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAngles,glm::vec3* light_translation, bool* isStart)
 {
     bool toUpdate = true;
 
@@ -1724,6 +1738,8 @@ bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAng
         // light translate front
         if(event.key.keysym.sym == SDLK_p) light_translation->z -= 10;
 
+        if(event.key.keysym.sym == SDLK_q) *isStart = !(*isStart);
+
 
         // look at
         if(event.key.keysym.sym == SDLK_SPACE) {
@@ -1743,10 +1759,10 @@ bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAng
             mode = 3;
             std::cout << "Switched to raytracer mode" << '\n';
         }
-        if(event.key.keysym.sym == SDLK_4) {
-            genCount++;
-            scene["terrain"] = generateGeometry(grid, width, 2.5, 10, genCount);
-        }
+        // if(event.key.keysym.sym == SDLK_4) {
+        //     genCount++;
+        //     scene["terrain"] = generateGeometry(grid, width, 2.5, 10, genCount);
+        // }
 
     }
     else if(event.type == SDL_MOUSEBUTTONDOWN) {

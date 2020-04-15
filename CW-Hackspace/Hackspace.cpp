@@ -108,7 +108,7 @@ glm::vec3 cameraPos = glm::vec3(0, 130, 280);
 glm::vec3 box_lightPos = glm::vec3(-0.2,4.8,-3.043);
 glm::vec3 box_lightPos1 = glm::vec3(2,4.8,-3.043);
 glm::vec3 logo_lightPos = glm::vec3(300,59,15);
-glm::vec3 scene_lightPos = glm::vec3(-10,260,97.85);
+glm::vec3 scene_lightPos = glm::vec3(-10,260,-297.85);
 glm::vec3 lightPos = box_lightPos1;
 std::vector<vec3> light_positions = {scene_lightPos};
 glm::vec3 lightColour = glm::vec3(1,1,1);
@@ -197,9 +197,9 @@ int main(int argc, char* argv[])
     scene["ground"] = ground_triangles;
 
     // moveObject("logo",vec3(-35,-25,-100));
-    // moveObject("logo",vec3(-100,50,-100));
+    moveObject("logo",vec3(-100,50,-200));
     moveObject("ground",vec3(0,0,-300));
-    moveObject("logo",vec3(-100,50,0)); // set logo to world origin
+    // moveObject("logo",vec3(-100,50,0)); // set logo to world origin
 
     // moveObject("logo",vec3(-50,240,0));
     // rotateObject("logo",vec3(0,90,0));
@@ -1218,15 +1218,56 @@ float calcIntensity(vec3 norm, vec3 lightPos, vec3 point, bool isBump) {
     float dot_product = glm::dot(lightDir,norm);
     float distance = glm::distance(lightPos,point);
     float brightness = (float) INTENSITY*(1/(2*M_PI* distance * distance));
+    brightness *= std::max(0.f,dot_product);
 
-    if (!isBump) brightness *= std::max(0.f,dot_product);
+    // if (!isBump) brightness *= std::max(0.f,dot_product);
 
     if (brightness > 1) brightness = 1;
     if (brightness < AMBIENCE) brightness = AMBIENCE;
 
-    if (isBump) brightness *= std::max(0.f,dot_product);
+    // if (isBump) brightness *= std::max(0.f,dot_product);
 
     return brightness;
+}
+
+vec3 calcVirtualPoint(vec3 l0, vec3 norm, vec3 l, float heightStep) {
+    vec3 p0 = l0 + heightStep*norm;
+    float d = glm::dot((p0 - l0), norm) / glm::dot(l, norm);
+    vec3 intersectionPoint = l0 + l*d;
+    return intersectionPoint;
+}
+
+bool isShadow(std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos) {
+    vec3 lightDir = lightPos - point;
+    float dist = glm::length(lightDir);
+    lightDir = glm::normalize(lightDir);
+
+    for (size_t i = 0; i < triangles.size(); i++) {
+        RayTriangleIntersection shadowIntersection = getIntersection(lightDir,triangles[i],point);
+        if(shadowIntersection.distanceFromCamera < dist){
+            return true;
+        }
+    }
+    return false;
+}
+
+float calcSoftShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t) {
+    float newBrightness = brightness;
+    float heightStep = 3.0f;
+    vec3 norm = computenorm(t);
+    vec3 lightDir = glm::normalize(lightPos - point);
+    vec3 highPoint = calcVirtualPoint(point, norm, lightDir, heightStep);
+    vec3 lowPoint = calcVirtualPoint(point, norm, lightDir, -heightStep);
+    bool highShadow = isShadow(triangles, highPoint, lightPos);
+    bool lowShadow = isShadow(triangles, lowPoint, lightPos);
+
+    print_vec3(highPoint);
+    print_vec3(lowPoint);
+    std::cout << highShadow << " " << lowShadow << '\n';
+
+    if (highShadow && lowShadow) newBrightness = 0;
+    else if (highShadow || lowShadow) newBrightness = 0.2;
+    return newBrightness;
 }
 
 float calcShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t) {
@@ -1264,7 +1305,7 @@ float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> t
     }
     else {
         // just use calcIntensity and calculate shadows like normal
-        brightness = calcShadow(brightness, triangles, point, lightPos, t);
+        brightness = calcSoftShadow(brightness, triangles, point, lightPos, t);
     }
 
     return brightness;

@@ -1234,7 +1234,12 @@ vec3 calcVirtualPoint(vec3 l0, vec3 norm, vec3 l, float heightStep) {
     vec3 p0 = l0 + heightStep*norm;
     float d = glm::dot((p0 - l0), norm) / glm::dot(l, norm);
     vec3 intersectionPoint = l0 + l*d;
-    return intersectionPoint;
+    return p0;
+}
+
+vec3 calcVirtualPoint(vec3 point, vec3 norm, float heightStep) {
+    vec3 newPoint = point + heightStep*norm;
+    return newPoint;
 }
 
 bool isShadow(std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos) {
@@ -1253,20 +1258,29 @@ bool isShadow(std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos) {
 
 float calcSoftShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t) {
     float newBrightness = brightness;
-    float heightStep = 3.0f;
+    float heightStep = 1.0f;
     vec3 norm = computenorm(t);
     vec3 lightDir = glm::normalize(lightPos - point);
-    vec3 highPoint = calcVirtualPoint(point, norm, lightDir, heightStep);
-    vec3 lowPoint = calcVirtualPoint(point, norm, lightDir, -heightStep);
+    vec3 highPoint = calcVirtualPoint(point, norm, heightStep);
+    vec3 lowPoint = calcVirtualPoint(point, norm, -heightStep);
     bool highShadow = isShadow(triangles, highPoint, lightPos);
     bool lowShadow = isShadow(triangles, lowPoint, lightPos);
 
-    print_vec3(highPoint);
-    print_vec3(lowPoint);
-    std::cout << highShadow << " " << lowShadow << '\n';
+    // print_vec3(highPoint);
+    // print_vec3(point);
+    // print_vec3(lowPoint);
+    // std::cout << highShadow << " " << lowShadow << "\n\n";
+    print_vec3(norm);
 
-    if (highShadow && lowShadow) newBrightness = 0;
-    else if (highShadow || lowShadow) newBrightness = 0.2;
+    if (highShadow && lowShadow) {
+        newBrightness = AMBIENCE/2;
+        // std::cout << "both" << '\n';
+    }
+    else if (highShadow || lowShadow) {
+        // std::cout << highShadow << " " << lowShadow << '\n';
+        // newBrightness = AMBIENCE/1.5;
+        // std::cout << "only one" << '\n';
+    }
     return newBrightness;
 }
 

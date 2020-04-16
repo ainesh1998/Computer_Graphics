@@ -196,7 +196,7 @@ int main(int argc, char* argv[])
     // moveObject("logo",vec3(-100,50,-100));
     // moveObject("ground",vec3(0,0,0));
     moveObject("logo",vec3(-100,500,0)); // set logo to world origin
-    moveObject("box",vec3(0,-170,90));
+    moveObject("box",vec3(0,-155,90));
 
     // moveObject("logo",vec3(-50,240,0));
     // rotateObject("logo",vec3(0,90,0));
@@ -216,12 +216,11 @@ int main(int argc, char* argv[])
     bool isStart = false;
     int riseCount = 0;
     float riseVelocity = 2;
+    float rotationSpeed = 0;
     int count = 0;
 
     while(true)
     {
-        // print_vec3(cameraPos);
-
         glm::vec3 translation = glm::vec3(0,0,0);
         glm::vec3 rotationAngles = glm::vec3(0,0,0);
         glm::vec3 light_translation = glm::vec3(0,0,0);
@@ -236,12 +235,15 @@ int main(int argc, char* argv[])
         if (isUpdate || isStart) {
         // if (true) {
             if (isStart) {
+                // std::cout << rotationSpeed << '\n';
                 moveObject("logo",vec3(0,-velocity,0));
+                rotateObject("logo",vec3(0,rotationSpeed,0));
 
                 if (isCollideGround(scene["ground"], scene["logo"]) && !hasCollided) {
                     velocity *= -1;
                     velocity += unbounciness;
                     hasCollided = true; // to remove multiple collision detections for the same collision
+                    if (rotationSpeed < 1) rotationSpeed += 0.3;
                 }
 
                 else if (!isCollideGround(scene["ground"], scene["logo"])){
@@ -251,7 +253,6 @@ int main(int argc, char* argv[])
                 // only increase velocity if it hasn't landed (otherwise it'll fall through the ground)
                 if (!hasLanded) velocity++;
                 else {
-                    rotateObject("logo",vec3(0,1,0));
 
                     if (riseVelocity > 0) {
                         moveObject("logo",vec3(0,riseVelocity,0));

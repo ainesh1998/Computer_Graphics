@@ -195,7 +195,7 @@ int main(int argc, char* argv[])
     // moveObject("logo",vec3(-35,-25,-100));
     // moveObject("logo",vec3(-100,50,-100));
     // moveObject("ground",vec3(0,0,0));
-    moveObject("logo",vec3(-100,100,0)); // set logo to world origin
+    moveObject("logo",vec3(-100,500,0)); // set logo to world origin
     moveObject("box",vec3(0,-170,90));
 
     // moveObject("logo",vec3(-50,240,0));
@@ -210,13 +210,18 @@ int main(int argc, char* argv[])
     window.renderFrame();
 
     float velocity = 0;
+    float unbounciness = 6; // the higher the value, the less bouncy the logo is
     bool hasCollided = false;
     bool hasLanded = false;
     bool isStart = false;
     int riseCount = 0;
+    float riseVelocity = 2;
     int count = 0;
+
     while(true)
     {
+        // print_vec3(cameraPos);
+
         glm::vec3 translation = glm::vec3(0,0,0);
         glm::vec3 rotationAngles = glm::vec3(0,0,0);
         glm::vec3 light_translation = glm::vec3(0,0,0);
@@ -235,10 +240,11 @@ int main(int argc, char* argv[])
 
                 if (isCollideGround(scene["ground"], scene["logo"]) && !hasCollided) {
                     velocity *= -1;
+                    velocity += unbounciness;
                     hasCollided = true; // to remove multiple collision detections for the same collision
                 }
 
-                else {
+                else if (!isCollideGround(scene["ground"], scene["logo"])){
                     hasCollided = false;
                 }
 
@@ -246,21 +252,21 @@ int main(int argc, char* argv[])
                 if (!hasLanded) velocity++;
                 else {
                     rotateObject("logo",vec3(0,1,0));
-                    if (riseCount < 100) {
-                        moveObject("logo",vec3(0,2,0));
-                        moveObject("box",vec3(0,2,0));
+
+                    if (riseVelocity > 0) {
+                        moveObject("logo",vec3(0,riseVelocity,0));
+                        moveObject("box",vec3(0,riseVelocity,0));
+                        if (riseCount > 80) riseVelocity -= 0.05;
                         riseCount++;
                     }
                 }
 
                 // it's landed
-                if (hasCollided && velocity == 0) {
+                if (hasCollided && velocity >= 0) {
                     velocity = 0;
                     hasLanded = true;
                 }
             }
-
-
 
             update(translation, rotationAngles,light_translation);
 
@@ -275,7 +281,7 @@ int main(int argc, char* argv[])
             std::vector<Colour> colours = loadColours();
             std::string filename = "video/image" + std::to_string(count) + ".ppm";
             count++;
-            writePPM(filename,WIDTH,HEIGHT,colours);
+            // writePPM(filename,WIDTH,HEIGHT,colours);
         }
     }
 }

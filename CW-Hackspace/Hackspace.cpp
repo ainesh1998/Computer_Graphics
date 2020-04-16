@@ -110,7 +110,7 @@ glm::vec3 cameraPos = glm::vec3(0, 130, 280);
 glm::vec3 box_lightPos = glm::vec3(-0.2,4.8,-3.043);
 glm::vec3 box_lightPos1 = glm::vec3(2,4.8,-3.043);
 glm::vec3 logo_lightPos = glm::vec3(300,59,15);
-glm::vec3 scene_lightPos = glm::vec3(-10,260,97.85);
+glm::vec3 scene_lightPos = glm::vec3(0,350,50);
 glm::vec3 lightPos = box_lightPos1;
 std::vector<vec3> light_positions = {scene_lightPos};
 glm::vec3 lightColour = glm::vec3(1,1,1);
@@ -118,7 +118,7 @@ glm::vec3 lightColour = glm::vec3(1,1,1);
 glm::mat3 cameraOrientation = glm::mat3();
 float infinity = std::numeric_limits<float>::infinity();
 double depth_buffer[WIDTH][HEIGHT];
-int mode = 1;
+int mode = 3;
 std::map<std::string, std::vector<ModelTriangle>> scene;
 int newTriangleID = 0;
 std::map<int, std::vector<vec3>> triangleVertexNormals; //given a triangle ID, return its vertex normals
@@ -221,14 +221,11 @@ int main(int argc, char* argv[])
     int riseCount = 0;
     float riseVelocity = 2;
     float rotationSpeed = 0;
-    vec3 newPos = vec3(0,0,0);
+    vec3 lookAtPos = vec3(0,0,0);
     int count = 0;
 
     while(true)
     {
-        // std::cout << "pos ";
-        // print_vec3(cameraPos);
-
         glm::vec3 translation = glm::vec3(0,0,0);
         glm::vec3 rotationAngles = glm::vec3(0,0,0);
         glm::vec3 light_translation = glm::vec3(0,0,0);
@@ -241,7 +238,6 @@ int main(int argc, char* argv[])
 
 
         if (isUpdate || isStart) {
-        // if (true) {
             if (isStart) {
                 // std::cout << rotationSpeed << '\n';
                 moveObject("logo",vec3(0,-velocity,0));
@@ -261,14 +257,13 @@ int main(int argc, char* argv[])
                 // only increase velocity if it hasn't landed (otherwise it'll fall through the ground)
                 if (!hasLanded) velocity++;
                 else {
-
                     if (riseVelocity > 0) {
                         moveObject("logo",vec3(0,riseVelocity,0));
                         moveObject("box",vec3(0,riseVelocity,0));
                         if (riseCount > 130) riseVelocity -= 0.05;
                         riseCount++;
-                        newPos += vec3(0, riseVelocity, 0);
-                        lookAt(newPos);
+                        lookAtPos += vec3(0, riseVelocity, 0);
+                        lookAt(lookAtPos);
                     }
                 }
 
@@ -290,12 +285,20 @@ int main(int argc, char* argv[])
             // Need to render the frame at the end, or nothing actually gets shown on the screen !
             window.renderFrame();
 
-            if (count%2 == 0) {
-                std::vector<Colour> colours = loadColours();
-                std::string filename = "video/image" + std::to_string(count/2) + ".ppm";
-                // writePPM(filename,WIDTH,HEIGHT,colours);
+            // capping it at 200 frames because that's probably enough for 10 seconds
+            if (count < 400) {
+                if (count%2 == 0) {
+                    std::vector<Colour> colours = loadColours();
+                    std::string filename = "video/image" + std::to_string(count/2) + ".ppm";
+                    std::cout << "Creating frame " << std::to_string(count/2) << '\n';
+                    writePPM(filename,WIDTH,HEIGHT,colours);
+                }
+                count++;
             }
-            count++;
+            else {
+                std::cout << "Finished video" << '\n';
+                isStart = false;
+            }
         }
     }
 }

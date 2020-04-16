@@ -15,3 +15,4 @@
 - bump map
 - mirror
 - glass
+- phong/gouraud

@@ -111,9 +111,10 @@ glm::vec3 cameraPos = glm::vec3(0, 130, 280);
 glm::vec3 box_lightPos = glm::vec3(-0.2,4.8,-3.043);
 glm::vec3 box_lightPos1 = glm::vec3(2,4.8,-3.043);
 glm::vec3 logo_lightPos = glm::vec3(300,59,15);
-glm::vec3 scene_lightPos = glm::vec3(0,350,50);
+glm::vec3 scene_lightPos = glm::vec3(0,-50,50);
+glm::vec3 scene_lightPos1 = glm::vec3(0,400,50);
 glm::vec3 lightPos = box_lightPos1;
-std::vector<vec3> light_positions = {scene_lightPos};
+std::vector<vec3> light_positions = {scene_lightPos,scene_lightPos1};
 glm::vec3 lightColour = glm::vec3(1,1,1);
 
 glm::mat3 cameraOrientation = glm::mat3();
@@ -295,13 +296,15 @@ int main(int argc, char* argv[])
 
             // capping it at 200 frames because that's probably enough for 10 seconds
             if (currentFrame < 400) {
-                if (currentFrame%2 == 0) {
-                    // std::vector<Colour> colours = loadColours();
-                    // std::string filename = "video/image" + std::to_string(currentFrame/2) + ".ppm";
-                    // std::cout << "Creating frame " << std::to_string(currentFrame/2) << '\n';
-                    // writePPM(filename,WIDTH,HEIGHT,colours);
+                if(isStart){
+                    if (currentFrame%2 == 0) {
+                        // std::vector<Colour> colours = loadColours();
+                        // std::string filename = "video/image" + std::to_string(currentFrame/2) + ".ppm";
+                        // std::cout << "Creating frame " << std::to_string(currentFrame/2) << '\n';
+                        // writePPM(filename,WIDTH,HEIGHT,colours);
+                    }
+                    currentFrame++;
                 }
-                currentFrame++;
             }
             else {
                 std::cout << "Finished video" << '\n';
@@ -1262,7 +1265,7 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
             //fresnel defines proportion
             float kr = fresnel(ray,norm,refractive_index);
             vec3 fin_colour = reflected_colour * kr + refracted_colour * (1-kr);
-            // if(glassRefractedRay == vec3(0,0,0)) fin_colour = reflected_colour;
+            if(glassRefractedRay == vec3(0,0,0)) fin_colour = reflected_colour;
             final_intersection.intersectedTriangle.colour = Colour(fin_colour.x,fin_colour.y,fin_colour.z);
             // final_intersection = glass_reflected_intersection;
 

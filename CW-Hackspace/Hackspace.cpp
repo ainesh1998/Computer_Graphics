@@ -92,6 +92,7 @@ void moveObject(std::string name,vec3 moveVec);
 void rotateObject(std::string name,vec3 rotationAngles);
 void rotateAroundAxis(std::string name,vec3 rotationAngles);
 void scaleObject(std::string name,float scale);
+void scaleYObject(std::string name,float scale);
 
 // physics
 bool isCollideGround(std::vector<ModelTriangle> o1, std::vector<ModelTriangle> o2);
@@ -118,7 +119,7 @@ glm::vec3 lightColour = glm::vec3(1,1,1);
 glm::mat3 cameraOrientation = glm::mat3();
 float infinity = std::numeric_limits<float>::infinity();
 double depth_buffer[WIDTH][HEIGHT];
-int mode = 3;
+int mode = 1;
 std::map<std::string, std::vector<ModelTriangle>> scene;
 int newTriangleID = 0;
 std::map<int, std::vector<vec3>> triangleVertexNormals; //given a triangle ID, return its vertex normals
@@ -166,6 +167,9 @@ int main(int argc, char* argv[])
 
     std::vector<ModelTriangle> box_triangles = readOBJ("cornell-box/cornell-box.obj", "cornell-box/cornell-box.mtl", BOX_SCALE );
 
+    std::vector<ModelTriangle> block_triangles = readOBJ("extra-objects/block.obj", "extra-objects/block.mtl", BOX_SCALE );
+
+
     // std::vector<ModelTriangle> sphere_triangles = readOBJ("extra-objects/sphere.obj", "extra-objects/sphere.mtl", SPHERE_SCALE);
     // //for sphere remove texture and set colour to be white
     // for (size_t i = 0; i < sphere_triangles.size(); i++) {
@@ -195,12 +199,15 @@ int main(int argc, char* argv[])
     // scene["terrain"] = generated_triangles;
     scene["ground"] = ground_triangles;
     // scene["box"] = empty_box_triangles;
+    scene["block"] = block_triangles;
 
     // moveObject("logo",vec3(-35,-25,-100));
     // moveObject("logo",vec3(-100,50,-100));
     moveObject("ground",vec3(0,0,-50));
     moveObject("logo",vec3(-100,500,0)); // set logo to world origin
     moveObject("box",vec3(0,-165,90));
+    scaleYObject("block", 2.5);
+    moveObject("block", vec3(-80,-20,-80));
 
     // moveObject("logo",vec3(-50,240,0));
     // rotateObject("logo",vec3(0,90,0));
@@ -222,7 +229,7 @@ int main(int argc, char* argv[])
     float riseVelocity = 2;
     float rotationSpeed = 0;
     vec3 lookAtPos = vec3(0,0,0);
-    int count = 0;
+    int currentFrame = 0;
 
     while(true)
     {
@@ -240,6 +247,7 @@ int main(int argc, char* argv[])
         if (isUpdate || isStart) {
             if (isStart) {
                 // std::cout << rotationSpeed << '\n';
+                rotateAroundAxis("block", vec3(0,1,0));
                 moveObject("logo",vec3(0,-velocity,0));
                 rotateObject("logo",vec3(0,rotationSpeed,0));
 
@@ -286,14 +294,14 @@ int main(int argc, char* argv[])
             window.renderFrame();
 
             // capping it at 200 frames because that's probably enough for 10 seconds
-            if (count < 400) {
-                if (count%2 == 0) {
-                    std::vector<Colour> colours = loadColours();
-                    std::string filename = "video/image" + std::to_string(count/2) + ".ppm";
-                    std::cout << "Creating frame " << std::to_string(count/2) << '\n';
-                    writePPM(filename,WIDTH,HEIGHT,colours);
+            if (currentFrame < 400) {
+                if (currentFrame%2 == 0) {
+                    // std::vector<Colour> colours = loadColours();
+                    // std::string filename = "video/image" + std::to_string(currentFrame/2) + ".ppm";
+                    // std::cout << "Creating frame " << std::to_string(currentFrame/2) << '\n';
+                    // writePPM(filename,WIDTH,HEIGHT,colours);
                 }
-                count++;
+                currentFrame++;
             }
             else {
                 std::cout << "Finished video" << '\n';
@@ -1603,17 +1611,25 @@ void moveObject(std::string name,vec3 moveVec){
     }
     scene[name] = triangles;
 }
+
 void rotateAroundAxis(std::string name,vec3 rotationAngles){
-    //get centre of mass
     std::vector<ModelTriangle> triangles = scene[name];
+
+    //get centre of mass
     vec3 centroid = vec3(0,0,0);
     for (size_t i = 0; i < triangles.size(); i++) {
         for (size_t j = 0; j < 3; j++) {
             centroid += triangles[i].vertices[j] ;
+            // print_vec3(centroid);
+
         }
     }
-    centroid = (float)(1/(triangles.size()*3)) * centroid;
-    // moveObject(name,vec3(-centroid.x,-centroid.y,-centroid.z));
+    centroid = (1/((float) triangles.size()*3)) * centroid;
+
+
+    moveObject(name,vec3(-centroid.x,-centroid.y,-centroid.z));
+    triangles = scene[name];
+
     glm::mat3 rotation_matrix  = glm::mat3();
     rotationAngles *= M_PI/180.0f;
     glm::mat3 rotationX = glm::transpose(glm::mat3(glm::vec3(1, 0, 0),
@@ -1631,10 +1647,34 @@ void rotateAroundAxis(std::string name,vec3 rotationAngles){
             triangles[i].vertices[j] = (rotation_matrix* triangles[i].vertices[j]);
         }
     }
-    // moveObject(name, vec3(centroid.x,centroid.y,centroid.z));
     scene[name]= triangles;
+
+    moveObject(name, vec3(centroid.x,centroid.y,centroid.z));
 }
+
 void rotateObject(std::string name,vec3 rotationAngles){
+    glm::mat3 rotation_matrix  = glm::mat3();
+    rotationAngles *= M_PI/180.0f;
+    glm::mat3 rotationX = glm::transpose(glm::mat3(glm::vec3(1, 0, 0),
+                                    glm::vec3(0, cos(rotationAngles.x), -sin(rotationAngles.x)),
+                                    glm::vec3(0, sin(rotationAngles.x), cos(rotationAngles.x))));
+
+    glm::mat3 rotationY = glm::transpose(glm::mat3(glm::vec3(cos(rotationAngles.y), 0.0, sin(rotationAngles.y)),
+                                    glm::vec3(0.0, 1.0, 0.0),
+                                    glm::vec3(-sin(rotationAngles.y), 0.0, cos(rotationAngles.y))));
+    rotation_matrix *= rotationX;
+    rotation_matrix *= rotationY;
+
+    std::vector<ModelTriangle> triangles = scene[name];
+    for (size_t i = 0; i < triangles.size(); i++) {
+        for (size_t j = 0; j < 3; j++) {
+            triangles[i].vertices[j] = rotation_matrix* triangles[i].vertices[j] ;
+        }
+    }
+    scene[name] = triangles;
+}
+
+void rotateAroundPoint(std::string name, vec3 rotationAngles, vec3 point){
     glm::mat3 rotation_matrix  = glm::mat3();
     rotationAngles *= M_PI/180.0f;
     glm::mat3 rotationX = glm::transpose(glm::mat3(glm::vec3(1, 0, 0),
@@ -1661,6 +1701,16 @@ void scaleObject(std::string name,float scale){
     for (size_t i = 0; i < triangles.size(); i++) {
         for (size_t j = 0; j < 3; j++) {
             triangles[i].vertices[j] *= scale;
+        }
+   }
+   scene[name] = triangles;
+}
+
+void scaleYObject(std::string name,float scale){
+    std::vector<ModelTriangle> triangles = scene[name];
+    for (size_t i = 0; i < triangles.size(); i++) {
+        for (size_t j = 0; j < 3; j++) {
+            triangles[i].vertices[j].y *= scale;
         }
    }
    scene[name] = triangles;

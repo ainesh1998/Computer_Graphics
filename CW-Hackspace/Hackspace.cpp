@@ -134,6 +134,10 @@ std::vector<glm::vec2> bumpDimensions;
 
 int main(int argc, char* argv[])
 {
+    cameraPos = glm::vec3(0, 296.697, 335.07);
+    lookAt(vec3(0,0,0));
+
+
     // for(int x = 0; x < WIDTH; x++){
     //     for(int y = 0; y < HEIGHT; y++){
     //         // depth_buffer[x][y] = std::numeric_limits<float>::infinity();
@@ -174,7 +178,7 @@ int main(int argc, char* argv[])
 
     // std::vector<ModelTriangle> generated_triangles = generateGeometry(grid, width, 2.5, 10, genCount);
 
-    std::vector<ModelTriangle> ground_triangles = readOBJ("extra-objects/ground.obj", "extra-objects/ground.mtl", 0.3);
+    std::vector<ModelTriangle> ground_triangles = readOBJ("extra-objects/ground.obj", "extra-objects/ground.mtl", 0.6);
 
     // std::vector<ModelTriangle> empty_box_triangles = readOBJ("extra-objects/empty-box.obj", "extra-objects/empty-box.mtl", BOX_SCALE);
 
@@ -194,9 +198,9 @@ int main(int argc, char* argv[])
 
     // moveObject("logo",vec3(-35,-25,-100));
     // moveObject("logo",vec3(-100,50,-100));
-    // moveObject("ground",vec3(0,0,0));
+    moveObject("ground",vec3(0,0,-50));
     moveObject("logo",vec3(-100,500,0)); // set logo to world origin
-    moveObject("box",vec3(0,-155,90));
+    moveObject("box",vec3(0,-165,90));
 
     // moveObject("logo",vec3(-50,240,0));
     // rotateObject("logo",vec3(0,90,0));
@@ -217,10 +221,14 @@ int main(int argc, char* argv[])
     int riseCount = 0;
     float riseVelocity = 2;
     float rotationSpeed = 0;
+    vec3 newPos = vec3(0,0,0);
     int count = 0;
 
     while(true)
     {
+        // std::cout << "pos ";
+        // print_vec3(cameraPos);
+
         glm::vec3 translation = glm::vec3(0,0,0);
         glm::vec3 rotationAngles = glm::vec3(0,0,0);
         glm::vec3 light_translation = glm::vec3(0,0,0);
@@ -257,8 +265,10 @@ int main(int argc, char* argv[])
                     if (riseVelocity > 0) {
                         moveObject("logo",vec3(0,riseVelocity,0));
                         moveObject("box",vec3(0,riseVelocity,0));
-                        if (riseCount > 80) riseVelocity -= 0.05;
+                        if (riseCount > 130) riseVelocity -= 0.05;
                         riseCount++;
+                        newPos += vec3(0, riseVelocity, 0);
+                        lookAt(newPos);
                     }
                 }
 
@@ -279,10 +289,13 @@ int main(int argc, char* argv[])
 
             // Need to render the frame at the end, or nothing actually gets shown on the screen !
             window.renderFrame();
-            std::vector<Colour> colours = loadColours();
-            std::string filename = "video/image" + std::to_string(count) + ".ppm";
+
+            if (count%2 == 0) {
+                std::vector<Colour> colours = loadColours();
+                std::string filename = "video/image" + std::to_string(count/2) + ".ppm";
+                // writePPM(filename,WIDTH,HEIGHT,colours);
+            }
             count++;
-            // writePPM(filename,WIDTH,HEIGHT,colours);
         }
     }
 }

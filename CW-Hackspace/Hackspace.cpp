@@ -1271,7 +1271,6 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
             // final_intersection = glass_reflected_intersection;
 
         }
-
         // mirror
         if (final_intersection.intersectedTriangle.isMirror) {
             //calculate mirror vector
@@ -1295,12 +1294,12 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
             // complex anti-aliasing - firing multiple rays according to quincux pattern
 
             vec3 ray1 = computeRay((x+0.5),(y+0.5),FOV);
-            vec3 ray2 = computeRay((x),(y),FOV);
-            vec3 ray3 = computeRay((x+1),(y),FOV);
-            vec3 ray4 = computeRay((x),(y+1),FOV);
-            vec3 ray5 = computeRay((x+1),(y+1),FOV);
-            std::vector<vec3> rays = {ray1,ray2,ray3,ray4,ray5};
-            // std::vector<vec3> rays = {ray1};
+            // vec3 ray2 = computeRay((x),(y),FOV);
+            // vec3 ray3 = computeRay((x+1),(y),FOV);
+            // vec3 ray4 = computeRay((x),(y+1),FOV);
+            // vec3 ray5 = computeRay((x+1),(y+1),FOV);
+            // std::vector<vec3> rays = {ray1,ray2,ray3,ray4,ray5};
+            std::vector<vec3> rays = {ray1};
             vec3 sumColour = vec3(0,0,0);
             for (size_t r = 0; r < rays.size(); r++) {
                 RayTriangleIntersection final_intersection;

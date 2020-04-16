@@ -267,6 +267,7 @@ int main(int argc, char* argv[])
                 if (!hasLanded) velocity++;
                 else {
                     if (riseVelocity > 0) {
+                        light_positions[0].y += riseVelocity;
                         moveObject("logo",vec3(0,riseVelocity,0));
                         moveObject("box",vec3(0,riseVelocity,0));
                         if (riseCount > 130) riseVelocity -= 0.05;
@@ -298,10 +299,10 @@ int main(int argc, char* argv[])
             if (currentFrame < 400) {
                 if(isStart){
                     if (currentFrame%2 == 0) {
-                        // std::vector<Colour> colours = loadColours();
-                        // std::string filename = "video/image" + std::to_string(currentFrame/2) + ".ppm";
-                        // std::cout << "Creating frame " << std::to_string(currentFrame/2) << '\n';
-                        // writePPM(filename,WIDTH,HEIGHT,colours);
+                        std::vector<Colour> colours = loadColours();
+                        std::string filename = "video/image" + std::to_string(currentFrame/2) + ".ppm";
+                        std::cout << "Creating frame " << std::to_string(currentFrame/2) << '\n';
+                        writePPM(filename,WIDTH,HEIGHT,colours);
                     }
                     currentFrame++;
                 }
@@ -1294,12 +1295,12 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
             // complex anti-aliasing - firing multiple rays according to quincux pattern
 
             vec3 ray1 = computeRay((x+0.5),(y+0.5),FOV);
-            // vec3 ray2 = computeRay((x),(y),FOV);
-            // vec3 ray3 = computeRay((x+1),(y),FOV);
-            // vec3 ray4 = computeRay((x),(y+1),FOV);
-            // vec3 ray5 = computeRay((x+1),(y+1),FOV);
-            // std::vector<vec3> rays = {ray1,ray2,ray3,ray4,ray5};
-            std::vector<vec3> rays = {ray1};
+            vec3 ray2 = computeRay((x),(y),FOV);
+            vec3 ray3 = computeRay((x+1),(y),FOV);
+            vec3 ray4 = computeRay((x),(y+1),FOV);
+            vec3 ray5 = computeRay((x+1),(y+1),FOV);
+            std::vector<vec3> rays = {ray1,ray2,ray3,ray4,ray5};
+            // std::vector<vec3> rays = {ray1};
             vec3 sumColour = vec3(0,0,0);
             for (size_t r = 0; r < rays.size(); r++) {
                 RayTriangleIntersection final_intersection;

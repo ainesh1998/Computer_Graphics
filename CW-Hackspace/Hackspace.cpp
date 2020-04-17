@@ -1276,63 +1276,67 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
                 bool hit = (original_intersection != nullptr && !isEqualTriangle(triangles[i],original_intersection->intersectedTriangle))
                             || original_intersection == nullptr;
                 if(distance < minDist && hit){
-                    vec3 oldColour = vec3(triangles[i].colour.red, triangles[i].colour.green, triangles[i].colour.blue);
-
-                    // texture mapping
-                    if (triangles[i].isTexture) {
-                        oldColour = getTextureColour(triangles[i], intersection.solution, intersection.intersectionPoint);
-                    }
-
-                    float brightness = calcBrightness(intersection.intersectionPoint,triangles[i],triangles,light_positions,intersection.solution);
-                    vec3 lightColourCorrected = lightColour * brightness;
-
-                    newColour = lightColourCorrected * oldColour;
-
-                    Colour c = Colour(newColour.x, newColour.y, newColour.z);
-                    intersection.intersectedTriangle.colour = c;
                     final_intersection = intersection;
                     minDist = distance;
                 }
             }
         }
-        // glass
-        if (final_intersection.intersectedTriangle.isGlass) {
-            //reflection
+        if(final_intersection.distanceFromCamera != infinity){ //if you found an intersection
+            // glass
+            ModelTriangle t = final_intersection.intersectedTriangle;
             vec3 point = final_intersection.intersectionPoint;
-            vec3 glassReflectedRay = calcReflectedRay(ray,final_intersection.intersectedTriangle);
-            RayTriangleIntersection glass_reflected_intersection = getFinalIntersection(triangles,glassReflectedRay,point,&final_intersection,depth+1);
-            Colour r =glass_reflected_intersection.intersectedTriangle.colour;
-            vec3 reflected_colour = vec3(r.red,r.green,r.blue);
+            if (t.isGlass) {
+                //reflection
+                vec3 glassReflectedRay = calcReflectedRay(ray,t);
+                RayTriangleIntersection glass_reflected_intersection = getFinalIntersection(triangles,glassReflectedRay,point,&final_intersection,depth+1);
+                Colour r = glass_reflected_intersection.intersectedTriangle.colour;
+                vec3 reflected_colour = vec3(r.red,r.green,r.blue);
 
-            //refraction
-            //calculate refraction vector
-            float refractive_index = 1.5; //made this a variable in case we want to change it later
-            vec3 norm = computenorm(final_intersection.intersectedTriangle);
-            vec3 glassRefractedRay = refract(ray,norm,refractive_index);
-            RayTriangleIntersection final_glass_intersection = getFinalIntersection(triangles,glassRefractedRay,point,&final_intersection,depth+1);
-            Colour c = final_glass_intersection.intersectedTriangle.colour;
-            vec3 refracted_colour = vec3(c.red,c.green,c.blue);
+                //refraction
+                //calculate refraction vector
+                float refractive_index = 1.5; //made this a variable in case we want to change it later
+                vec3 norm = computenorm(t);
+                vec3 glassRefractedRay = refract(ray,norm,refractive_index);
+                RayTriangleIntersection final_glass_intersection = getFinalIntersection(triangles,glassRefractedRay,point,&final_intersection,depth+1);
+                Colour c = final_glass_intersection.intersectedTriangle.colour;
+                vec3 refracted_colour = vec3(c.red,c.green,c.blue);
 
-            //final colour should be a mixture of both reflection and refraction
-            //fresnel defines proportion
-            float kr = fresnel(ray,norm,refractive_index);
-            vec3 fin_colour = reflected_colour * kr + refracted_colour * (1-kr);
-            if(glassRefractedRay == vec3(0,0,0)) fin_colour = reflected_colour;
-            final_intersection.intersectedTriangle.colour = Colour(fin_colour.x,fin_colour.y,fin_colour.z);
-            // final_intersection = glass_reflected_intersection;
+                //final colour should be a mixture of both reflection and refraction
+                //fresnel defines proportion
+                float kr = fresnel(ray,norm,refractive_index);
+                vec3 fin_colour = reflected_colour * kr + refracted_colour * (1-kr);
+                if(glassRefractedRay == vec3(0,0,0)) fin_colour = reflected_colour;
+                final_intersection.intersectedTriangle.colour = Colour(fin_colour.x,fin_colour.y,fin_colour.z);
+                // final_intersection = glass_reflected_intersection;
 
-        }
-        // mirror
-        if (final_intersection.intersectedTriangle.isMirror) {
-            //calculate mirror vector
-            vec3 point = final_intersection.intersectionPoint;
-            vec3 mirrorRay = calcReflectedRay(ray,final_intersection.intersectedTriangle);
-            // original_intersection is used to ensure mirror doesn't reflect itself
-            RayTriangleIntersection final_mirror_intersection = getFinalIntersection(triangles,mirrorRay,point,&final_intersection,1);
-            Colour c = final_mirror_intersection.intersectedTriangle.colour;
-            newColour = 0.8f *  vec3(c.red,c.green,c.blue); // 0.8 is to make mirror slightly darker than the real object
-            final_mirror_intersection.intersectedTriangle.colour = Colour(newColour.x,newColour.y,newColour.z);
-            final_intersection = final_mirror_intersection;
+            }
+            // mirror
+            else if (final_intersection.intersectedTriangle.isMirror) {
+                //calculate mirror vector
+                vec3 mirrorRay = calcReflectedRay(ray,t);
+                // original_intersection is used to ensure mirror doesn't reflect itself
+                RayTriangleIntersection final_mirror_intersection = getFinalIntersection(triangles,mirrorRay,point,&final_intersection,1);
+                Colour c = final_mirror_intersection.intersectedTriangle.colour;
+                newColour = 0.8f *  vec3(c.red,c.green,c.blue); // 0.8 is to make mirror slightly darker than the real object
+                final_mirror_intersection.intersectedTriangle.colour = Colour(newColour.x,newColour.y,newColour.z);
+                final_intersection = final_mirror_intersection;
+            }else{
+                //diffuse object shade as normal
+                vec3 oldColour = vec3(t.colour.red, t.colour.green, t.colour.blue);
+
+                // texture mapping
+                if (t.isTexture) {
+                    oldColour = getTextureColour(t, final_intersection.solution, point);
+                }
+
+                float brightness = calcBrightness(point,t,triangles,light_positions,final_intersection.solution);
+                vec3 lightColourCorrected = lightColour * brightness;
+
+                newColour = lightColourCorrected * oldColour;
+
+                Colour c = Colour(newColour.x, newColour.y, newColour.z);
+                final_intersection.intersectedTriangle.colour = c;
+            }
         }
     }
     return final_intersection;

@@ -322,7 +322,7 @@ int main(int argc, char* argv[])
                         if (riseCount > 130) riseVelocity -= 0.05;
                         riseCount++;
                         lookAtPos += vec3(0, riseVelocity, 0);
-                        // lookAt(lookAtPos);
+                        lookAt(lookAtPos);
                     }
                 }
 
@@ -351,7 +351,7 @@ int main(int argc, char* argv[])
                         std::vector<Colour> colours = loadColours();
                         std::string filename = "video/image" + std::to_string(currentFrame/2) + ".ppm";
                         std::cout << "Creating frame " << std::to_string(currentFrame/2) << '\n';
-                        writePPM(filename,WIDTH,HEIGHT,colours);
+                        // writePPM(filename,WIDTH,HEIGHT,colours);
                     }
                     currentFrame++;
                 }

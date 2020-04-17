@@ -207,7 +207,7 @@ int main(int argc, char* argv[])
     moveObject("logo",vec3(-100,500,0)); // set logo to world origin
     moveObject("box",vec3(0,-165,90));
     scaleYObject("block", 2.5);
-    moveObject("block", vec3(-80,-20,-80));
+    moveObject("block", vec3(-120,-20,-120));
 
     // moveObject("logo",vec3(-50,240,0));
     // rotateObject("logo",vec3(0,90,0));
@@ -229,8 +229,10 @@ int main(int argc, char* argv[])
     float riseVelocity = 2;
     float rotationSpeed = 0;
     vec3 lookAtPos = vec3(0,0,0);
+    float fallVelocity = 0;
     int currentFrame = 0;
 
+    // for falling block
     vec3 block_centroid = getObjectCentroid("block");
     vec3 blockToOrigin = glm::normalize(vec3(-block_centroid.x, 0, -block_centroid.z));
 
@@ -252,7 +254,6 @@ int main(int argc, char* argv[])
 
     while(true)
     {
-
         glm::vec3 translation = glm::vec3(0,0,0);
         glm::vec3 rotationAngles = glm::vec3(0,0,0);
         glm::vec3 light_translation = glm::vec3(0,0,0);
@@ -266,20 +267,30 @@ int main(int argc, char* argv[])
 
         if (isUpdate || isStart) {
             if (isStart) {
+                std::cout << fallVelocity << '\n';
                 moveObject("logo",vec3(0,-velocity,0));
                 rotateObject("logo",vec3(0,rotationSpeed,0));
 
                 vec3 block_centroid = getObjectCentroid("block");
-                rotateAroundAxis("block", vec3(0, -degrees, 0));
                 vec3 rotatePoint = (scene["block"][4].vertices[1] + scene["block"][4].vertices[2]) * 0.5f;
-                rotateAroundPoint("block", vec3(1, 0, 0), rotatePoint);
-                rotateAroundPoint("block", vec3(0, degrees, 0), block_centroid);
+
+                if (fallVelocity >= 1) {
+                    rotateAroundAxis("block", vec3(0, -yAngle, 0));
+                    rotateAroundPoint("block", vec3(fallVelocity, 0, 0), rotatePoint);
+                    rotateAroundPoint("block", vec3(0, yAngle, 0), block_centroid);
+                    fallVelocity += 0.1;
+                }
+
+                if (scene["block"][0].vertices[0].y < rotatePoint.y) {
+                    fallVelocity = 0;
+                }
 
                 if (isCollideGround(scene["ground"], scene["logo"]) && !hasCollided) {
                     velocity *= -1;
                     velocity += unbounciness;
                     hasCollided = true; // to remove multiple collision detections for the same collision
                     if (rotationSpeed < 1) rotationSpeed += 0.3;
+                    fallVelocity += 0.3;
                 }
 
                 else if (!isCollideGround(scene["ground"], scene["logo"])){

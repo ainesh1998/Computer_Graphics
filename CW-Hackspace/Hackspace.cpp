@@ -230,6 +230,7 @@ int main(int argc, char* argv[])
     float rotationSpeed = 0;
     vec3 lookAtPos = vec3(0,0,0);
     float fallVelocity = 0;
+    bool hasToppled = false;
     int currentFrame = 0;
 
     // for falling block
@@ -267,21 +268,34 @@ int main(int argc, char* argv[])
 
         if (isUpdate || isStart) {
             if (isStart) {
-                std::cout << fallVelocity << '\n';
                 moveObject("logo",vec3(0,-velocity,0));
                 rotateObject("logo",vec3(0,rotationSpeed,0));
 
                 vec3 block_centroid = getObjectCentroid("block");
                 vec3 rotatePoint = (scene["block"][4].vertices[1] + scene["block"][4].vertices[2]) * 0.5f;
+                vec3 block_centroid_y = vec3(block_centroid.x, 0, block_centroid.z);
+                vec3 rotatePoint_y = vec3(rotatePoint.x, 0, rotatePoint.z);
 
-                if (fallVelocity >= 1) {
-                    rotateAroundAxis("block", vec3(0, -yAngle, 0));
-                    rotateAroundPoint("block", vec3(fallVelocity, 0, 0), rotatePoint);
-                    rotateAroundPoint("block", vec3(0, yAngle, 0), block_centroid);
+                rotateAroundAxis("block", vec3(0, -yAngle, 0));
+                rotateAroundPoint("block", vec3(fallVelocity, 0, 0), rotatePoint);
+                rotateAroundPoint("block", vec3(0, yAngle, 0), block_centroid);
+
+                if (glm::length(block_centroid_y) < glm::length(rotatePoint_y)) {
                     fallVelocity += 0.1;
                 }
 
-                if (scene["block"][0].vertices[0].y < rotatePoint.y) {
+                else {
+                    fallVelocity -= 0.1;
+                }
+
+                // toppled over
+                if (scene["block"][0].vertices[2].y < rotatePoint.y) {
+                    fallVelocity = 0;
+                    hasToppled = true;
+                }
+
+                // standing straight
+                else if (scene["block"][2].vertices[1].y <= rotatePoint.y) {
                     fallVelocity = 0;
                 }
 
@@ -290,7 +304,7 @@ int main(int argc, char* argv[])
                     velocity += unbounciness;
                     hasCollided = true; // to remove multiple collision detections for the same collision
                     if (rotationSpeed < 1) rotationSpeed += 0.3;
-                    fallVelocity += 0.3;
+                    if (!hasToppled) fallVelocity += 1.35;
                 }
 
                 else if (!isCollideGround(scene["ground"], scene["logo"])){

@@ -208,7 +208,7 @@ int main(int argc, char* argv[])
     moveObject("logo",vec3(-100,500,0)); // set logo to world origin
     moveObject("box",vec3(0,-165,90));
     scaleYObject("block", 2.5);
-    moveObject("block", vec3(-120,-20,-120));
+    moveObject("block", vec3(-170,-20,-170));
 
     // moveObject("logo",vec3(-50,240,0));
     // rotateObject("logo",vec3(0,90,0));
@@ -350,7 +350,7 @@ int main(int argc, char* argv[])
                     if (currentFrame%2 == 0) {
                         std::vector<Colour> colours = loadColours();
                         std::string filename = "video/image" + std::to_string(currentFrame/2) + ".ppm";
-                        std::cout << "Creating frame " << std::to_string(currentFrame/2) << '\n';
+                        // std::cout << "Creating frame " << std::to_string(currentFrame/2) << '\n';
                         // writePPM(filename,WIDTH,HEIGHT,colours);
                     }
                     currentFrame++;
@@ -1055,10 +1055,12 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
 bool inRange(float x,float min,float max){
     return x >= min && x <= max;
 }
+
 void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
     // stepBack = dv, focalLength = di
 
     std::vector<CanvasTriangle> triangles;
+    // std::vector<BoundingBox> bounding_boxes;
 
     double **depth_buffer;
     double dimX = WIDTH;

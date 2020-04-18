@@ -10,6 +10,7 @@
 #include <glm/gtx/string_cast.hpp>
 #include <GameObject.h>
 #include <string>
+#include <BoundingBox.h>
 
 #define WIDTH 640
 #define HEIGHT 480
@@ -124,6 +125,7 @@ int mode = 1;
 std::map<std::string, std::vector<ModelTriangle>> scene;
 int newTriangleID = 0;
 std::map<int, std::vector<vec3>> triangleVertexNormals; //given a triangle ID, return its vertex normals
+
 int genCount = 0;
 int width = 60;
 double** grid = malloc2dArray(width, width);
@@ -132,6 +134,7 @@ std::vector<std::vector<Colour>> textures;
 std::vector<glm::vec2> textureDimensions;
 std::vector<std::vector<vec3>> bump_maps;
 std::vector<glm::vec2> bumpDimensions;
+std::vector<BoundingBox> bounding_boxes;
 
 
 int main(int argc, char* argv[])
@@ -651,6 +654,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
     bool isGlass = false;
     int textureIndex = textures.size();
     int bumpIndex = bump_maps.size();
+    BoundingBox bounding_box = BoundingBox(vec3(0,0,0),0,0,0);
 
     while(stream.getline(line,256)){
         std::string* contents = split(line,' ');
@@ -691,6 +695,25 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
             float z = std::stof(contents[3]) * scale;
             vec3 newPoint = vec3(x,y,z);
             vertices.push_back(newPoint);
+
+            // clipping
+            if (x < bounding_box.startVertex.x) {
+                bounding_box.startVertex.x = x;
+                bounding_box.width += std::abs(x);
+            }
+            else if (x > bounding_box.startVertex.x + bounding_box.width) bounding_box.width = x - bounding_box.startVertex.x;
+
+            if (y < bounding_box.startVertex.y) {
+                bounding_box.startVertex.y = y;
+                bounding_box.height += std::abs(y);
+            }
+            else if (y > bounding_box.startVertex.y + bounding_box.height) bounding_box.height = y - bounding_box.startVertex.y;
+
+            if (z < bounding_box.startVertex.z) {
+                bounding_box.startVertex.z = z;
+                bounding_box.depth += std::abs(z);
+            }
+            else if (z > bounding_box.startVertex.z + bounding_box.depth) bounding_box.depth = z - bounding_box.startVertex.z;
         }
 
         else if(contents[0].compare("f") == 0){
@@ -745,6 +768,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
                 m.isGlass = isGlass;
             }
 
+            m.boundingBoxIndex = bounding_boxes.size();
             modelTriangles.push_back(m);
             newTriangleID++;
         }
@@ -762,6 +786,8 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
 
     stream.clear();
     stream.close();
+
+    bounding_boxes.push_back(bounding_box);
 
     return modelTriangles;
 }
@@ -1061,7 +1087,6 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
     // stepBack = dv, focalLength = di
 
     std::vector<CanvasTriangle> triangles;
-    // std::vector<BoundingBox> bounding_boxes;
 
     double **depth_buffer;
     double dimX = WIDTH;

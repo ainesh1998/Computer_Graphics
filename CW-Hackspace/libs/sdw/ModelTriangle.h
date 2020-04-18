@@ -12,6 +12,7 @@ class ModelTriangle
     Colour colour;
     TexturePoint texturePoints[3];
     BumpPoint bumpPoints[3];
+    int boundingBoxIndex;
     bool isMirror = false;
     bool isTexture = false;
     bool isBump = false;

@@ -3,24 +3,16 @@
 class BoundingBox
 {
   public:
-    CanvasPoint topLeft;
+    glm::vec3 startVertex;
     int width;
-    int height
+    int height;
+    int depth;
 
-    BoundingBox()
+    BoundingBox(glm::vec3 start, int w, int h, int d)
     {
-    }
-
-    BoundingBox(CanvasPoint start, int w, int h)
-    {
-      topLeft = start;
+      startVertex = start;
       width = w;
       height = h;
+      depth = d;
     }
 };
-
-// std::ostream& operator<<(std::ostream& os, const BumpPoint& point)
-// {
-//     os << "(" << point.x << ", " << point.y << ")" << std::endl;
-//     return os;
-// }

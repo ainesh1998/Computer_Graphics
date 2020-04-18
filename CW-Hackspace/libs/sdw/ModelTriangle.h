@@ -16,6 +16,7 @@ class ModelTriangle
     bool isTexture = false;
     bool isBump = false;
     float velocity = 0;
+    int objectID;
 
     //Texture data
     int textureIndex;

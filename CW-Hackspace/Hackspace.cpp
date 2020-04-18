@@ -119,6 +119,7 @@ double depth_buffer[WIDTH][HEIGHT];
 int mode = 1;
 std::map<std::string, std::vector<ModelTriangle>> scene;
 int newTriangleID = 0;
+int newObjectID = 0;
 std::map<int, std::vector<vec3>> triangleVertexNormals; //given a triangle ID, return its vertex normals
 int genCount = 0;
 int width = 60;
@@ -647,6 +648,9 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
                 m.isMirror = mirrored;
 
             }
+
+            m.objectID = newObjectID;
+            newObjectID++;
 
             modelTriangles.push_back(m);
             newTriangleID++;
@@ -1232,8 +1236,6 @@ float calcIntensity(vec3 norm, vec3 lightPos, vec3 point, bool isBump) {
 
 vec3 calcVirtualPoint(vec3 l0, vec3 norm, vec3 l, float heightStep) {
     vec3 p0 = l0 + heightStep*norm;
-    float d = glm::dot((p0 - l0), norm) / glm::dot(l, norm);
-    vec3 intersectionPoint = l0 + l*d;
     return p0;
 }
 
@@ -1242,35 +1244,44 @@ vec3 calcVirtualPoint(vec3 point, vec3 norm, float heightStep) {
     return newPoint;
 }
 
-bool isShadow(std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t) {
+bool isShadow(std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t, float shadowExclusionZone) {
     vec3 lightDir = lightPos - point;
     float dist = glm::length(lightDir);
     lightDir = glm::normalize(lightDir);
+    bool shadow = false;
 
     for (size_t i = 0; i < triangles.size(); i++) {
         RayTriangleIntersection shadowIntersection = getIntersection(lightDir,triangles[i],point);
         if(shadowIntersection.distanceFromCamera < dist && !isEqualTriangle(shadowIntersection.intersectedTriangle,t)){
-            return true;
+        // if(shadowIntersection.distanceFromCamera < dist && !triangles[i].colour.equals(t.colour)){
+
+            if (triangles[i].objectID == t.objectID) {
+            // if (shadowIntersection.distanceFromCamera < shadowExclusionZone) {
+                // std::cout << shadowIntersection.distanceFromCamera << '\n';
+                // print_vec3(point);
+                std::cout << t.objectID << " " << triangles[i].objectID << " " << shadowIntersection.intersectedTriangle.objectID << '\n';
+                return false;
+            }
+            shadow = true;
         }
     }
-    return false;
+    return shadow;
 }
 
 float calcSoftShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t) {
     float newBrightness = brightness;
-    float heightStep = 1.0f;
+    float heightStep = 0.05f;
     vec3 norm = computenorm(t);
     // vec3 lightDir = glm::normalize(lightPos - point);
     vec3 highPoint = calcVirtualPoint(point, norm, heightStep);
     vec3 lowPoint = calcVirtualPoint(point, norm, -heightStep);
-    bool highShadow = isShadow(triangles, highPoint, lightPos, t);
-    bool lowShadow = isShadow(triangles, lowPoint, lightPos, t);
-    bool testShadow = isShadow(triangles, point, lightPos, t);
+    bool highShadow = isShadow(triangles, highPoint, lightPos, t, 0.1);
+    bool lowShadow = isShadow(triangles, lowPoint, lightPos, t, 0.1);
 
     // print_vec3(highPoint);
     // print_vec3(point);
     // print_vec3(lowPoint);
-    if (highShadow != lowShadow) std::cout << highShadow << " " << lowShadow << "\n\n";
+    // if (highShadow != lowShadow) std::cout << highShadow << " " << lowShadow << '\n';
 
     // if (!(highPoint.x == point.x && highPoint.y == point.y && highPoint.z == point.z)) {
         // std::cout << "test" << '\n';
@@ -1281,8 +1292,8 @@ float calcSoftShadow(float brightness, std::vector<ModelTriangle> triangles, vec
     //     std::cout << brightness << " " << newBrightness << '\n';
     }
     else if (highShadow || lowShadow) {
-        std::cout << highShadow << " " << lowShadow << '\n';
-        newBrightness = AMBIENCE/1.5;
+        // std::cout << highShadow << " " << lowShadow << '\n';
+        newBrightness = 1;
         // std::cout << "only one" << '\n';
 
         // find out how far point is from being under light
@@ -1319,7 +1330,7 @@ float calcSoftShadow(float brightness, std::vector<ModelTriangle> triangles, vec
 
 float calcShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t) {
     float newBrightness = brightness;
-    bool shadow = isShadow(triangles, point, lightPos, t);
+    bool shadow = isShadow(triangles, point, lightPos, t, 0);
     if(shadow) newBrightness = AMBIENCE/2;
     return newBrightness;
 }

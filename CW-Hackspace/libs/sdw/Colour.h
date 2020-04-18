@@ -64,6 +64,10 @@ class Colour
     glm::vec3 toVec3() {
         return glm::vec3(red, green, blue);
     }
+
+    bool equals(Colour c) {
+        return c.red == red && c.green == green && c.blue == blue && c.name == name;
+    }
 };
 
 

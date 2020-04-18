@@ -208,7 +208,8 @@ int main(int argc, char* argv[])
     moveObject("logo",vec3(-100,500,0)); // set logo to world origin
     moveObject("box",vec3(0,-165,90));
     scaleYObject("block", 2.5);
-    moveObject("block", vec3(-170,-20,-170));
+    moveObject("block", vec3(-50,-20,-50));
+    rotateAroundAxis("block", vec3(0, 180, 0));
 
     // moveObject("logo",vec3(-50,240,0));
     // rotateObject("logo",vec3(0,90,0));
@@ -278,10 +279,10 @@ int main(int argc, char* argv[])
                 vec3 rotatePoint_y = vec3(rotatePoint.x, 0, rotatePoint.z);
 
                 rotateAroundAxis("block", vec3(0, -yAngle, 0));
-                rotateAroundPoint("block", vec3(fallVelocity, 0, 0), rotatePoint);
+                rotateAroundPoint("block", vec3(-fallVelocity, 0, 0), rotatePoint);
                 rotateAroundPoint("block", vec3(0, yAngle, 0), block_centroid);
 
-                if (glm::length(block_centroid_y) < glm::length(rotatePoint_y)) {
+                if (glm::length(block_centroid_y) > glm::length(rotatePoint_y)) {
                     fallVelocity += 0.1;
                 }
 

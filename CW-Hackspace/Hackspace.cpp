@@ -1341,7 +1341,7 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
                 //calculate mirror vector
                 vec3 mirrorRay = calcReflectedRay(ray,t);
                 // original_intersection is used to ensure mirror doesn't reflect itself
-                RayTriangleIntersection final_mirror_intersection = getFinalIntersection(triangles,mirrorRay,point,&final_intersection,1);
+                RayTriangleIntersection final_mirror_intersection = getFinalIntersection(triangles,mirrorRay,point,&final_intersection,depth+1);
                 Colour c = final_mirror_intersection.intersectedTriangle.colour;
                 newColour = 0.8f *  vec3(c.red,c.green,c.blue); // 0.8 is to make mirror slightly darker than the real object
                 final_mirror_intersection.intersectedTriangle.colour = Colour(newColour.x,newColour.y,newColour.z);

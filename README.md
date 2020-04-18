@@ -23,7 +23,7 @@ Computer Graphics unit
 - [x] **Hard Shadow**
 - [x] **Gouraud shading**
 - [x]  **Naive (non-perspective corrected) texture mapping**
-- [ ] Simple animation (e.g. fly-through)
+- [x] *Simple animation (e.g. fly-through)*
 - [x] **Some form of Physics (gravity, friction, bounce etc) \#**
 - [x] **Basic culling (far-plane, near-plan, back-face)**
 - [x] *Basic anti-aliasing* \#
@@ -33,14 +33,14 @@ Computer Graphics unit
 - [x] **Fairly “interesting” materials (e.g. mirrors)**
 - [x] **Complex anti-aliasing**
 - [x] **Perspective corrected texture mapping**
-- [ ] “Fancy” animation
+- [x] *“Fancy” animation*
 - [x] *Soft shadow*
 - [x] **Bump maps**
 - [ ] Basic clipping (bounding box)
 
 ### 80s range
 - [ ] Environment maps
-- [ ] Complex “interesting” materials (e.g. glass)
+- [x] *Complex “interesting” materials (e.g. glass)*
 - [ ] Line drawing optimisations (e.g. Bresenham)
 - [ ] Advance clipping (frustum)
 - [ ] Photon maps and caustics

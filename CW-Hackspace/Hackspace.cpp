@@ -110,7 +110,7 @@ glm::vec3 box_lightPos1 = glm::vec3(2,4.8,-3.043);
 glm::vec3 logo_lightPos = glm::vec3(300,59,15);
 glm::vec3 scene_lightPos = glm::vec3(-10,260,-297.85);
 glm::vec3 lightPos = box_lightPos1;
-std::vector<vec3> light_positions = {scene_lightPos};
+std::vector<vec3> light_positions = {box_lightPos};
 glm::vec3 lightColour = glm::vec3(1,1,1);
 
 glm::mat3 cameraOrientation = glm::mat3();
@@ -156,9 +156,9 @@ int main(int argc, char* argv[])
     }
 
 
-    std::vector<ModelTriangle> logo_triangles = readOBJ("HackspaceLogo/logo.obj", "HackspaceLogo/materials.mtl", LOGO_SCALE );
+    // std::vector<ModelTriangle> logo_triangles = readOBJ("HackspaceLogo/logo.obj", "HackspaceLogo/materials.mtl", LOGO_SCALE );
 
-    // std::vector<ModelTriangle> box_triangles = readOBJ("cornell-box/cornell-box.obj", "cornell-box/cornell-box.mtl", BOX_SCALE );
+    std::vector<ModelTriangle> box_triangles = readOBJ("cornell-box/cornell-box.obj", "cornell-box/cornell-box.mtl", BOX_SCALE );
 
     // std::vector<ModelTriangle> sphere_triangles = readOBJ("extra-objects/sphere.obj", "extra-objects/sphere.mtl", SPHERE_SCALE);
     // //for sphere remove texture and set colour to be white
@@ -179,26 +179,26 @@ int main(int argc, char* argv[])
     //
     // std::vector<ModelTriangle> ground_triangles = {ModelTriangle(a,c,b, Colour(0, 255, 0), newTriangleID),
     //                                                ModelTriangle(a,d,c, Colour(0, 255, 0), newTriangleID+1)};
-    std::vector<ModelTriangle> ground_triangles = readOBJ("extra-objects/ground.obj", "extra-objects/ground.mtl", 0.99);
+    // std::vector<ModelTriangle> ground_triangles = readOBJ("extra-objects/ground.obj", "extra-objects/ground.mtl", 0.99);
     // newTriangleID += 2;
 
 
-    // for (size_t i = 0; i < light_positions.size(); i++) {
-    //     light_positions[i] *= (float)BOX_SCALE; //cornell box light
-    // }
+    for (size_t i = 0; i < light_positions.size(); i++) {
+        light_positions[i] *= (float)BOX_SCALE; //cornell box light
+    }
 
     // calculate vertex normals for each triangle of the sphere - for gouraud and phong shading
     // calcVertexNormals(sphere_triangles);
 
-    scene["logo"] = logo_triangles;
-    // scene["box"] = box_triangles;
+    // scene["logo"] = logo_triangles;
+    scene["box"] = box_triangles;
     // scene["sphere"] = sphere_triangles;
     // scene["terrain"] = generated_triangles;
-    scene["ground"] = ground_triangles;
+    // scene["ground"] = ground_triangles;
 
     // moveObject("logo",vec3(-35,-25,-100));
-    moveObject("logo",vec3(-100,50,-200));
-    moveObject("ground",vec3(0,0,-300));
+    // moveObject("logo",vec3(-100,50,-200));
+    // moveObject("ground",vec3(0,0,-300));
     // moveObject("logo",vec3(-100,50,0)); // set logo to world origin
 
     // moveObject("logo",vec3(-50,240,0));
@@ -206,7 +206,7 @@ int main(int argc, char* argv[])
     // moveObject("logo",vec3(0,0,-120));
     // // moveObject("sphere",vec3(35,100,-100)); // place sphere above red box
     // moveObject("sphere", vec3(-70, 20, -70)); // place sphere in front of blue box
-    scaleObject("ground",0.5f);
+    // scaleObject("ground",0.5f);
 
     drawScene();
 
@@ -559,7 +559,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
     while(stream.getline(line,256)){
         std::string* contents = split(line,' ');
         if(contents[0].compare("o") == 0){
-            mirrored = contents[1].compare("back_wall") == 0;
+            // mirrored = contents[1].compare("back_wall") == 0;
         }
 
         if(contents[0].compare("vt")== 0){
@@ -1242,14 +1242,14 @@ vec3 calcVirtualPoint(vec3 point, vec3 norm, float heightStep) {
     return newPoint;
 }
 
-bool isShadow(std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos) {
+bool isShadow(std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t) {
     vec3 lightDir = lightPos - point;
     float dist = glm::length(lightDir);
     lightDir = glm::normalize(lightDir);
 
     for (size_t i = 0; i < triangles.size(); i++) {
         RayTriangleIntersection shadowIntersection = getIntersection(lightDir,triangles[i],point);
-        if(shadowIntersection.distanceFromCamera < dist){
+        if(shadowIntersection.distanceFromCamera < dist && !isEqualTriangle(shadowIntersection.intersectedTriangle,t)){
             return true;
         }
     }
@@ -1263,70 +1263,64 @@ float calcSoftShadow(float brightness, std::vector<ModelTriangle> triangles, vec
     // vec3 lightDir = glm::normalize(lightPos - point);
     vec3 highPoint = calcVirtualPoint(point, norm, heightStep);
     vec3 lowPoint = calcVirtualPoint(point, norm, -heightStep);
-    bool highShadow = isShadow(triangles, highPoint, lightPos);
-    bool lowShadow = isShadow(triangles, lowPoint, lightPos);
+    bool highShadow = isShadow(triangles, highPoint, lightPos, t);
+    bool lowShadow = isShadow(triangles, lowPoint, lightPos, t);
+    bool testShadow = isShadow(triangles, point, lightPos, t);
 
     // print_vec3(highPoint);
     // print_vec3(point);
     // print_vec3(lowPoint);
-    // std::cout << highShadow << " " << lowShadow << "\n\n";
+    if (highShadow != lowShadow) std::cout << highShadow << " " << lowShadow << "\n\n";
+
+    // if (!(highPoint.x == point.x && highPoint.y == point.y && highPoint.z == point.z)) {
+        // std::cout << "test" << '\n';
+    // }
 
     if (highShadow && lowShadow) {
         newBrightness = AMBIENCE/2;
-        // std::cout << "both" << '\n';
+    //     std::cout << brightness << " " << newBrightness << '\n';
     }
     else if (highShadow || lowShadow) {
-        // std::cout << highShadow << " " << lowShadow << '\n';
-        // newBrightness = AMBIENCE/1.5;
+        std::cout << highShadow << " " << lowShadow << '\n';
+        newBrightness = AMBIENCE/1.5;
         // std::cout << "only one" << '\n';
 
         // find out how far point is from being under light
-        if (lowShadow) {
-            // project lightDir onto triangle
-            vec3 lightDir = glm::normalize(lightPos - lowPoint);
-            vec3 lightStep = glm::cross(glm::cross(-lightDir, norm), norm);
-            bool tempShadow = true;
-
-            while (tempShadow) {
-                lowPoint += lightStep;
-                tempShadow = isShadow(triangles, lowPoint, lightPos);
-                newBrightness -= 0.0001;
-                std::cout << newBrightness << '\n';
-                if (newBrightness < AMBIENCE/2) newBrightness = AMBIENCE/2;
-            }
-
-        }
-        else if (highShadow) {
-            vec3 lightDir = glm::normalize(lightPos - highPoint);
-            vec3 lightStep = glm::cross(glm::cross(lightDir, norm), norm);
-            bool tempShadow = true;
-
-            while (tempShadow) {
-                highPoint += lightStep;
-                tempShadow = isShadow(triangles, highPoint, lightPos);
-                newBrightness -= 0.0001;
-                if (newBrightness < AMBIENCE/2) newBrightness = AMBIENCE/2;
-            }
-        }
+        // if (lowShadow) {
+        //     // project lightDir onto triangle
+        //     vec3 lightDir = glm::normalize(lightPos - lowPoint);
+        //     vec3 lightStep = glm::cross(glm::cross(-lightDir, norm), norm);
+        //     bool tempShadow = true;
+        //
+        //     while (tempShadow) {
+        //         lowPoint += lightStep;
+        //         tempShadow = isShadow(triangles, lowPoint, lightPos);
+        //         newBrightness -= 0.0001;
+        //         std::cout << newBrightness << '\n';
+        //         if (newBrightness < AMBIENCE/2) newBrightness = AMBIENCE/2;
+        //     }
+        //
+        // }
+        // else if (highShadow) {
+        //     vec3 lightDir = glm::normalize(lightPos - highPoint);
+        //     vec3 lightStep = glm::cross(glm::cross(lightDir, norm), norm);
+        //     bool tempShadow = true;
+        //
+        //     while (tempShadow) {
+        //         highPoint += lightStep;
+        //         tempShadow = isShadow(triangles, highPoint, lightPos);
+        //         newBrightness -= 0.0001;
+        //         if (newBrightness < AMBIENCE/2) newBrightness = AMBIENCE/2;
+        //     }
+        // }
     }
     return newBrightness;
 }
 
 float calcShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t) {
     float newBrightness = brightness;
-    vec3 lightDir = lightPos - point;
-    float dist = glm::length(lightDir);
-    lightDir = glm::normalize(lightDir);
-    bool isShadow = false;
-
-    for (size_t i = 0; i < triangles.size(); i++) {
-        RayTriangleIntersection shadowIntersection = getIntersection(lightDir,triangles[i],point);
-        if(shadowIntersection.distanceFromCamera < dist && !isEqualTriangle(shadowIntersection.intersectedTriangle,t)){
-            isShadow = true;
-            break;
-        }
-    }
-    if(isShadow) newBrightness *= SHADOW_INTENSITY;
+    bool shadow = isShadow(triangles, point, lightPos, t);
+    if(shadow) newBrightness = AMBIENCE/2;
     return newBrightness;
 }
 

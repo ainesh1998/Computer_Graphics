@@ -43,4 +43,17 @@ class BoundingBox
     glm::vec3 getFrontTopRight() {
         return glm::vec3(startVertex.x+width, startVertex.y+height, startVertex.z+depth);
     }
+
+    std::vector<glm::vec3> getPoints() {
+        std::vector<glm::vec3> points;
+        points.push_back(startVertex);
+        points.push_back(getFrontTopRight());
+        points.push_back(getFrontTopLeft());
+        points.push_back(getFrontBottomRight());
+        points.push_back(getFrontBottomLeft());
+        points.push_back(getBackTopRight());
+        points.push_back(getBackTopLeft());
+        points.push_back(getBackBottomRight());
+        return points;
+    }
 };

@@ -173,6 +173,7 @@ int main(int argc, char* argv[])
 
     std::vector<ModelTriangle> block_triangles = readOBJ("extra-objects/block.obj", "extra-objects/block.mtl", BOX_SCALE );
 
+    // std::vector<ModelTriangle> mirror_triangles = readOBJ("extra-objects/mirror.obj", "extra-objects/mirror.mtl", BOX_SCALE );
 
     // std::vector<ModelTriangle> sphere_triangles = readOBJ("extra-objects/sphere.obj", "extra-objects/sphere.mtl", SPHERE_SCALE);
     // //for sphere remove texture and set colour to be white
@@ -196,14 +197,44 @@ int main(int argc, char* argv[])
 
     // calculate vertex normals for each triangle of the sphere - for gouraud and phong shading
     // calcVertexNormals(sphere_triangles);
-
+    int forestWidth;
+    int forestHeight;
+    std::vector<Colour> forest = readPPM("forest.ppm",&forestWidth, &forestHeight);
+    textures.push_back(forest);
+    textureDimensions.push_back(glm::vec2(forestWidth,forestHeight));
     for (size_t i = 0; i < box_triangles.size(); i++) {
-        if(box_triangles[i].tag.compare("mirror")==0){
-            std::cout << box_triangles[i].tag << '\n';
-        }
-        /* code */
-    }
+        ModelTriangle t = box_triangles[i];
+        t.textureIndex = textures.size() - 1;
+        t.isTexture = true;
+        if(t.tag.compare("mirror")==0){
+            //manually setting texture here (can't think of any other way)
+            for (size_t j = 0; j < 3; j++) {
+                vec3 v = t.vertices[j];
+                //using abs due to floatiing point precision error
+                if(std::abs(-2.95*BOX_SCALE - v.x) < 1 && std::abs(-0.16*BOX_SCALE - v.y) < 1){
+                    // std::cout << "v1" << '\n';
+                    t.texturePoints[j] = TexturePoint(0,forestHeight-1);
 
+                }
+                if(std::abs(2.54*BOX_SCALE - v.x) < 1 && std::abs(-0.16*BOX_SCALE - v.y) < 1){
+                    // std::cout << "v2" << '\n';
+                    t.texturePoints[j] = TexturePoint(forestWidth-1,forestHeight-1);
+
+                }
+                if(std::abs(2.54*BOX_SCALE - v.x) < 1 && std::abs(5.33*BOX_SCALE - v.y) < 1){
+                    // std::cout << "v3" << '\n';
+                    t.texturePoints[j] = TexturePoint(forestWidth-1,0);
+
+                }
+                if(std::abs(-3.01*BOX_SCALE - v.x) < 1 && std::abs(5.33*BOX_SCALE - v.y) < 1){
+                    // std::cout << "v4" << '\n';
+                    t.texturePoints[j] = TexturePoint(0,0);
+
+                }
+                box_triangles[i] = t;
+            }
+        }
+    }
     scene["logo"] = logo_triangles;
     scene["box"] = box_triangles;
     // scene["sphere"] = sphere_triangles;

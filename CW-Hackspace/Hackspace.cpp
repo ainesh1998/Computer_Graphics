@@ -11,6 +11,7 @@
 #include <GameObject.h>
 #include <string>
 #include <BoundingBox.h>
+#include <Frustum.h>
 
 #define WIDTH 640
 #define HEIGHT 480
@@ -140,7 +141,7 @@ std::vector<BoundingBox> bounding_boxes;
 int main(int argc, char* argv[])
 {
     cameraPos = glm::vec3(0, 296.697, 335.07);
-    lookAt(vec3(0,0,0));
+    // lookAt(vec3(0,0,0));
 
 
     // for(int x = 0; x < WIDTH; x++){
@@ -769,6 +770,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
             }
 
             m.boundingBoxIndex = bounding_boxes.size();
+            // std::cout << m.boundingBoxIndex << '\n';
             modelTriangles.push_back(m);
             newTriangleID++;
         }
@@ -1083,8 +1085,58 @@ bool inRange(float x,float min,float max){
     return x >= min && x <= max;
 }
 
+Frustum computeFrustum(float near, float far) {
+    vec3 forward = vec3(0,0,-1) * glm::inverse(cameraOrientation);
+    vec3 right = vec3(1,0,0) * glm::inverse(cameraOrientation);
+    vec3 up = vec3(0,1,0) * glm::inverse(cameraOrientation);
+
+    // print_vec3(forward);
+    // print_vec3(right);
+    // print_vec3(up);
+
+    float nearWidth = WIDTH * (near/FOCALLENGTH);
+    float nearHeight = HEIGHT * (near/FOCALLENGTH);
+    vec3 frontTopLeft = cameraPos + (forward * near) - (right * (nearWidth/2)) + (up * (nearHeight/2));
+    vec3 frontTopRight = frontTopLeft + nearWidth*right;
+    vec3 frontBottomLeft = frontTopLeft - nearHeight*up;
+    vec3 frontBottomRight = frontTopRight - nearHeight*up;
+
+
+    // std::cout << nearWidth << " " << nearHeight << '\n';
+
+    float farWidth = WIDTH * (far/FOCALLENGTH);
+    float farHeight = HEIGHT * (far/FOCALLENGTH);
+    vec3 backTopLeft = cameraPos + (forward * far) - (right * (farWidth/2)) + (up * (farHeight/2));
+    vec3 backTopRight = backTopLeft + farWidth*right;
+    vec3 backBottomLeft = backTopLeft - farHeight*up;
+    vec3 backBottomRight = frontTopRight - farHeight*up;
+
+    return Frustum(frontTopLeft, frontTopRight, frontBottomLeft, frontBottomRight,
+                    backTopLeft, backTopRight, backBottomLeft, backBottomRight);
+}
+
 void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
     // stepBack = dv, focalLength = di
+
+    Frustum frustum = computeFrustum(100, 1000);
+
+    // print_vec3(frustum.frontTopLeft);
+    // print_vec3(frustum.frontTopRight);
+    // print_vec3(frustum.frontBottomLeft);
+    // print_vec3(frustum.frontBottomRight);
+    // print_vec3(frustum.backTopLeft);
+    // print_vec3(frustum.backTopRight);
+    // print_vec3(frustum.backBottomLeft);
+    // print_vec3(frustum.backBottomRight);
+    // std::cout  << '\n';
+
+    // for (int i = 0; i < bounding_boxes.size(); i++) {
+    //     print_vec3(bounding_boxes[])
+    // }
+
+    // print_vec3();
+
+    // std::cout << glm::distance((frustum.frontTopLeft + frustum.frontTopRight + frustum.frontBottomLeft + frustum.frontBottomRight)*0.25f, cameraPos) << '\n';
 
     std::vector<CanvasTriangle> triangles;
 
@@ -1100,24 +1152,46 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
         }
     }
 
+
     for (int i = 0; i < (int) modelTriangles.size(); i++) {
-        std::vector<CanvasPoint> points;
-        for (int j = 0; j < 3; j++) {
-            glm::vec3 wrtCamera = (modelTriangles[i].vertices[j] - cameraPos) * cameraOrientation;
-            float ratio = focalLength/(-wrtCamera.z);
+        BoundingBox bounding_box = bounding_boxes[modelTriangles[i].boundingBoxIndex];
 
-            int x = wrtCamera.x * ratio + WIDTH/2;
-            int y = (-wrtCamera.y) * ratio + HEIGHT/2;
+        // std::cout << modelTriangles[i].boundingBoxIndex << '\n';
+        // print_vec3(bounding_box.startVertex);
+        // print_vec3(bounding_box.getBackBottomRight());
+        // print_vec3(bounding_box.getBackTopLeft());
+        // print_vec3(bounding_box.getBackTopRight());
+        // print_vec3(bounding_box.getFrontBottomLeft());
+        // print_vec3(bounding_box.getFrontBottomRight());
+        // print_vec3(bounding_box.getFrontTopLeft());
+        // print_vec3(bounding_box.getFrontTopRight());
+        // std::cout << '\n';
 
-            CanvasPoint point = CanvasPoint(x, y,-wrtCamera.z, modelTriangles[i].texturePoints[j]);
-            points.push_back(point);
+        if (frustum.contains(bounding_box)) {
+            // std::cout << "/* message */" << '\n';
+        // BoundingBox bbox = bounding_boxes[modelTriangles[i].boundingBoxIndex];
+        // std::cout << modelTriangles[i].boundingBoxIndex << '\n';
+        // print_vec3(bbox.startVertex);
+        // print_vec3(bbox.)
+        // std::cout  << '\n';
+
+            std::vector<CanvasPoint> points;
+            for (int j = 0; j < 3; j++) {
+                glm::vec3 wrtCamera = (modelTriangles[i].vertices[j] - cameraPos) * cameraOrientation;
+                float ratio = focalLength/(-wrtCamera.z);
+
+                int x = wrtCamera.x * ratio + WIDTH/2;
+                int y = (-wrtCamera.y) * ratio + HEIGHT/2;
+
+                CanvasPoint point = CanvasPoint(x, y,-wrtCamera.z, modelTriangles[i].texturePoints[j]);
+                points.push_back(point);
+            }
+            // if(inRange(points[0].depth,100,1000)&& inRange(points[1].depth,100,1000) && inRange(points[2].depth,100,1000)){ //near plane clipping
+                CanvasTriangle triangle = CanvasTriangle(points[0], points[1], points[2], modelTriangles[i].colour);
+                triangle.textureIndex = modelTriangles[i].textureIndex;
+                triangles.push_back(triangle);
+            // }
         }
-        if(inRange(points[0].depth,100,1000)&& inRange(points[1].depth,100,1000) && inRange(points[2].depth,100,1000)){ //near plane clipping
-            CanvasTriangle triangle = CanvasTriangle(points[0], points[1], points[2], modelTriangles[i].colour);
-            triangle.textureIndex = modelTriangles[i].textureIndex;
-            triangles.push_back(triangle);
-        }
-
     }
 
     for(int i = 0; i < (int)triangles.size(); i++){

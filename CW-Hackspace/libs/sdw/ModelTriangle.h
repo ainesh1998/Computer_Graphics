@@ -10,6 +10,7 @@ class ModelTriangle
     int ID;
     glm::vec3 vertices[3];
     Colour colour;
+    std::string tag;
     TexturePoint texturePoints[3];
     BumpPoint bumpPoints[3];
     int boundingBoxIndex;

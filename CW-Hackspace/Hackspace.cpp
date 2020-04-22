@@ -197,6 +197,13 @@ int main(int argc, char* argv[])
     // calculate vertex normals for each triangle of the sphere - for gouraud and phong shading
     // calcVertexNormals(sphere_triangles);
 
+    for (size_t i = 0; i < box_triangles.size(); i++) {
+        if(box_triangles[i].tag.compare("mirror")==0){
+            std::cout << box_triangles[i].tag << '\n';
+        }
+        /* code */
+    }
+
     scene["logo"] = logo_triangles;
     scene["box"] = box_triangles;
     // scene["sphere"] = sphere_triangles;
@@ -655,12 +662,14 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
     int textureIndex = textures.size();
     int bumpIndex = bump_maps.size();
     BoundingBox bounding_box = BoundingBox(vec3(0,0,0),0,0,0);
+    std::string tag = "";
 
     while(stream.getline(line,256)){
         std::string* contents = split(line,' ');
         if(contents[0].compare("o") == 0){
             mirrored = contents[1].compare("mirror") == 0;
             isGlass = contents[1].compare("short_box") == 0;
+            tag = contents[1];
         }
 
         if(contents[0].compare("vt")== 0){
@@ -769,6 +778,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
             }
 
             m.boundingBoxIndex = bounding_boxes.size();
+            m.tag = tag;
             modelTriangles.push_back(m);
             newTriangleID++;
         }
@@ -1337,16 +1347,17 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
 
             }
             // mirror
-            else if (final_intersection.intersectedTriangle.isMirror) {
-                //calculate mirror vector
-                vec3 mirrorRay = calcReflectedRay(ray,t);
-                // original_intersection is used to ensure mirror doesn't reflect itself
-                RayTriangleIntersection final_mirror_intersection = getFinalIntersection(triangles,mirrorRay,point,&final_intersection,depth+1);
-                Colour c = final_mirror_intersection.intersectedTriangle.colour;
-                newColour = 0.8f *  vec3(c.red,c.green,c.blue); // 0.8 is to make mirror slightly darker than the real object
-                final_mirror_intersection.intersectedTriangle.colour = Colour(newColour.x,newColour.y,newColour.z);
-                final_intersection = final_mirror_intersection;
-            }else{
+            // else if (final_intersection.intersectedTriangle.isMirror) {
+            //     //calculate mirror vector
+            //     vec3 mirrorRay = calcReflectedRay(ray,t);
+            //     // original_intersection is used to ensure mirror doesn't reflect itself
+            //     RayTriangleIntersection final_mirror_intersection = getFinalIntersection(triangles,mirrorRay,point,&final_intersection,depth+1);
+            //     Colour c = final_mirror_intersection.intersectedTriangle.colour;
+            //     newColour = 0.8f *  vec3(c.red,c.green,c.blue); // 0.8 is to make mirror slightly darker than the real object
+            //     final_mirror_intersection.intersectedTriangle.colour = Colour(newColour.x,newColour.y,newColour.z);
+            //     final_intersection = final_mirror_intersection;
+            // }
+            else{
                 //diffuse object shade as normal
                 vec3 oldColour = vec3(t.colour.red, t.colour.green, t.colour.blue);
 

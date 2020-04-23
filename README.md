@@ -36,7 +36,7 @@ Computer Graphics unit
 - [x] *“Fancy” animation*
 - [x] *Soft shadow*
 - [x] **Bump maps**
-- [ ] Basic clipping (bounding box)
+- [x] **Basic clipping (bounding box)**
 
 ### 80s range
 - [ ] Environment maps

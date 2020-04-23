@@ -1326,6 +1326,13 @@ float fresnel(vec3 ray,vec3 norm,float refractive_index){
     }
     return kr;
 }
+//specular component = (v.r) where v is ray from object to camera and r is the reflected light ray
+float calcSpecular(vec3 ray,ModelTriangle t){
+    vec3 lightReflect = calcReflectedRay(light_positions[0],t); //only do this for cornell box light
+    vec3 toCamera = -ray;
+    float specular = pow(glm::dot(ray,lightReflect),4);
+    return specular;
+}
 RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangles,vec3 ray,vec3 origin,RayTriangleIntersection* original_intersection,int depth){
     RayTriangleIntersection final_intersection;
     final_intersection.distanceFromCamera = infinity;
@@ -1384,7 +1391,7 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
                 // original_intersection is used to ensure mirror doesn't reflect itself
                 RayTriangleIntersection final_mirror_intersection = getFinalIntersection(triangles,mirrorRay,point,&final_intersection,depth+1);
                 Colour c = final_mirror_intersection.intersectedTriangle.colour;
-                newColour = 0.8f *  vec3(c.red,c.green,c.blue); // 0.8 is to make mirror slightly darker than the real object
+                newColour = 0.8 *  vec3(c.red,c.green,c.blue); // 0.8 is to make mirror slightly darker than the real object
                 final_mirror_intersection.intersectedTriangle.colour = Colour(newColour.x,newColour.y,newColour.z);
                 final_intersection = final_mirror_intersection;
             }else{
@@ -1430,10 +1437,7 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                 final_intersection = getFinalIntersection(triangles,ray,cameraPos,nullptr,1);
                 Colour c = final_intersection.intersectedTriangle.colour;
                 vec3 newColour = {c.red,c.green,c.blue};
-
-                if(final_intersection.distanceFromCamera != infinity){
-                     sumColour += newColour;
-                }
+                sumColour += newColour;
             }
             vec3 avgColour = (1/(float)rays.size()) * sumColour;
             Colour c = Colour(avgColour.x, avgColour.y, avgColour.z);

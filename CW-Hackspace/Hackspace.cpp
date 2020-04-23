@@ -215,6 +215,7 @@ int main(int argc, char* argv[])
     // scaleObject("ground",0.5f);
 
 
+    // setup the four blocks
     std::vector<std::string> blocks = {"block1", "block2", "block3", "block4"};
 
     for (int i = 0; i < blocks.size(); i++) {
@@ -251,12 +252,22 @@ int main(int argc, char* argv[])
     std::vector<bool> hasToppled = {false, false, false, false};
     int currentFrame = 0;
 
-    // for falling block
+    // for blocks - this is to calculate the angle between the direction of rotation and x-axis.
+    // Basically to rotate the block along an edge we have to rotate it so that the edge is parallel
+    // to the x-axis, then do a rotation around the x-axis, then rotate back, so we need yAngle for
+    // this "setup" rotation
+
     vec3 block_centroid = getObjectCentroid("block1");
     vec3 blockToOrigin = glm::normalize(vec3(-block_centroid.x, 0, -block_centroid.z));
 
     float minAngle = infinity;
     vec3 forward;
+
+    // find the normal of the pivot edge.
+    // probably unnecessary, but this is finding the triangle with a normal closest to blockToOrigin.
+    // this "closest normal" would most likely be the normal of the pivot edge
+    // this is because using blockToOrigin straight away might make it rotate weirdly, and not along
+    // the pivot edge, since it's not necessarily the same as the edge's normal
 
     for (int i = 0; i < block_triangles.size(); i++) {
         vec3 norm = computenorm(scene["block1"][i]);
@@ -268,9 +279,10 @@ int main(int argc, char* argv[])
         }
     }
 
+    // finally, get the angle. we set forward.y = 0 so that both vectors are along the same plane
+    // so we can get the angle along the y-axis
     forward.y = 0;
-    float yAngle = std::acos(glm::dot(vec3(0,0,1), forward)) * 180.0f/M_PI;
-    // rotateAroundAxis("block2", vec3(0, -yAngle-90, 0));
+    float yAngle = std::acos(glm::dot(vec3(0,0,1), forward)) * 180.0f/M_PI; // "setup" rotation
 
     while(true)
     {
@@ -292,32 +304,37 @@ int main(int argc, char* argv[])
 
                 for (int i = 0; i < blocks.size(); i++) {
                     vec3 block_centroid = getObjectCentroid(blocks[i]);
+
+                    // this is hard-coded - I just looked at the OBJ file. probably not a good idea
                     vec3 rotatePoint = (scene[blocks[i]][4].vertices[1] + scene[blocks[i]][4].vertices[2]) * 0.5f;
                     vec3 block_centroid_y = vec3(block_centroid.x, 0, block_centroid.z);
                     vec3 rotatePoint_y = vec3(rotatePoint.x, 0, rotatePoint.z);
 
-                    float fixed_yAngle = yAngle + 90*i;
+                    float fixed_yAngle = yAngle + 90*i; // add 90*i because of the initial rotation of the blocks
 
+                    // setup, rotate, undo setup
                     rotateAroundPoint(blocks[i], vec3(0, -fixed_yAngle, 0), rotatePoint);
                     rotateAroundPoint(blocks[i], vec3(-fallVelocity[i], 0, 0), rotatePoint);
                     rotateAroundPoint(blocks[i], vec3(0, fixed_yAngle, 0), rotatePoint);
 
 
+                    // the centre of mass has surpassed the pivot - block falls
                     if (glm::length(block_centroid_y) > glm::length(rotatePoint_y)) {
                         fallVelocity[i] += 0.1;
                     }
 
+                    // hasn't passed the pivot, so it falls back to standing position
                     else {
                         fallVelocity[i] -= 0.1;
                     }
 
-                    // toppled over
+                    // toppled over - also hard-coded
                     if (scene[blocks[i]][0].vertices[2].y < rotatePoint.y) {
                         fallVelocity[i] = 0;
                         hasToppled[i] = true;
                     }
 
-                    // standing straight
+                    // standing straight - also hard-coded
                     else if (scene[blocks[i]][2].vertices[1].y <= rotatePoint.y) {
                         fallVelocity[i] = 0;
                     }

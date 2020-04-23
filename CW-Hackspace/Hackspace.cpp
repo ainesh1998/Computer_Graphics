@@ -99,7 +99,8 @@ void scaleYObject(std::string name,float scale);
 bool isCollideGround(std::vector<ModelTriangle> o1, std::vector<ModelTriangle> o2);
 
 // clipping
-bool withinFrustum(BoundingBox bbox, float near, float far);
+bool withinFrustum(BoundingBox bbox, float near, float far, int index);
+BoundingBox getBoundingBox(std::vector<ModelTriangle> triangles);
 
 // event handling
 void lookAt(glm::vec3 point);
@@ -657,7 +658,8 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
     bool isGlass = false;
     int textureIndex = textures.size();
     int bumpIndex = bump_maps.size();
-    BoundingBox bounding_box = BoundingBox(vec3(0,0,0),0,0,0);
+    // vec3 minBBox = vec3(infinity, infinity, infinity);
+    // vec3 maxBBox = vec3(-infinity, -infinity, -infinity);
 
     while(stream.getline(line,256)){
         std::string* contents = split(line,' ');
@@ -699,24 +701,13 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
             vec3 newPoint = vec3(x,y,z);
             vertices.push_back(newPoint);
 
-            // clipping
-            if (x < bounding_box.startVertex.x) {
-                bounding_box.startVertex.x = x;
-                bounding_box.width += std::abs(x);
-            }
-            else if (x > bounding_box.startVertex.x + bounding_box.width) bounding_box.width = x - bounding_box.startVertex.x;
-
-            if (y < bounding_box.startVertex.y) {
-                bounding_box.startVertex.y = y;
-                bounding_box.height += std::abs(y);
-            }
-            else if (y > bounding_box.startVertex.y + bounding_box.height) bounding_box.height = y - bounding_box.startVertex.y;
-
-            if (z < bounding_box.startVertex.z) {
-                bounding_box.startVertex.z = z;
-                bounding_box.depth += std::abs(z);
-            }
-            else if (z > bounding_box.startVertex.z + bounding_box.depth) bounding_box.depth = z - bounding_box.startVertex.z;
+            // bounding box
+            // if (x < minBBox.x) minBBox.x = x;
+            // else if (x > maxBBox.x) maxBBox.x = x;
+            // if (y < minBBox.y) minBBox.y = y;
+            // else if (y > maxBBox.y) maxBBox.y = y;
+            // if (z < minBBox.z) minBBox.z = z;
+            // else if (z > maxBBox.z) maxBBox.z = z;
         }
 
         else if(contents[0].compare("f") == 0){
@@ -791,7 +782,13 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
     stream.clear();
     stream.close();
 
-    bounding_boxes.push_back(bounding_box);
+    // construct bounding box
+
+    // print_vec3(minBBox);
+    // print_vec3(maxBBox);
+    // std::cout << '\n';
+    // BoundingBox bounding_box = BoundingBox(minBBox, maxBBox.x-minBBox.x, maxBBox.y-minBBox.y, maxBBox.z-minBBox.z);
+    // bounding_boxes.push_back(bounding_box);
 
     return modelTriangles;
 }
@@ -1676,21 +1673,34 @@ void drawScene(){
     std::map<std::string,std::vector<ModelTriangle>>::iterator it;
     std::vector<ModelTriangle> triangles;
 
-    for (int i = 0; i < bounding_boxes.size(); i++) {
-        print_vec3(bounding_boxes[i].startVertex);
-        if (withinFrustum(bounding_boxes[i], 100, 1000)) {
-            // add triangles to vector
-            for (it = scene.begin(); it !=scene.end(); ++it){
-                if (it->second[0].boundingBoxIndex == i) {
-                    triangles.insert(triangles.end(),it->second.begin(),it->second.end());
-                    break;
-                }
-            }
+    for (it = scene.begin(); it !=scene.end(); ++it){
+        BoundingBox bounding_box = getBoundingBox(it->second);
+
+        if (withinFrustum(bounding_box, 100, 1000, -1)) {
+            triangles.insert(triangles.end(),it->second.begin(),it->second.end());
         }
-        else {
-            std::cout << i << '\n';
-        }
+        else std::cout << it->first << " is out of frame" << '\n';
     }
+    // for (int i = 0; i < bounding_boxes.size(); i++) {
+    //     if (withinFrustum(bounding_boxes[i], 100, 1000, i)) {
+    //         // add triangles to vector
+    //         if (i == 0) {
+    //             std::cout << "vec3 is: ";
+    //             print_vec3(bounding_boxes[i].startVertex);
+    //         }
+    //
+    //
+    //         for (it = scene.begin(); it !=scene.end(); ++it){
+    //             if (it->second[0].boundingBoxIndex == i) {
+    //                 triangles.insert(triangles.end(),it->second.begin(),it->second.end());
+    //                 break;
+    //             }
+    //         }
+    //     }
+    //     else {
+    //         std::cout << i << '\n';
+    //     }
+    // }
 
     // std::map<std::string,std::vector<ModelTriangle>>::iterator it;
     // for (it=scene.begin(); it!=scene.end(); ++it){
@@ -1835,22 +1845,45 @@ bool isCollideGround(std::vector<ModelTriangle> ground, std::vector<ModelTriangl
 // CLIPPING //
 
 
-bool pointWithinFrustum(vec3 point, float near, float far) {
+bool pointWithinFrustum(vec3 point, float near, float far, int index) {
     vec3 wrtCamera = (point - cameraPos) * cameraOrientation;
     float ratio = FOCALLENGTH/(-wrtCamera.z);
 
     int x = wrtCamera.x * ratio + WIDTH/2;
     int y = (-wrtCamera.y) * ratio + HEIGHT/2;
 
+    if (index == 0) std::cout << x << " " << y << " " << -wrtCamera.z << '\n';
     return inRange(-wrtCamera.z, near, far) && inRange(x, 0, WIDTH-1) && inRange(y, 0, HEIGHT-1);
 }
 
-bool withinFrustum(BoundingBox bbox, float near, float far) {
+bool withinFrustum(BoundingBox bbox, float near, float far, int index) {
     std::vector<vec3> bbox_points = bbox.getPoints();
     for (int i = 0; i < bbox_points.size(); i++) {
-        if (pointWithinFrustum(bbox_points[i], near, far)) return true;
+        if (pointWithinFrustum(bbox_points[i], near, far, index)) return true;
     }
     return false;
+}
+
+BoundingBox getBoundingBox(std::vector<ModelTriangle> triangles) {
+    vec3 minBBox = vec3(infinity, infinity, infinity);
+    vec3 maxBBox = vec3(-infinity, -infinity, -infinity);
+
+    for (int i = 0; i < triangles.size(); i++) {
+        for (int j = 0; j < 3; j++) {
+            float x = triangles[i].vertices[j].x;
+            float y = triangles[i].vertices[j].y;
+            float z = triangles[i].vertices[j].z;
+
+            if (x < minBBox.x) minBBox.x = x;
+            else if (x > maxBBox.x) maxBBox.x = x;
+            if (y < minBBox.y) minBBox.y = y;
+            else if (y > maxBBox.y) maxBBox.y = y;
+            if (z < minBBox.z) minBBox.z = z;
+            else if (z > maxBBox.z) maxBBox.z = z;
+        }
+    }
+    BoundingBox bounding_box = BoundingBox(minBBox, maxBBox.x-minBBox.x, maxBBox.y-minBBox.y, maxBBox.z-minBBox.z);
+    return bounding_box;
 }
 
 // EVENT HANDLING //

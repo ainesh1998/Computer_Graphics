@@ -97,6 +97,7 @@ void scaleYObject(std::string name,float scale);
 
 // physics
 bool isCollideGround(std::vector<ModelTriangle> o1, std::vector<ModelTriangle> o2);
+vec3 toppleBlock(std::string name, float yAngle);
 
 // event handling
 void lookAt(glm::vec3 point);
@@ -108,7 +109,7 @@ void update(glm::vec3 translation, glm::vec3 rotationAngles,glm::vec3 light_tran
 
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
-glm::vec3 cameraPos = glm::vec3(0, 130, 280);
+glm::vec3 cameraPos = glm::vec3(0, 296.697, 335.07);
 glm::vec3 box_lightPos = glm::vec3(-0.2,4.8,-3.043);
 glm::vec3 box_lightPos1 = glm::vec3(2,4.8,-3.043);
 glm::vec3 logo_lightPos = glm::vec3(300,59,15);
@@ -139,10 +140,6 @@ std::vector<BoundingBox> bounding_boxes;
 
 int main(int argc, char* argv[])
 {
-    cameraPos = glm::vec3(0, 296.697, 335.07);
-    lookAt(vec3(0,0,0));
-
-
     // for(int x = 0; x < WIDTH; x++){
     //     for(int y = 0; y < HEIGHT; y++){
     //         // depth_buffer[x][y] = std::numeric_limits<float>::infinity();
@@ -158,7 +155,6 @@ int main(int argc, char* argv[])
     //     light_positions.push_back(lightPos);
     // }
 
-    // SET UP SCENE
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < width; y++) {
             double temp = (rand() % (10 * 2)) - 10;
@@ -166,12 +162,13 @@ int main(int argc, char* argv[])
         }
     }
 
+    // SET UP SCENE //
 
+    // load OBJ files
     std::vector<ModelTriangle> logo_triangles = readOBJ("HackspaceLogo/logo.obj", "HackspaceLogo/materials.mtl", LOGO_SCALE );
-
     std::vector<ModelTriangle> box_triangles = readOBJ("cornell-box/cornell-box.obj", "cornell-box/cornell-box.mtl", BOX_SCALE );
-
     std::vector<ModelTriangle> block_triangles = readOBJ("extra-objects/block.obj", "extra-objects/block.mtl", BOX_SCALE );
+    std::vector<ModelTriangle> ground_triangles = readOBJ("extra-objects/ground.obj", "extra-objects/ground.mtl", 0.7);
 
 
     // std::vector<ModelTriangle> sphere_triangles = readOBJ("extra-objects/sphere.obj", "extra-objects/sphere.mtl", SPHERE_SCALE);
@@ -186,7 +183,6 @@ int main(int argc, char* argv[])
 
     // std::vector<ModelTriangle> generated_triangles = generateGeometry(grid, width, 2.5, 10, genCount);
 
-    std::vector<ModelTriangle> ground_triangles = readOBJ("extra-objects/ground.obj", "extra-objects/ground.mtl", 0.6);
 
     // std::vector<ModelTriangle> empty_box_triangles = readOBJ("extra-objects/empty-box.obj", "extra-objects/empty-box.mtl", BOX_SCALE);
 
@@ -197,22 +193,19 @@ int main(int argc, char* argv[])
     // calculate vertex normals for each triangle of the sphere - for gouraud and phong shading
     // calcVertexNormals(sphere_triangles);
 
+    // add and position objects in scene
     scene["logo"] = logo_triangles;
     scene["box"] = box_triangles;
     // scene["sphere"] = sphere_triangles;
     // scene["terrain"] = generated_triangles;
     scene["ground"] = ground_triangles;
     // scene["box"] = empty_box_triangles;
-    scene["block"] = block_triangles;
 
     // moveObject("logo",vec3(-35,-25,-100));
     // moveObject("logo",vec3(-100,50,-100));
-    moveObject("ground",vec3(0,0,-50));
+    moveObject("ground",vec3(0,0,-70));
     moveObject("logo",vec3(-100,500,0)); // set logo to world origin
     moveObject("box",vec3(0,-165,90));
-    scaleYObject("block", 2.5);
-    moveObject("block", vec3(-50,-20,-50));
-    rotateAroundAxis("block", vec3(0, 180, 0));
 
     // moveObject("logo",vec3(-50,240,0));
     // rotateObject("logo",vec3(0,90,0));
@@ -221,9 +214,29 @@ int main(int argc, char* argv[])
     // moveObject("sphere", vec3(-70, 20, -70)); // place sphere in front of blue box
     // scaleObject("ground",0.5f);
 
-    drawScene();
 
+    std::vector<std::string> blocks = {"block1", "block2", "block3", "block4"};
+
+    for (int i = 0; i < blocks.size(); i++) {
+        scene[blocks[i]] = block_triangles;
+        scaleYObject(blocks[i], 2.5);
+        rotateAroundAxis(blocks[i], vec3(0, 180 + i*90, 0));
+    }
+
+    moveObject("block1", vec3(-200, -20, -200));
+    moveObject("block2", vec3(-200, -20, 250));
+    moveObject("block3", vec3(250, -20, 250));
+    moveObject("block4", vec3(250, -20, -200));
+
+    // setup camera
+    lookAt(vec3(0,0,0));
+
+    drawScene();
     window.renderFrame();
+
+
+    // ANIMATION //
+
 
     float velocity = 0;
     float unbounciness = 6; // the higher the value, the less bouncy the logo is
@@ -234,19 +247,19 @@ int main(int argc, char* argv[])
     float riseVelocity = 2;
     float rotationSpeed = 0;
     vec3 lookAtPos = vec3(0,0,0);
-    float fallVelocity = 0;
-    bool hasToppled = false;
+    std::vector<float> fallVelocity = {0, 0, 0, 0};
+    std::vector<bool> hasToppled = {false, false, false, false};
     int currentFrame = 0;
 
     // for falling block
-    vec3 block_centroid = getObjectCentroid("block");
+    vec3 block_centroid = getObjectCentroid("block1");
     vec3 blockToOrigin = glm::normalize(vec3(-block_centroid.x, 0, -block_centroid.z));
 
     float minAngle = infinity;
     vec3 forward;
 
     for (int i = 0; i < block_triangles.size(); i++) {
-        vec3 norm = computenorm(scene["block"][i]);
+        vec3 norm = computenorm(scene["block1"][i]);
         float angle = std::acos(glm::dot(norm, blockToOrigin));
 
         if (angle < minAngle) {
@@ -257,6 +270,7 @@ int main(int argc, char* argv[])
 
     forward.y = 0;
     float yAngle = std::acos(glm::dot(vec3(0,0,1), forward)) * 180.0f/M_PI;
+    // rotateAroundAxis("block2", vec3(0, -yAngle-90, 0));
 
     while(true)
     {
@@ -276,32 +290,37 @@ int main(int argc, char* argv[])
                 moveObject("logo",vec3(0,-velocity,0));
                 rotateObject("logo",vec3(0,rotationSpeed,0));
 
-                vec3 block_centroid = getObjectCentroid("block");
-                vec3 rotatePoint = (scene["block"][4].vertices[1] + scene["block"][4].vertices[2]) * 0.5f;
-                vec3 block_centroid_y = vec3(block_centroid.x, 0, block_centroid.z);
-                vec3 rotatePoint_y = vec3(rotatePoint.x, 0, rotatePoint.z);
+                for (int i = 0; i < blocks.size(); i++) {
+                    vec3 block_centroid = getObjectCentroid(blocks[i]);
+                    vec3 rotatePoint = (scene[blocks[i]][4].vertices[1] + scene[blocks[i]][4].vertices[2]) * 0.5f;
+                    vec3 block_centroid_y = vec3(block_centroid.x, 0, block_centroid.z);
+                    vec3 rotatePoint_y = vec3(rotatePoint.x, 0, rotatePoint.z);
 
-                rotateAroundAxis("block", vec3(0, -yAngle, 0));
-                rotateAroundPoint("block", vec3(-fallVelocity, 0, 0), rotatePoint);
-                rotateAroundPoint("block", vec3(0, yAngle, 0), block_centroid);
+                    float fixed_yAngle = yAngle + 90*i;
 
-                if (glm::length(block_centroid_y) > glm::length(rotatePoint_y)) {
-                    fallVelocity += 0.1;
-                }
+                    rotateAroundPoint(blocks[i], vec3(0, -fixed_yAngle, 0), rotatePoint);
+                    rotateAroundPoint(blocks[i], vec3(-fallVelocity[i], 0, 0), rotatePoint);
+                    rotateAroundPoint(blocks[i], vec3(0, fixed_yAngle, 0), rotatePoint);
 
-                else {
-                    fallVelocity -= 0.1;
-                }
 
-                // toppled over
-                if (scene["block"][0].vertices[2].y < rotatePoint.y) {
-                    fallVelocity = 0;
-                    hasToppled = true;
-                }
+                    if (glm::length(block_centroid_y) > glm::length(rotatePoint_y)) {
+                        fallVelocity[i] += 0.1;
+                    }
 
-                // standing straight
-                else if (scene["block"][2].vertices[1].y <= rotatePoint.y) {
-                    fallVelocity = 0;
+                    else {
+                        fallVelocity[i] -= 0.1;
+                    }
+
+                    // toppled over
+                    if (scene[blocks[i]][0].vertices[2].y < rotatePoint.y) {
+                        fallVelocity[i] = 0;
+                        hasToppled[i] = true;
+                    }
+
+                    // standing straight
+                    else if (scene[blocks[i]][2].vertices[1].y <= rotatePoint.y) {
+                        fallVelocity[i] = 0;
+                    }
                 }
 
                 if (isCollideGround(scene["ground"], scene["logo"]) && !hasCollided) {
@@ -309,7 +328,10 @@ int main(int argc, char* argv[])
                     velocity += unbounciness;
                     hasCollided = true; // to remove multiple collision detections for the same collision
                     if (rotationSpeed < 1) rotationSpeed += 0.3;
-                    if (!hasToppled) fallVelocity += 1.35;
+
+                    for (int i = 0; i < blocks.size(); i++) {
+                        if (!hasToppled[i]) fallVelocity[i] += (1.35 + 0.05*i);
+                    }
                 }
 
                 else if (!isCollideGround(scene["ground"], scene["logo"])){
@@ -362,7 +384,7 @@ int main(int argc, char* argv[])
             }
             else {
                 std::cout << "Finished video" << '\n';
-                isStart = false;
+                // isStart = false;
             }
         }
     }
@@ -1765,7 +1787,7 @@ void scaleYObject(std::string name,float scale){
 }
 
 
-// PHYSICS //
+// PHYSICS AND ANIMATION //
 
 
 bool isCollideGround(std::vector<ModelTriangle> ground, std::vector<ModelTriangle> object) {
@@ -1808,6 +1830,19 @@ bool isCollideGround(std::vector<ModelTriangle> ground, std::vector<ModelTriangl
     return false;
 }
 
+// returns the block's centroid, projected onto the X-Z plane
+vec3 toppleBlock(std::string name, float yAngle) {
+    // vec3 block_centroid = getObjectCentroid(name);
+    // vec3 rotatePoint = (scene[name][4].vertices[1] + scene[name][4].vertices[2]) * 0.5f;
+    // vec3 block_centroid_y = vec3(block_centroid.x, 0, block_centroid.z);
+    // vec3 rotatePoint_y = vec3(rotatePoint.x, 0, rotatePoint.z);
+    //
+    // rotateAroundAxis(name, vec3(0, -yAngle, 0));
+    // rotateAroundPoint(name, vec3(-fallVelocity, 0, 0), rotatePoint);
+    // rotateAroundPoint(name, vec3(0, yAngle, 0), block_centroid);
+    //
+    // return block_centroid_y;
+}
 
 // EVENT HANDLING //
 

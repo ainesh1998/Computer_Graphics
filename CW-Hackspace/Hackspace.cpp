@@ -168,7 +168,9 @@ int main(int argc, char* argv[])
     std::vector<ModelTriangle> logo_triangles = readOBJ("HackspaceLogo/logo.obj", "HackspaceLogo/materials.mtl", LOGO_SCALE );
     std::vector<ModelTriangle> box_triangles = readOBJ("cornell-box/cornell-box.obj", "cornell-box/cornell-box.mtl", BOX_SCALE );
     std::vector<ModelTriangle> block_triangles = readOBJ("extra-objects/block.obj", "extra-objects/block.mtl", BOX_SCALE );
-    std::vector<ModelTriangle> ground_triangles = readOBJ("extra-objects/ground.obj", "extra-objects/ground.mtl", 0.7);
+    // std::vector<ModelTriangle> ground_triangles = readOBJ("extra-objects/ground.obj", "extra-objects/ground.mtl", 0.7);
+    std::vector<ModelTriangle> ground_triangles= readOBJ("extra-objects/groundT.obj", "extra-objects/groundT.mtl", 0.7);
+
 
 
     // std::vector<ModelTriangle> sphere_triangles = readOBJ("extra-objects/sphere.obj", "extra-objects/sphere.mtl", SPHERE_SCALE);
@@ -205,7 +207,7 @@ int main(int argc, char* argv[])
     // moveObject("logo",vec3(-100,50,-100));
     moveObject("ground",vec3(0,0,-70));
     moveObject("logo",vec3(-100,500,0)); // set logo to world origin
-    moveObject("box",vec3(0,-165,90));
+    moveObject("box",vec3(0,-170,90));
 
     // moveObject("logo",vec3(-50,240,0));
     // rotateObject("logo",vec3(0,90,0));
@@ -393,15 +395,15 @@ int main(int argc, char* argv[])
                     if (currentFrame%2 == 0) {
                         std::vector<Colour> colours = loadColours();
                         std::string filename = "video/image" + std::to_string(currentFrame/2) + ".ppm";
-                        // std::cout << "Creating frame " << std::to_string(currentFrame/2) << '\n';
-                        // writePPM(filename,WIDTH,HEIGHT,colours);
+                        std::cout << "Creating frame " << std::to_string(currentFrame/2) << '\n';
+                        writePPM(filename,WIDTH,HEIGHT,colours);
                     }
                     currentFrame++;
                 }
             }
             else {
                 std::cout << "Finished video" << '\n';
-                // isStart = false;
+                isStart = false;
             }
         }
     }

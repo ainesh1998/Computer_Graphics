@@ -99,8 +99,9 @@ void scaleYObject(std::string name,float scale);
 bool isCollideGround(std::vector<ModelTriangle> o1, std::vector<ModelTriangle> o2);
 
 // clipping
-bool withinFrustum(BoundingBox bbox, float near, float far, int index);
 BoundingBox getBoundingBox(std::vector<ModelTriangle> triangles);
+bool withinFrustum(BoundingBox bbox, float near, float far);
+std::vector<ModelTriangle> fragmentTriangles(std::vector<ModelTriangle> triangles);
 
 // event handling
 void lookAt(glm::vec3 point);
@@ -1676,8 +1677,9 @@ void drawScene(){
     for (it = scene.begin(); it !=scene.end(); ++it){
         BoundingBox bounding_box = getBoundingBox(it->second);
 
-        if (withinFrustum(bounding_box, 100, 1000, -1)) {
-            triangles.insert(triangles.end(),it->second.begin(),it->second.end());
+        if (withinFrustum(bounding_box, 100, 1000)) {
+            std::vector<ModelTriangle> clippedTriangles = fragmentTriangles(it->second);
+            triangles.insert(triangles.end(),clippedTriangles.begin(), clippedTriangles.end());
         }
         else std::cout << it->first << " is out of frame" << '\n';
     }
@@ -1845,25 +1847,6 @@ bool isCollideGround(std::vector<ModelTriangle> ground, std::vector<ModelTriangl
 // CLIPPING //
 
 
-bool pointWithinFrustum(vec3 point, float near, float far, int index) {
-    vec3 wrtCamera = (point - cameraPos) * cameraOrientation;
-    float ratio = FOCALLENGTH/(-wrtCamera.z);
-
-    int x = wrtCamera.x * ratio + WIDTH/2;
-    int y = (-wrtCamera.y) * ratio + HEIGHT/2;
-
-    if (index == 0) std::cout << x << " " << y << " " << -wrtCamera.z << '\n';
-    return inRange(-wrtCamera.z, near, far) && inRange(x, 0, WIDTH-1) && inRange(y, 0, HEIGHT-1);
-}
-
-bool withinFrustum(BoundingBox bbox, float near, float far, int index) {
-    std::vector<vec3> bbox_points = bbox.getPoints();
-    for (int i = 0; i < bbox_points.size(); i++) {
-        if (pointWithinFrustum(bbox_points[i], near, far, index)) return true;
-    }
-    return false;
-}
-
 BoundingBox getBoundingBox(std::vector<ModelTriangle> triangles) {
     vec3 minBBox = vec3(infinity, infinity, infinity);
     vec3 maxBBox = vec3(-infinity, -infinity, -infinity);
@@ -1885,6 +1868,35 @@ BoundingBox getBoundingBox(std::vector<ModelTriangle> triangles) {
     BoundingBox bounding_box = BoundingBox(minBBox, maxBBox.x-minBBox.x, maxBBox.y-minBBox.y, maxBBox.z-minBBox.z);
     return bounding_box;
 }
+
+bool pointWithinFrustum(vec3 point, float near, float far) {
+    vec3 wrtCamera = (point - cameraPos) * cameraOrientation;
+    float ratio = FOCALLENGTH/(-wrtCamera.z);
+
+    int x = wrtCamera.x * ratio + WIDTH/2;
+    int y = (-wrtCamera.y) * ratio + HEIGHT/2;
+
+    return inRange(-wrtCamera.z, near, far) && inRange(x, 0, WIDTH-1) && inRange(y, 0, HEIGHT-1);
+}
+
+bool withinFrustum(BoundingBox bbox, float near, float far) {
+    std::vector<vec3> bbox_points = bbox.getPoints();
+    for (int i = 0; i < bbox_points.size(); i++) {
+        if (pointWithinFrustum(bbox_points[i], near, far)) return true;
+    }
+    return false;
+}
+
+std::vector<ModelTriangle> fragmentTriangles(std::vector<ModelTriangle> triangles) {
+    std::vector<ModelTriangle> clippedTriangles;
+
+    for (int i = 0; i < triangles.size(); i++) {
+        
+    }
+
+    return triangles;
+}
+
 
 // EVENT HANDLING //
 

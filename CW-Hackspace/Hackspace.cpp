@@ -28,6 +28,7 @@ using glm::vec3;
 
 // helper functions
 void print_vec3(vec3 point);
+bool inRange(float x,float min,float max);
 double **malloc2dArray(int dimX, int dimY);
 void order_triangle(CanvasTriangle *triangle);
 void order_triangle(ModelTriangle *triangle);
@@ -49,6 +50,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
 void displayPicture(std::vector<Colour> payload,int width,int height);
 
 // rasteriser
+vec3 perspectiveProjection(vec3 point);
 void drawLine(CanvasPoint start,CanvasPoint end,Colour c);
 void drawLineAntiAlias(CanvasPoint start, CanvasPoint end, Colour c, double** depth_buffer);
 void drawRake(vec3 start,vec3 end,Colour c,double** depth_buffer);
@@ -100,7 +102,9 @@ bool isCollideGround(std::vector<ModelTriangle> o1, std::vector<ModelTriangle> o
 
 // clipping
 BoundingBox getBoundingBox(std::vector<ModelTriangle> triangles);
+bool pointWithinFrustum(vec3 point, float near, float far);
 bool withinFrustum(BoundingBox bbox, float near, float far);
+std::vector<ModelTriangle> removeOutsideTriangles(std::vector<ModelTriangle> triangles);
 std::vector<ModelTriangle> fragmentTriangles(std::vector<ModelTriangle> triangles);
 
 // event handling
@@ -382,6 +386,10 @@ void print_vec3(vec3 point){
      '\n';
 }
 
+bool inRange(float x,float min,float max){
+    return x >= min && x <= max;
+}
+
 std::vector<Colour> loadColours(){
     std::vector<Colour> colours;
     for (size_t y = 0; y < HEIGHT; y++) {
@@ -428,6 +436,19 @@ std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValu
 
 //sort triangle vertices in ascending order accroding to y
 void order_triangle(CanvasTriangle *triangle){
+    if(triangle->vertices[1].y < triangle->vertices[0].y){
+        std::swap(triangle->vertices[0],triangle->vertices[1]);
+    }
+
+    if(triangle->vertices[2].y < triangle->vertices[1].y){
+        std::swap(triangle->vertices[1],triangle->vertices[2]);
+        if(triangle->vertices[1].y < triangle->vertices[0].y){
+            std::swap(triangle->vertices[1],triangle->vertices[0]);
+        }
+    }
+}
+
+void order_triangle(ModelTriangle *triangle){
     if(triangle->vertices[1].y < triangle->vertices[0].y){
         std::swap(triangle->vertices[0],triangle->vertices[1]);
     }
@@ -1081,8 +1102,14 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
     }
 }
 
-bool inRange(float x,float min,float max){
-    return x >= min && x <= max;
+vec3 perspectiveProjection(vec3 point) {
+    vec3 wrtCamera = (point - cameraPos) * cameraOrientation;
+    float ratio = FOCALLENGTH/(-wrtCamera.z);
+
+    int x = wrtCamera.x * ratio + WIDTH/2;
+    int y = (-wrtCamera.y) * ratio + HEIGHT/2;
+
+    return vec3(x, y, -wrtCamera.z);
 }
 
 void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
@@ -1105,40 +1132,33 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
     for (int i = 0; i < (int) modelTriangles.size(); i++) {
         std::vector<CanvasPoint> points;
         for (int j = 0; j < 3; j++) {
-            glm::vec3 wrtCamera = (modelTriangles[i].vertices[j] - cameraPos) * cameraOrientation;
-            float ratio = focalLength/(-wrtCamera.z);
-
-            int x = wrtCamera.x * ratio + WIDTH/2;
-            int y = (-wrtCamera.y) * ratio + HEIGHT/2;
-
-            CanvasPoint point = CanvasPoint(x, y,-wrtCamera.z, modelTriangles[i].texturePoints[j]);
+            vec3 persp = perspectiveProjection(modelTriangles[i].vertices[j]);
+            CanvasPoint point = CanvasPoint(persp.x, persp.y,persp.z, modelTriangles[i].texturePoints[j]);
             points.push_back(point);
         }
 
-        // if(inRange(points[0].depth,100,1000) && inRange(points[1].depth,100,1000) && inRange(points[2].depth,100,1000)){ //near plane clipping
+        if(inRange(points[0].depth,100,1000) && inRange(points[1].depth,100,1000) && inRange(points[2].depth,100,1000)){ //near plane clipping
             CanvasTriangle triangle = CanvasTriangle(points[0], points[1], points[2], modelTriangles[i].colour);
+            triangle.vertices[0].depth = 1/triangle.vertices[0].depth;
+            triangle.vertices[1].depth = 1/triangle.vertices[1].depth;
+            triangle.vertices[2].depth = 1/triangle.vertices[2].depth;
+
             triangle.textureIndex = modelTriangles[i].textureIndex;
-            triangles.push_back(triangle);
-        // }
-    }
 
-    for(int i = 0; i < (int)triangles.size(); i++){
-        for (int j = 0; j < 3; j++) {
-            triangles[i].vertices[j].depth = 1/triangles[i].vertices[j].depth;
-        }
-
-        if (mode == 2) {
-            if (triangles[i].isTexture) {
-                drawTexturedTriangle(triangles[i],depth_buffer);
+            if (mode == 2) {
+                if (triangle.isTexture) {
+                    drawTexturedTriangle(triangle,depth_buffer);
+                }
+                else drawFilledTriangle(triangle,depth_buffer);
             }
-            else drawFilledTriangle(triangles[i],depth_buffer);
-        }
 
-        else if (mode == 1) {
-            triangles[i].colour = Colour(255, 255, 255);
-            drawTriangle(triangles[i], depth_buffer);
+            else if (mode == 1) {
+                triangle.colour = Colour(255, 255, 255);
+                drawTriangle(triangle, depth_buffer);
+            }
         }
     }
+
     free(depth_buffer);
 }
 
@@ -1678,37 +1698,11 @@ void drawScene(){
         BoundingBox bounding_box = getBoundingBox(it->second);
 
         if (withinFrustum(bounding_box, 100, 1000)) {
-            std::vector<ModelTriangle> clippedTriangles = fragmentTriangles(it->second);
-            triangles.insert(triangles.end(),clippedTriangles.begin(), clippedTriangles.end());
+            std::vector<ModelTriangle> insideTriangles = removeOutsideTriangles(it->second);
+            triangles.insert(triangles.end(),insideTriangles.begin(), insideTriangles.end());
         }
         else std::cout << it->first << " is out of frame" << '\n';
     }
-    // for (int i = 0; i < bounding_boxes.size(); i++) {
-    //     if (withinFrustum(bounding_boxes[i], 100, 1000, i)) {
-    //         // add triangles to vector
-    //         if (i == 0) {
-    //             std::cout << "vec3 is: ";
-    //             print_vec3(bounding_boxes[i].startVertex);
-    //         }
-    //
-    //
-    //         for (it = scene.begin(); it !=scene.end(); ++it){
-    //             if (it->second[0].boundingBoxIndex == i) {
-    //                 triangles.insert(triangles.end(),it->second.begin(),it->second.end());
-    //                 break;
-    //             }
-    //         }
-    //     }
-    //     else {
-    //         std::cout << i << '\n';
-    //     }
-    // }
-
-    // std::map<std::string,std::vector<ModelTriangle>>::iterator it;
-    // for (it=scene.begin(); it!=scene.end(); ++it){
-        //append triangle list
-        // triangles.insert(triangles.end(),it->second.begin(),it->second.end());
-    // }
 
     if(mode==3){
         time_t tic;
@@ -1870,13 +1864,10 @@ BoundingBox getBoundingBox(std::vector<ModelTriangle> triangles) {
 }
 
 bool pointWithinFrustum(vec3 point, float near, float far) {
-    vec3 wrtCamera = (point - cameraPos) * cameraOrientation;
-    float ratio = FOCALLENGTH/(-wrtCamera.z);
+    vec3 persp = perspectiveProjection(point);
 
-    int x = wrtCamera.x * ratio + WIDTH/2;
-    int y = (-wrtCamera.y) * ratio + HEIGHT/2;
-
-    return inRange(-wrtCamera.z, near, far) && inRange(x, 0, WIDTH-1) && inRange(y, 0, HEIGHT-1);
+    // return inRange(-wrtCamera.z, near, far) && inRange(x, 0, WIDTH-1) && inRange(y, 0, HEIGHT-1);
+    return inRange(persp.x, 0, WIDTH-1) && inRange(persp.y, 0, HEIGHT-1);
 }
 
 bool withinFrustum(BoundingBox bbox, float near, float far) {
@@ -1887,11 +1878,54 @@ bool withinFrustum(BoundingBox bbox, float near, float far) {
     return false;
 }
 
+std::vector<ModelTriangle> removeOutsideTriangles(std::vector<ModelTriangle> triangles) {
+    std::vector<ModelTriangle> final_triangles;
+
+    for (int i = 0; i < triangles.size(); i++) {
+        ModelTriangle orderY = triangles[i];
+        order_triangle(&orderY);
+        vec3 v0 = perspectiveProjection(orderY.vertices[2]);
+        vec3 v1 = perspectiveProjection(orderY.vertices[1]);
+        vec3 v2 = perspectiveProjection(orderY.vertices[0]);
+
+        if (!((v0.y < 0 && v1.y < 0 && v2.y < 0) || (v0.y >= HEIGHT && v1.y >= HEIGHT && v2.y >= HEIGHT) ||
+             (v0.x < 0 && v1.x < 0 && v2.x < 0) || (v0.x >= WIDTH && v1.x >= WIDTH && v2.x >= WIDTH))) {
+             final_triangles.push_back(triangles[i]);
+        }
+    }
+    return final_triangles;
+}
+
 std::vector<ModelTriangle> fragmentTriangles(std::vector<ModelTriangle> triangles) {
     std::vector<ModelTriangle> clippedTriangles;
 
     for (int i = 0; i < triangles.size(); i++) {
-        
+        ModelTriangle orderY = triangles[i];
+        order_triangle(&orderY);
+        int pointInsideCount = 0;
+        // vec3 v0 = triangles[i].vertices[0];
+        // vec3 v1 = triangles[i].vertices[1];
+        // vec3 v2 = triangles[i].vertices[2];
+
+        for (int j = 0; j < 3; j++) {
+            if (perspectiveProjection(triangles[i].vertices[j]).y >= 0) pointInsideCount++;
+        }
+
+        if (pointInsideCount == 3) clippedTriangles.push_back(triangles[i]);
+        else if (pointInsideCount == 2) {
+            vec3 v0 = perspectiveProjection(orderY.vertices[2]);
+            vec3 v1 = perspectiveProjection(orderY.vertices[1]);
+            vec3 v2 = perspectiveProjection(orderY.vertices[0]);
+
+            int intersection_x1 = v0.x + (-v0.y)*(v1.x-v0.x)/(v1.y-v0.y);
+            int intersection_x2 = v0.x + (-v0.y)*(v2.x-v0.x)/(v2.y-v0.y);
+
+            // std::cout << intersection_x1 << " " << intersection_x2 << '\n';
+
+            ModelTriangle t1 = orderY;
+            // t1.vertices[2] = vec3()
+
+        }
     }
 
     return triangles;

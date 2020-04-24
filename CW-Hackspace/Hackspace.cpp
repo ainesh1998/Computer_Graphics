@@ -1929,19 +1929,32 @@ std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle) {
         int intersection_x2 = v0.x + (50-v0.y)*(v2.x-v0.x)/(v2.y-v0.y);
         double intersection_z2 = v0.depth + (50-v0.y)*(v2.depth-v0.depth)/(v2.y-v0.y);
 
-        // std::cout << intersection_z1 << " " << intersection_z2 << '\n';
-
         CanvasTriangle t1 = orderY;
         t1.vertices[0].x = intersection_x2; t1.vertices[0].y = 50; t1.vertices[0].depth = intersection_z2;
         CanvasTriangle t2 = orderY;
-        t1.vertices[0].x = intersection_x1; t1.vertices[0].y = 50; t1.vertices[0].depth = intersection_z1;
-        t1.vertices[2].x = intersection_x2; t1.vertices[2].y = 50; t1.vertices[2].depth = intersection_z2;
+        t2.vertices[0].x = intersection_x1; t2.vertices[0].y = 50; t2.vertices[0].depth = intersection_z1;
+        t2.vertices[2].x = intersection_x2; t2.vertices[2].y = 50; t2.vertices[2].depth = intersection_z2;
 
         return {t1, t2};
     }
-    // else if (pointInsideCount == 0) std::cout << "yabadabadoo" << '\n';
+    else if (pointInsideCount == 1) {
+        CanvasPoint v0 = orderY.vertices[2];
+        CanvasPoint v1 = orderY.vertices[1];
+        CanvasPoint v2 = orderY.vertices[0];
 
-    return {triangle};
+        int intersection_x1 = v0.x + (50-v0.y)*(v1.x-v0.x)/(v1.y-v0.y);
+        double intersection_z1 = v0.depth + (50-v0.y)*(v1.depth-v0.depth)/(v1.y-v0.y);
+        int intersection_x2 = v0.x + (50-v0.y)*(v2.x-v0.x)/(v2.y-v0.y);
+        double intersection_z2 = v0.depth + (50-v0.y)*(v2.depth-v0.depth)/(v2.y-v0.y);
+
+        CanvasTriangle t1 = orderY;
+        t1.vertices[0].x = intersection_x1; t1.vertices[0].y = 50; t1.vertices[0].depth = intersection_z1;
+        t1.vertices[1].x = intersection_x2; t1.vertices[1].y = 50; t1.vertices[1].depth = intersection_z2;
+
+        return {t1};
+    }
+
+    return {};
 }
 
 

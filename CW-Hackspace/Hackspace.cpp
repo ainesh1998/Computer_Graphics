@@ -105,7 +105,7 @@ BoundingBox getBoundingBox(std::vector<ModelTriangle> triangles);
 bool pointWithinFrustum(vec3 point, float near, float far);
 bool withinFrustum(BoundingBox bbox, float near, float far);
 std::vector<ModelTriangle> removeOutsideTriangles(std::vector<ModelTriangle> triangles);
-std::vector<ModelTriangle> fragmentTriangles(std::vector<ModelTriangle> triangles);
+std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle);
 
 // event handling
 void lookAt(glm::vec3 point);
@@ -917,6 +917,9 @@ void drawRake(vec3 start, vec3 end, Colour c, double** depth_buffer){
                 window.setPixelColour(x, y, c.packed_colour());
             }
         }
+        else {
+            // std::cout << "pixel outside frame" << '\n';
+        }
     }
 }
 
@@ -1139,22 +1142,32 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
 
         if(inRange(points[0].depth,100,1000) && inRange(points[1].depth,100,1000) && inRange(points[2].depth,100,1000)){ //near plane clipping
             CanvasTriangle triangle = CanvasTriangle(points[0], points[1], points[2], modelTriangles[i].colour);
+            triangle.textureIndex = modelTriangles[i].textureIndex;
+
             triangle.vertices[0].depth = 1/triangle.vertices[0].depth;
             triangle.vertices[1].depth = 1/triangle.vertices[1].depth;
             triangle.vertices[2].depth = 1/triangle.vertices[2].depth;
 
-            triangle.textureIndex = modelTriangles[i].textureIndex;
+            std::vector<CanvasTriangle> clippedTriangles = fragmentTriangle(triangle);
 
-            if (mode == 2) {
-                if (triangle.isTexture) {
-                    drawTexturedTriangle(triangle,depth_buffer);
+
+            // clippedTriangle.vertices[0].depth = 1/clippedTriangle.vertices[0].depth;
+            // clippedTriangle.vertices[1].depth = 1/clippedTriangle.vertices[1].depth;
+            // clippedTriangle.vertices[2].depth = 1/clippedTriangle.vertices[2].depth;
+
+
+            for (int j = 0; j < clippedTriangles.size(); j++) {
+                if (mode == 2) {
+                    if (clippedTriangles[j].isTexture) {
+                        drawTexturedTriangle(clippedTriangles[j],depth_buffer);
+                    }
+                    else drawFilledTriangle(clippedTriangles[j],depth_buffer);
                 }
-                else drawFilledTriangle(triangle,depth_buffer);
-            }
 
-            else if (mode == 1) {
-                triangle.colour = Colour(255, 255, 255);
-                drawTriangle(triangle, depth_buffer);
+                else if (mode == 1) {
+                    clippedTriangles[j].colour = Colour(255, 255, 255);
+                    drawTriangle(clippedTriangles[j], depth_buffer);
+                }
             }
         }
     }
@@ -1888,7 +1901,7 @@ std::vector<ModelTriangle> removeOutsideTriangles(std::vector<ModelTriangle> tri
         vec3 v1 = perspectiveProjection(orderY.vertices[1]);
         vec3 v2 = perspectiveProjection(orderY.vertices[0]);
 
-        if (!((v0.y < 0 && v1.y < 0 && v2.y < 0) || (v0.y >= HEIGHT && v1.y >= HEIGHT && v2.y >= HEIGHT) ||
+        if (!((v0.y < 50 && v1.y < 50 && v2.y < 50) || (v0.y >= HEIGHT && v1.y >= HEIGHT && v2.y >= HEIGHT) ||
              (v0.x < 0 && v1.x < 0 && v2.x < 0) || (v0.x >= WIDTH && v1.x >= WIDTH && v2.x >= WIDTH))) {
              final_triangles.push_back(triangles[i]);
         }
@@ -1896,39 +1909,39 @@ std::vector<ModelTriangle> removeOutsideTriangles(std::vector<ModelTriangle> tri
     return final_triangles;
 }
 
-std::vector<ModelTriangle> fragmentTriangles(std::vector<ModelTriangle> triangles) {
-    std::vector<ModelTriangle> clippedTriangles;
+std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle) {
+    CanvasTriangle orderY = triangle;
+    order_triangle(&orderY);
+    int pointInsideCount = 0;
 
-    for (int i = 0; i < triangles.size(); i++) {
-        ModelTriangle orderY = triangles[i];
-        order_triangle(&orderY);
-        int pointInsideCount = 0;
-        // vec3 v0 = triangles[i].vertices[0];
-        // vec3 v1 = triangles[i].vertices[1];
-        // vec3 v2 = triangles[i].vertices[2];
-
-        for (int j = 0; j < 3; j++) {
-            if (perspectiveProjection(triangles[i].vertices[j]).y >= 0) pointInsideCount++;
-        }
-
-        if (pointInsideCount == 3) clippedTriangles.push_back(triangles[i]);
-        else if (pointInsideCount == 2) {
-            vec3 v0 = perspectiveProjection(orderY.vertices[2]);
-            vec3 v1 = perspectiveProjection(orderY.vertices[1]);
-            vec3 v2 = perspectiveProjection(orderY.vertices[0]);
-
-            int intersection_x1 = v0.x + (-v0.y)*(v1.x-v0.x)/(v1.y-v0.y);
-            int intersection_x2 = v0.x + (-v0.y)*(v2.x-v0.x)/(v2.y-v0.y);
-
-            // std::cout << intersection_x1 << " " << intersection_x2 << '\n';
-
-            ModelTriangle t1 = orderY;
-            // t1.vertices[2] = vec3()
-
-        }
+    for (int j = 0; j < 3; j++) {
+        if (triangle.vertices[j].y >= 50) pointInsideCount++;
     }
 
-    return triangles;
+    if (pointInsideCount == 3) return {triangle};
+    else if (pointInsideCount == 2) {
+        CanvasPoint v0 = orderY.vertices[0];
+        CanvasPoint v1 = orderY.vertices[1];
+        CanvasPoint v2 = orderY.vertices[2];
+
+        int intersection_x1 = v0.x + (50-v0.y)*(v1.x-v0.x)/(v1.y-v0.y);
+        double intersection_z1 = v0.depth + (50-v0.y)*(v1.depth-v0.depth)/(v1.y-v0.y);
+        int intersection_x2 = v0.x + (50-v0.y)*(v2.x-v0.x)/(v2.y-v0.y);
+        double intersection_z2 = v0.depth + (50-v0.y)*(v2.depth-v0.depth)/(v2.y-v0.y);
+
+        // std::cout << intersection_z1 << " " << intersection_z2 << '\n';
+
+        CanvasTriangle t1 = orderY;
+        t1.vertices[0].x = intersection_x2; t1.vertices[0].y = 50; t1.vertices[0].depth = intersection_z2;
+        CanvasTriangle t2 = orderY;
+        t1.vertices[0].x = intersection_x1; t1.vertices[0].y = 50; t1.vertices[0].depth = intersection_z1;
+        t1.vertices[2].x = intersection_x2; t1.vertices[2].y = 50; t1.vertices[2].depth = intersection_z2;
+
+        return {t1, t2};
+    }
+    // else if (pointInsideCount == 0) std::cout << "yabadabadoo" << '\n';
+
+    return {triangle};
 }
 
 

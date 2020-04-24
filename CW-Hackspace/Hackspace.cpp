@@ -693,6 +693,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
     bool isTextured = false;
     bool isBumped = false;
     bool isGlass = false;
+    bool isSpecular = false;
     int textureIndex = textures.size();
     int bumpIndex = bump_maps.size();
     BoundingBox bounding_box = BoundingBox(vec3(0,0,0),0,0,0);
@@ -702,6 +703,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
         if(contents[0].compare("o") == 0){
             mirrored = contents[1].compare("mirror") == 0;
             isGlass = contents[1].compare("short_box") == 0;
+            // isSpecular = contents[1].compare("mirror") == 0;
         }
 
         if(contents[0].compare("vt")== 0){
@@ -807,6 +809,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
                 m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1], colour, newTriangleID);
                 m.isMirror = mirrored;
                 m.isGlass = isGlass;
+                m.isSpecular = isSpecular;
             }
 
             m.boundingBoxIndex = bounding_boxes.size();
@@ -1385,17 +1388,30 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
 
             }
             // mirror
-            else if (final_intersection.intersectedTriangle.isMirror) {
+            else if (t.isMirror) {
                 //calculate mirror vector
                 vec3 mirrorRay = calcReflectedRay(ray,t);
                 // original_intersection is used to ensure mirror doesn't reflect itself
                 RayTriangleIntersection final_mirror_intersection = getFinalIntersection(triangles,mirrorRay,point,&final_intersection,depth+1);
                 Colour c = final_mirror_intersection.intersectedTriangle.colour;
-                float specular = calcSpecular(ray,point,t);
-                newColour = specular* vec3(255,255,255) + (1-specular) *  vec3(c.red,c.green,c.blue); // 0.8 is to make mirror slightly darker than the real object
+                // float specular = calcSpecular(ray,point,t);
+                // newColour = specular* vec3(255,255,255) + (1-specular) *  vec3(c.red,c.green,c.blue);
+                newColour = 0.8f *  vec3(c.red,c.green,c.blue); // 0.8 is to make mirror slightly darker than the real object
                 final_mirror_intersection.intersectedTriangle.colour = Colour(newColour.x,newColour.y,newColour.z);
                 final_intersection = final_mirror_intersection;
-            }else{
+            }else if (t.isSpecular){
+                vec3 oldColour = vec3(t.colour.red, t.colour.green, t.colour.blue);
+                float specular = calcSpecular(ray,point,t);
+                float diffuse = calcBrightness(point,t,triangles,light_positions,final_intersection.solution);
+                //s and d to determine proportions of diffuse and specular lighting (not sure if correct)
+                // float s = specular/(specular+diffuse);
+                // float d = diffuse/(specular+diffuse);
+                //not sure how you blend the 2 components together
+                newColour = specular * vec3(255,255,255) +  (1-specular) * diffuse *  oldColour;
+                Colour c = Colour(newColour.x, newColour.y, newColour.z);
+                final_intersection.intersectedTriangle.colour = c;
+            }
+            else{
                 //diffuse object shade as normal
                 vec3 oldColour = vec3(t.colour.red, t.colour.green, t.colour.blue);
 

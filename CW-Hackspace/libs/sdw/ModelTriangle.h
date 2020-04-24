@@ -17,6 +17,7 @@ class ModelTriangle
     bool isTexture = false;
     bool isBump = false;
     bool isGlass = false;
+    bool isSpecular = false;
     float velocity = 0;
 
     //Texture data

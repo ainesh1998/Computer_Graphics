@@ -894,26 +894,31 @@ void drawLineAntiAlias(CanvasPoint start, CanvasPoint end, Colour c, double** de
 
         if (isSteep) {
             // swap the coordinates back
-            if (x >= 0 && x < HEIGHT && y1 >= 0 && y1 < WIDTH){
-                if (depth_buffer[y1][x] <= line[i].z) {
+            if (depth_buffer[y1][x] <= line[i].z) {
+                // if (x >= 0 && x < HEIGHT && y1 >= 0 && y1 < WIDTH){
+                if (y1 < WIDTH) {
                     Colour newColour1 = Colour(c.toVec3() * dist1 + Colour(window.getPixelColour(y1,x)).toVec3() * dist2);
-                    Colour newColour2 = Colour(c.toVec3() * dist2 + Colour(window.getPixelColour(y2,x)).toVec3() * dist1);
                     window.setPixelColour(y1, x, newColour1.packed_colour());
-                    window.setPixelColour(y2, x, newColour2.packed_colour());
-                    depth_buffer[y1][x] = line[i].z;
                 }
+                if (y2 >= 0) {
+                    Colour newColour2 = Colour(c.toVec3() * dist2 + Colour(window.getPixelColour(y2,x)).toVec3() * dist1);
+                    window.setPixelColour(y2, x, newColour2.packed_colour());
+                }
+                depth_buffer[y1][x] = line[i].z;
             }
 
         }
         else {
-            if (x >= 0 && x < WIDTH && y1 >= 0 && y1 < HEIGHT){
-                if (line[i].z > depth_buffer[x][y1] ) {
+            if (line[i].z > depth_buffer[x][y1] ) {
+                if (y1 < HEIGHT) {
                     Colour newColour1 = Colour(c.toVec3() * dist1 + Colour(window.getPixelColour(x,y1)).toVec3() * dist2);
-                    Colour newColour2 = Colour(c.toVec3() * dist2 + Colour(window.getPixelColour(x,y2)).toVec3() * dist1);
                     window.setPixelColour(x, y1, newColour1.packed_colour());
-                    window.setPixelColour(x, y2, newColour2.packed_colour());
-                    depth_buffer[x][y1] = line[i].z;
                 }
+                if (y2 >= 0) {
+                    Colour newColour2 = Colour(c.toVec3() * dist2 + Colour(window.getPixelColour(x,y2)).toVec3() * dist1);
+                    window.setPixelColour(x, y2, newColour2.packed_colour());
+                }
+                depth_buffer[x][y1] = line[i].z;
             }
         }
     }

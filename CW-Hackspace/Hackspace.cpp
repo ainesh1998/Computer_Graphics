@@ -31,7 +31,7 @@ void print_vec3(vec3 point);
 bool inRange(float x,float min,float max);
 double **malloc2dArray(int dimX, int dimY);
 void swapTriangleXY(CanvasTriangle* triangle);
-void mirrorTriangleX(CanvasTriangle* triangle, int size);
+void mirrorTriangle(CanvasTriangle* triangle, int size);
 void order_triangle(CanvasTriangle *triangle);
 void order_triangle(ModelTriangle *triangle);
 void order_textured_triangle(CanvasTriangle *triangle, CanvasTriangle *texture);
@@ -444,7 +444,7 @@ void swapTriangleXY(CanvasTriangle* triangle) {
     }
 }
 
-void mirrorTriangleX(CanvasTriangle* triangle, int size) {
+void mirrorTriangle(CanvasTriangle* triangle, int size) {
     for (int i = 0; i < 3; i++) {
         triangle->vertices[i].y = (size-1) - triangle->vertices[i].y;
     }
@@ -987,8 +987,8 @@ float compute_texture_row(float z_far,float z_near,float c_far,float c_near,floa
 }
 
 void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
+    order_triangle(&triangle);
     CanvasTriangle texturedTriangle = triangle.getTextureTriangle();
-    order_textured_triangle(&triangle, &texturedTriangle);
 
     CanvasPoint v1 = triangle.vertices[0];
     CanvasPoint v2 = triangle.vertices[1];
@@ -1032,7 +1032,7 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
         vec3 endTriangle = vec3((int) triangleRight[i].x, triangleRight[i].y, triangleRight[i].z);
         std::vector<vec3> rakeTriangle = interpolate3(startTriangle, endTriangle, std::abs(endTriangle.x-startTriangle.x)+1);
 
-        vec3 startTexture = vec3( textureLeft[i].x, textureLeft[i].y, textureLeft[i].z);
+        vec3 startTexture = vec3(textureLeft[i].x, textureLeft[i].y, textureLeft[i].z);
 
         vec3 endTexture = vec3(textureRight[i].x, textureRight[i].y, textureRight[i].z);
 
@@ -1088,21 +1088,14 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
             int ui = u/depth;
             int vi = v/depth;
 
-            if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
-                if (depth >= depth_buffer[x][y]) {
-                    depth_buffer[x][y] = depth;
+            if (depth >= depth_buffer[x][y]) {
+                depth_buffer[x][y] = depth;
 
-                    int textureWidth = textureDimensions[triangle.textureIndex].x;
-                    // int textureHeight = textureDimensions[triangle.textureIndex].y;
-                    int texturePoint = ui + (vi*textureWidth);
+                int textureWidth = textureDimensions[triangle.textureIndex].x;
+                int texturePoint = ui + (vi*textureWidth);
 
-                    //Added if guard as there were cases when texturePoint was out of bounds
-                    // if(texturePoint < textureWidth*textureHeight){
-                        Colour c = textures[triangle.textureIndex][texturePoint];
-                        window.setPixelColour(x, y, c.packed_colour());
-                    // }
-
-                }
+                Colour c = textures[triangle.textureIndex][texturePoint];
+                window.setPixelColour(x, y, c.packed_colour());
             }
         }
     }
@@ -1143,7 +1136,8 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
             points.push_back(point);
         }
 
-        if(inRange(points[0].depth,100,1000) && inRange(points[1].depth,100,1000) && inRange(points[2].depth,100,1000)){ //near plane clipping
+        // near and far plane clipping
+        if(inRange(points[0].depth,100,1000) && inRange(points[1].depth,100,1000) && inRange(points[2].depth,100,1000)){
             CanvasTriangle triangle = CanvasTriangle(points[0], points[1], points[2], modelTriangles[i].colour);
             triangle.textureIndex = modelTriangles[i].textureIndex;
             triangle.vertices[0].depth = 1/triangle.vertices[0].depth;
@@ -1153,12 +1147,6 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
             std::vector<CanvasTriangle> clippedTriangles = fragmentTriangle(triangle);
 
             for (int j = 0; j < clippedTriangles.size(); j++) {
-                for (int k = 0; k < 3; k++) {
-                    clippedTriangles[j].vertices[k].x = (int) clippedTriangles[j].vertices[k].x;
-                    clippedTriangles[j].vertices[k].y = (int) clippedTriangles[j].vertices[k].y;
-                    // clippedTriangles[j].vertices[k].depth = 1/clippedTriangles[j].vertices[k].depth;
-                }
-
                 if (mode == 2) {
                     if (clippedTriangles[j].isTexture) {
                         drawTexturedTriangle(clippedTriangles[j],depth_buffer);
@@ -1923,7 +1911,7 @@ std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle) {
             if (i%2 == 0) swapTriangleXY(&orderY);
             // mirror triangle along x axis - y = (HEIGHT-1)-y
             int mirrorSize = i == 2 ? WIDTH : HEIGHT;
-            if (i >= 2) mirrorTriangleX(&orderY, mirrorSize);
+            if (i >= 2) mirrorTriangle(&orderY, mirrorSize);
 
             order_triangle(&orderY);
             int pointInsideCount = 0;
@@ -1938,21 +1926,41 @@ std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle) {
                 CanvasPoint v0 = orderY.vertices[0];
                 CanvasPoint v1 = orderY.vertices[1];
                 CanvasPoint v2 = orderY.vertices[2];
+                // 
+                // v0.texturePoint.x *= v0.depth;
+                // v1.texturePoint.x *= v1.depth;
+                // v2.texturePoint.x *= v2.depth;
+                // v0.texturePoint.y *= v0.depth;
+                // v1.texturePoint.y *= v1.depth;
+                // v2.texturePoint.y *= v2.depth;
+
 
                 int intersection_x1 = v0.x + (-v0.y)*(v1.x-v0.x)/(v1.y-v0.y);
                 double intersection_z1 = v0.depth + (-v0.y)*(v1.depth-v0.depth)/(v1.y-v0.y);
+                // float k_x = (v1.x == v0.x) ? 0 : (v1.texturePoint.x-v0.texturePoint.x)/(v1.x-v0.x);
+                // float k_y = (v1.y == v0.y) ? 0 : (v1.texturePoint.y-v0.texturePoint.y)/(v1.y-v0.y);
+                // int texture_x1 = (v0.texturePoint.x + (intersection_x1-v0.x) * k_x)/intersection_z1;
+                // int texture_y1 = (v0.texturePoint.y + (-v0.y) * k_y)/intersection_z1;
+
                 int intersection_x2 = v0.x + (-v0.y)*(v2.x-v0.x)/(v2.y-v0.y);
                 double intersection_z2 = v0.depth + (-v0.y)*(v2.depth-v0.depth)/(v2.y-v0.y);
+                // k_x = (v2.x == v0.x) ? 0 : (v2.texturePoint.x-v0.texturePoint.x)/(v2.x-v0.x);
+                // k_y = (v2.y == v0.y) ? 0 : (v2.texturePoint.y-v0.texturePoint.y)/(v2.y-v0.y);
+                // int texture_x2 = (v0.texturePoint.x + (intersection_x2-v0.x) * k_x)/intersection_z2;
+                // int texture_y2 = (v0.texturePoint.y + (-v0.y) * k_y)/intersection_z2;
 
                 CanvasTriangle t1 = orderY;
                 t1.vertices[0].x = intersection_x2; t1.vertices[0].y = 0; t1.vertices[0].depth = intersection_z2;
+                // t1.vertices[0].texturePoint = TexturePoint(texture_x2, texture_y2);
                 CanvasTriangle t2 = orderY;
                 t2.vertices[0].x = intersection_x1; t2.vertices[0].y = 0; t2.vertices[0].depth = intersection_z1;
+                // t2.vertices[0].texturePoint = TexturePoint(texture_x1, texture_y1);
                 t2.vertices[2].x = intersection_x2; t2.vertices[2].y = 0; t2.vertices[2].depth = intersection_z2;
+                // t2.vertices[2].texturePoint = TexturePoint(texture_x2, texture_y2);
 
                 if (i >= 2) {
-                    mirrorTriangleX(&t1, mirrorSize);
-                    mirrorTriangleX(&t2, mirrorSize);
+                    mirrorTriangle(&t1, mirrorSize);
+                    mirrorTriangle(&t2, mirrorSize);
                 }
 
                 if (i%2 == 0) {
@@ -1962,10 +1970,6 @@ std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle) {
 
                 newClippedTriangles.push_back(t1);
                 newClippedTriangles.push_back(t2);
-
-                // std::cout << "actual triangle" << triangle << '\n';
-                // std::cout << t1 << '\n';
-                // std::cout << t2 << '\n';
             }
 
             else if (pointInsideCount == 1) {
@@ -1975,14 +1979,25 @@ std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle) {
 
                 int intersection_x1 = v0.x + (-v0.y)*(v1.x-v0.x)/(v1.y-v0.y);
                 double intersection_z1 = v0.depth + (-v0.y)*(v1.depth-v0.depth)/(v1.y-v0.y);
+                // float k_x = (v1.x == v0.x) ? 0 : (v1.texturePoint.x-v0.texturePoint.x)/(v1.x-v0.x);
+                // float k_y = (v1.y == v0.y) ? 0 : (v1.texturePoint.y-v0.texturePoint.y)/(v1.y-v0.y);
+                // int texture_x1 = (v0.texturePoint.x + (intersection_x1-v0.x) * k_x)/intersection_z1;
+                // int texture_y1 = (v0.texturePoint.y + (-v0.y) * k_y)/intersection_z1;
+
                 int intersection_x2 = v0.x + (-v0.y)*(v2.x-v0.x)/(v2.y-v0.y);
                 double intersection_z2 = v0.depth + (-v0.y)*(v2.depth-v0.depth)/(v2.y-v0.y);
+                // k_x = (v2.x == v0.x) ? 0 : (v2.texturePoint.x-v0.texturePoint.x)/(v2.x-v0.x);
+                // k_y = (v2.y == v0.y) ? 0 : (v2.texturePoint.y-v0.texturePoint.y)/(v2.y-v0.y);
+                // int texture_x2 = (v0.texturePoint.x + (intersection_x2-v0.x) * k_x)/intersection_z2;
+                // int texture_y2 = (v0.texturePoint.y + (-v0.y) * k_y)/intersection_z2;
 
                 CanvasTriangle t1 = orderY;
                 t1.vertices[0].x = intersection_x1; t1.vertices[0].y = 0; t1.vertices[0].depth = intersection_z1;
+                // t1.vertices[0].texturePoint = TexturePoint(texture_x1, texture_y1);
                 t1.vertices[1].x = intersection_x2; t1.vertices[1].y = 0; t1.vertices[1].depth = intersection_z2;
+                // t1.vertices[0].texturePoint = TexturePoint(texture_x2, texture_y2);
 
-                if (i >= 2) mirrorTriangleX(&t1, mirrorSize);
+                if (i >= 2) mirrorTriangle(&t1, mirrorSize);
                 if (i%2 == 0) swapTriangleXY(&t1);
                 newClippedTriangles.push_back(t1);
             }

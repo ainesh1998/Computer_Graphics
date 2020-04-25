@@ -921,20 +921,15 @@ void drawLineAntiAlias(CanvasPoint start, CanvasPoint end, Colour c, double** de
 
 // draws HORIZONTAL lines only
 void drawRake(vec3 start, vec3 end, Colour c, double** depth_buffer){
-    float numberOfSteps = std::abs(end.x - start.x);
+    int numberOfSteps = std::abs(end.x - start.x);
     int y = start.y;
     std::vector<vec3> rake = interpolate3(start, end, numberOfSteps+1);
 
     for (uint32_t i = 0; i < rake.size(); i++) {
-        int x = rake[i].x; double depth = rake[i].z;
-        if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
-            if (depth > depth_buffer[x][y]) {
-                depth_buffer[x][y] = depth;
-                window.setPixelColour(x, y, c.packed_colour());
-            }
-        }
-        else {
-            // std::cout << "pixel outside frame" << '\n';
+        int x = std::round(rake[i].x); double depth = rake[i].z;
+        if (depth > depth_buffer[x][y]) {
+            depth_buffer[x][y] = depth;
+            window.setPixelColour(x, y, c.packed_colour());
         }
     }
 }
@@ -961,7 +956,7 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer){
 
     //fill top triangle
     std::vector<vec3> leftSide = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v2.x,v2.y,v2.depth), v2.y-v1.y+1);
-    std::vector<vec3> rightSide = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v4.x,v4.y,v4.depth), v2.y-v1.y+1);
+    std::vector<vec3> rightSide = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v4.x,v4.y,v4.depth), v4.y-v1.y+1);
 
     for (uint32_t i = 0; i < leftSide.size(); i++) {
         vec3 start = vec3((int) leftSide[i].x, leftSide[i].y, leftSide[i].z);
@@ -970,17 +965,14 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer){
     }
 
    //fill bottom triangle
-   leftSide = interpolate3(vec3(v3.x,v3.y,v3.depth), vec3(v2.x,v2.y,v2.depth), std::abs(v2.y-v3.y)+1);
-   rightSide = interpolate3(vec3(v3.x,v3.y,v3.depth), vec3(v4.x,v4.y,v4.depth), std::abs(v4.y-v3.y)+1);
+   leftSide = interpolate3(vec3(v3.x,v3.y,v3.depth), vec3(v2.x,v2.y,v2.depth), v3.y-v2.y+1);
+   rightSide = interpolate3(vec3(v3.x,v3.y,v3.depth), vec3(v4.x,v4.y,v4.depth), v3.y-v4.y+1);
 
     for (uint32_t i = 0; i < leftSide.size(); i++) {
         vec3 start = vec3((int) leftSide[i].x, leftSide[i].y, leftSide[i].z);
         vec3 end = vec3((int) rightSide[i].x, rightSide[i].y, rightSide[i].z);
         drawRake(start, end, c, depth_buffer);
    }
-
-   // drawTriangle(triangle, depth_buffer);
-
 }
 
 float compute_texture_row(float z_far,float z_near,float c_far,float c_near,float v,float textureHeight){
@@ -1023,7 +1015,6 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
     CanvasPoint u4 = CanvasPoint(u4_x,u4_y);
 
 
-
     //fill top triangle
     std::vector<vec3> triangleLeft = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v2.x,v2.y,v2.depth), (v2.y-v1.y)+1);
     std::vector<vec3> textureLeft = interpolate3(vec3(u1.x,u1.y,u1.depth), vec3(u2.x,u2.y,u2.depth), (v2.y-v1.y)+1);
@@ -1053,24 +1044,15 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
             int ui = u/depth;
             int vi = v/depth;
 
+            if (depth >= depth_buffer[x][y]) {
+                depth_buffer[x][y] = depth;
+                int textureWidth = textureDimensions[triangle.textureIndex].x;
+                int texturePoint = ui + (vi*textureWidth);
 
-            if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
-                if (depth >= depth_buffer[x][y]) {
-                    depth_buffer[x][y] = depth;
-                    int textureWidth = textureDimensions[triangle.textureIndex].x;
-                    // int textureHeight = textureDimensions[triangle.textureIndex].y;
-                    int texturePoint = ui + (vi*textureWidth);
-
-                    //Added if guard as there were cases when texturePoint was out of bounds
-                    // if(texturePoint < textureWidth*textureHeight){
-                        Colour c = textures[triangle.textureIndex][texturePoint];
-                        window.setPixelColour(x, y, c.packed_colour());
-                    // }
-
-                }
+                Colour c = textures[triangle.textureIndex][texturePoint];
+                window.setPixelColour(x, y, c.packed_colour());
             }
         }
-
     }
 
     // fill bottom triangle
@@ -1159,13 +1141,18 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
         if(inRange(points[0].depth,100,1000) && inRange(points[1].depth,100,1000) && inRange(points[2].depth,100,1000)){ //near plane clipping
             CanvasTriangle triangle = CanvasTriangle(points[0], points[1], points[2], modelTriangles[i].colour);
             triangle.textureIndex = modelTriangles[i].textureIndex;
+            triangle.vertices[0].depth = 1/triangle.vertices[0].depth;
+            triangle.vertices[1].depth = 1/triangle.vertices[1].depth;
+            triangle.vertices[2].depth = 1/triangle.vertices[2].depth;
 
             std::vector<CanvasTriangle> clippedTriangles = fragmentTriangle(triangle);
 
             for (int j = 0; j < clippedTriangles.size(); j++) {
-                clippedTriangles[j].vertices[0].depth = 1/clippedTriangles[j].vertices[0].depth;
-                clippedTriangles[j].vertices[1].depth = 1/clippedTriangles[j].vertices[1].depth;
-                clippedTriangles[j].vertices[2].depth = 1/clippedTriangles[j].vertices[2].depth;
+                for (int k = 0; k < 3; k++) {
+                    clippedTriangles[j].vertices[k].x = (int) clippedTriangles[j].vertices[k].x;
+                    clippedTriangles[j].vertices[k].y = (int) clippedTriangles[j].vertices[k].y;
+                    // clippedTriangles[j].vertices[k].depth = 1/clippedTriangles[j].vertices[k].depth;
+                }
 
                 if (mode == 2) {
                     if (clippedTriangles[j].isTexture) {
@@ -1971,8 +1958,9 @@ std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle) {
                 newClippedTriangles.push_back(t1);
                 newClippedTriangles.push_back(t2);
 
-                std::cout << t1 << '\n';
-                std::cout << t2 << '\n';
+                // std::cout << "actual triangle" << triangle << '\n';
+                // std::cout << t1 << '\n';
+                // std::cout << t2 << '\n';
             }
 
             else if (pointInsideCount == 1) {

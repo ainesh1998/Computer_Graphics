@@ -1160,19 +1160,13 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
             CanvasTriangle triangle = CanvasTriangle(points[0], points[1], points[2], modelTriangles[i].colour);
             triangle.textureIndex = modelTriangles[i].textureIndex;
 
-            triangle.vertices[0].depth = 1/triangle.vertices[0].depth;
-            triangle.vertices[1].depth = 1/triangle.vertices[1].depth;
-            triangle.vertices[2].depth = 1/triangle.vertices[2].depth;
-
             std::vector<CanvasTriangle> clippedTriangles = fragmentTriangle(triangle);
 
-
-            // clippedTriangle.vertices[0].depth = 1/clippedTriangle.vertices[0].depth;
-            // clippedTriangle.vertices[1].depth = 1/clippedTriangle.vertices[1].depth;
-            // clippedTriangle.vertices[2].depth = 1/clippedTriangle.vertices[2].depth;
-
-
             for (int j = 0; j < clippedTriangles.size(); j++) {
+                clippedTriangles[j].vertices[0].depth = 1/clippedTriangles[j].vertices[0].depth;
+                clippedTriangles[j].vertices[1].depth = 1/clippedTriangles[j].vertices[1].depth;
+                clippedTriangles[j].vertices[2].depth = 1/clippedTriangles[j].vertices[2].depth;
+
                 if (mode == 2) {
                     if (clippedTriangles[j].isTexture) {
                         drawTexturedTriangle(clippedTriangles[j],depth_buffer);
@@ -1917,8 +1911,8 @@ std::vector<ModelTriangle> removeOutsideTriangles(std::vector<ModelTriangle> tri
         vec3 v1 = perspectiveProjection(orderY.vertices[1]);
         vec3 v2 = perspectiveProjection(orderY.vertices[0]);
 
-        if (!((v0.y < 50 && v1.y < 50 && v2.y < 50) || (v0.y >= HEIGHT-50 && v1.y >= HEIGHT-50 && v2.y >= HEIGHT-50) ||
-             (v0.x < 50 && v1.x < 50 && v2.x < 50) || (v0.x >= WIDTH-50 && v1.x >= WIDTH-50 && v2.x >= WIDTH-50))) {
+        if (!((v0.y < 0 && v1.y < 0 && v2.y < 0) || (v0.y >= HEIGHT && v1.y >= HEIGHT && v2.y >= HEIGHT) ||
+             (v0.x < 0 && v1.x < 0 && v2.x < 0) || (v0.x >= WIDTH && v1.x >= WIDTH && v2.x >= WIDTH))) {
              final_triangles.push_back(triangles[i]);
         }
     }
@@ -1927,7 +1921,6 @@ std::vector<ModelTriangle> removeOutsideTriangles(std::vector<ModelTriangle> tri
 
 std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle) {
     std::vector<CanvasTriangle> clippedTriangles = {triangle};
-
 
     for (int i = 0; i < 4; i++) {
         std::vector<CanvasTriangle> newClippedTriangles;
@@ -1944,7 +1937,7 @@ std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle) {
             int pointInsideCount = 0;
 
             for (int k = 0; k < 3; k++) {
-                if (orderY.vertices[k].y >= 50) pointInsideCount++;
+                if (orderY.vertices[k].y >= 0) pointInsideCount++;
             }
 
             if (pointInsideCount == 3) newClippedTriangles.push_back(clippedTriangles[j]);
@@ -1954,16 +1947,16 @@ std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle) {
                 CanvasPoint v1 = orderY.vertices[1];
                 CanvasPoint v2 = orderY.vertices[2];
 
-                int intersection_x1 = v0.x + (50-v0.y)*(v1.x-v0.x)/(v1.y-v0.y);
-                double intersection_z1 = v0.depth + (50-v0.y)*(v1.depth-v0.depth)/(v1.y-v0.y);
-                int intersection_x2 = v0.x + (50-v0.y)*(v2.x-v0.x)/(v2.y-v0.y);
-                double intersection_z2 = v0.depth + (50-v0.y)*(v2.depth-v0.depth)/(v2.y-v0.y);
+                int intersection_x1 = v0.x + (-v0.y)*(v1.x-v0.x)/(v1.y-v0.y);
+                double intersection_z1 = v0.depth + (-v0.y)*(v1.depth-v0.depth)/(v1.y-v0.y);
+                int intersection_x2 = v0.x + (-v0.y)*(v2.x-v0.x)/(v2.y-v0.y);
+                double intersection_z2 = v0.depth + (-v0.y)*(v2.depth-v0.depth)/(v2.y-v0.y);
 
                 CanvasTriangle t1 = orderY;
-                t1.vertices[0].x = intersection_x2; t1.vertices[0].y = 50; t1.vertices[0].depth = intersection_z2;
+                t1.vertices[0].x = intersection_x2; t1.vertices[0].y = 0; t1.vertices[0].depth = intersection_z2;
                 CanvasTriangle t2 = orderY;
-                t2.vertices[0].x = intersection_x1; t2.vertices[0].y = 50; t2.vertices[0].depth = intersection_z1;
-                t2.vertices[2].x = intersection_x2; t2.vertices[2].y = 50; t2.vertices[2].depth = intersection_z2;
+                t2.vertices[0].x = intersection_x1; t2.vertices[0].y = 0; t2.vertices[0].depth = intersection_z1;
+                t2.vertices[2].x = intersection_x2; t2.vertices[2].y = 0; t2.vertices[2].depth = intersection_z2;
 
                 if (i >= 2) {
                     mirrorTriangleX(&t1, mirrorSize);
@@ -1977,6 +1970,9 @@ std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle) {
 
                 newClippedTriangles.push_back(t1);
                 newClippedTriangles.push_back(t2);
+
+                std::cout << t1 << '\n';
+                std::cout << t2 << '\n';
             }
 
             else if (pointInsideCount == 1) {
@@ -1984,25 +1980,22 @@ std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle) {
                 CanvasPoint v1 = orderY.vertices[1];
                 CanvasPoint v2 = orderY.vertices[0];
 
-                int intersection_x1 = v0.x + (50-v0.y)*(v1.x-v0.x)/(v1.y-v0.y);
-                double intersection_z1 = v0.depth + (50-v0.y)*(v1.depth-v0.depth)/(v1.y-v0.y);
-                int intersection_x2 = v0.x + (50-v0.y)*(v2.x-v0.x)/(v2.y-v0.y);
-                double intersection_z2 = v0.depth + (50-v0.y)*(v2.depth-v0.depth)/(v2.y-v0.y);
+                int intersection_x1 = v0.x + (-v0.y)*(v1.x-v0.x)/(v1.y-v0.y);
+                double intersection_z1 = v0.depth + (-v0.y)*(v1.depth-v0.depth)/(v1.y-v0.y);
+                int intersection_x2 = v0.x + (-v0.y)*(v2.x-v0.x)/(v2.y-v0.y);
+                double intersection_z2 = v0.depth + (-v0.y)*(v2.depth-v0.depth)/(v2.y-v0.y);
 
                 CanvasTriangle t1 = orderY;
-                t1.vertices[0].x = intersection_x1; t1.vertices[0].y = 50; t1.vertices[0].depth = intersection_z1;
-                t1.vertices[1].x = intersection_x2; t1.vertices[1].y = 50; t1.vertices[1].depth = intersection_z2;
+                t1.vertices[0].x = intersection_x1; t1.vertices[0].y = 0; t1.vertices[0].depth = intersection_z1;
+                t1.vertices[1].x = intersection_x2; t1.vertices[1].y = 0; t1.vertices[1].depth = intersection_z2;
 
                 if (i >= 2) mirrorTriangleX(&t1, mirrorSize);
                 if (i%2 == 0) swapTriangleXY(&t1);
                 newClippedTriangles.push_back(t1);
             }
         }
-
-        // std::cout << newClippedTriangles.size() << '\n';
         clippedTriangles = newClippedTriangles;
     }
-
     return clippedTriangles;
 }
 

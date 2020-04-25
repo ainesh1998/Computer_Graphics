@@ -30,6 +30,8 @@ using glm::vec3;
 void print_vec3(vec3 point);
 bool inRange(float x,float min,float max);
 double **malloc2dArray(int dimX, int dimY);
+void swapTriangleXY(CanvasTriangle* triangle);
+void mirrorTriangleX(CanvasTriangle* triangle, int size);
 void order_triangle(CanvasTriangle *triangle);
 void order_triangle(ModelTriangle *triangle);
 void order_textured_triangle(CanvasTriangle *triangle, CanvasTriangle *texture);
@@ -432,6 +434,20 @@ std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValu
       vals.push_back(temp);
     }
     return vals;
+}
+
+void swapTriangleXY(CanvasTriangle* triangle) {
+    for (int j = 0; j < 3; j++) {
+        float temp = triangle->vertices[j].x;
+        triangle->vertices[j].x = triangle->vertices[j].y;
+        triangle->vertices[j].y = temp;
+    }
+}
+
+void mirrorTriangleX(CanvasTriangle* triangle, int size) {
+    for (int i = 0; i < 3; i++) {
+        triangle->vertices[i].y = (size-1) - triangle->vertices[i].y;
+    }
 }
 
 //sort triangle vertices in ascending order accroding to y
@@ -1714,7 +1730,7 @@ void drawScene(){
             std::vector<ModelTriangle> insideTriangles = removeOutsideTriangles(it->second);
             triangles.insert(triangles.end(),insideTriangles.begin(), insideTriangles.end());
         }
-        else std::cout << it->first << " is out of frame" << '\n';
+        // else std::cout << it->first << " is out of frame" << '\n';
     }
 
     if(mode==3){
@@ -1901,8 +1917,8 @@ std::vector<ModelTriangle> removeOutsideTriangles(std::vector<ModelTriangle> tri
         vec3 v1 = perspectiveProjection(orderY.vertices[1]);
         vec3 v2 = perspectiveProjection(orderY.vertices[0]);
 
-        if (!((v0.y < 50 && v1.y < 50 && v2.y < 50) || (v0.y >= HEIGHT && v1.y >= HEIGHT && v2.y >= HEIGHT) ||
-             (v0.x < 0 && v1.x < 0 && v2.x < 0) || (v0.x >= WIDTH && v1.x >= WIDTH && v2.x >= WIDTH))) {
+        if (!((v0.y < 50 && v1.y < 50 && v2.y < 50) || (v0.y >= HEIGHT-50 && v1.y >= HEIGHT-50 && v2.y >= HEIGHT-50) ||
+             (v0.x < 50 && v1.x < 50 && v2.x < 50) || (v0.x >= WIDTH-50 && v1.x >= WIDTH-50 && v2.x >= WIDTH-50))) {
              final_triangles.push_back(triangles[i]);
         }
     }
@@ -1910,51 +1926,79 @@ std::vector<ModelTriangle> removeOutsideTriangles(std::vector<ModelTriangle> tri
 }
 
 std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle) {
-    CanvasTriangle orderY = triangle;
-    order_triangle(&orderY);
-    int pointInsideCount = 0;
+    std::vector<CanvasTriangle> clippedTriangles = {};
+    // std::vector<glm::vec2> rangeChecks = {glm::vec2()};
+    // std::vector<int> rangeVals = {50, 50, WIDTH-51, HEIGHT-51};
 
-    for (int j = 0; j < 3; j++) {
-        if (triangle.vertices[j].y >= 50) pointInsideCount++;
+    for (int i = 3; i < 4; i++) {
+        CanvasTriangle orderY = triangle;
+        if (i%2 == 0) swapTriangleXY(&orderY);
+        // mirror triangle along x axis - y = (HEIGHT-1)-y
+        int mirrorSize = i == 2 ? WIDTH : HEIGHT;
+        if (i >= 2) mirrorTriangleX(&orderY, mirrorSize);
+
+        order_triangle(&orderY);
+        int pointInsideCount = 0;
+
+        for (int j = 0; j < 3; j++) {
+            if (orderY.vertices[j].y >= 50) pointInsideCount++;
+            // if (i <= 1 && triangle.vertices[j].y >= rangeVals[i]) pointInsideCount++;
+            // else if (i >= 2 && triangle.vertices[j].y <= rangeVals[i]) pointInsideCount++;
+        }
+
+        if (pointInsideCount == 3) clippedTriangles.push_back(triangle);
+
+        else if (pointInsideCount == 2) {
+            CanvasPoint v0 = orderY.vertices[0];
+            CanvasPoint v1 = orderY.vertices[1];
+            CanvasPoint v2 = orderY.vertices[2];
+
+            int intersection_x1 = v0.x + (50-v0.y)*(v1.x-v0.x)/(v1.y-v0.y);
+            double intersection_z1 = v0.depth + (50-v0.y)*(v1.depth-v0.depth)/(v1.y-v0.y);
+            int intersection_x2 = v0.x + (50-v0.y)*(v2.x-v0.x)/(v2.y-v0.y);
+            double intersection_z2 = v0.depth + (50-v0.y)*(v2.depth-v0.depth)/(v2.y-v0.y);
+
+            CanvasTriangle t1 = orderY;
+            t1.vertices[0].x = intersection_x2; t1.vertices[0].y = 50; t1.vertices[0].depth = intersection_z2;
+            CanvasTriangle t2 = orderY;
+            t2.vertices[0].x = intersection_x1; t2.vertices[0].y = 50; t2.vertices[0].depth = intersection_z1;
+            t2.vertices[2].x = intersection_x2; t2.vertices[2].y = 50; t2.vertices[2].depth = intersection_z2;
+
+            if (i >= 2) {
+                mirrorTriangleX(&t1, mirrorSize);
+                mirrorTriangleX(&t2, mirrorSize);
+            }
+
+            if (i%2 == 0) {
+                swapTriangleXY(&t1);
+                swapTriangleXY(&t2);
+            }
+
+            clippedTriangles.push_back(t1);
+            clippedTriangles.push_back(t2);
+        }
+
+        else if (pointInsideCount == 1) {
+            CanvasPoint v0 = orderY.vertices[2];
+            CanvasPoint v1 = orderY.vertices[1];
+            CanvasPoint v2 = orderY.vertices[0];
+
+            int intersection_x1 = v0.x + (50-v0.y)*(v1.x-v0.x)/(v1.y-v0.y);
+            double intersection_z1 = v0.depth + (50-v0.y)*(v1.depth-v0.depth)/(v1.y-v0.y);
+            int intersection_x2 = v0.x + (50-v0.y)*(v2.x-v0.x)/(v2.y-v0.y);
+            double intersection_z2 = v0.depth + (50-v0.y)*(v2.depth-v0.depth)/(v2.y-v0.y);
+
+            CanvasTriangle t1 = orderY;
+            t1.vertices[0].x = intersection_x1; t1.vertices[0].y = 50; t1.vertices[0].depth = intersection_z1;
+            t1.vertices[1].x = intersection_x2; t1.vertices[1].y = 50; t1.vertices[1].depth = intersection_z2;
+
+            if (i >= 2) mirrorTriangleX(&t1, mirrorSize);
+            if (i%2 == 0) swapTriangleXY(&t1);
+            clippedTriangles.push_back(t1);
+        }
     }
 
-    if (pointInsideCount == 3) return {triangle};
-    else if (pointInsideCount == 2) {
-        CanvasPoint v0 = orderY.vertices[0];
-        CanvasPoint v1 = orderY.vertices[1];
-        CanvasPoint v2 = orderY.vertices[2];
-
-        int intersection_x1 = v0.x + (50-v0.y)*(v1.x-v0.x)/(v1.y-v0.y);
-        double intersection_z1 = v0.depth + (50-v0.y)*(v1.depth-v0.depth)/(v1.y-v0.y);
-        int intersection_x2 = v0.x + (50-v0.y)*(v2.x-v0.x)/(v2.y-v0.y);
-        double intersection_z2 = v0.depth + (50-v0.y)*(v2.depth-v0.depth)/(v2.y-v0.y);
-
-        CanvasTriangle t1 = orderY;
-        t1.vertices[0].x = intersection_x2; t1.vertices[0].y = 50; t1.vertices[0].depth = intersection_z2;
-        CanvasTriangle t2 = orderY;
-        t2.vertices[0].x = intersection_x1; t2.vertices[0].y = 50; t2.vertices[0].depth = intersection_z1;
-        t2.vertices[2].x = intersection_x2; t2.vertices[2].y = 50; t2.vertices[2].depth = intersection_z2;
-
-        return {t1, t2};
-    }
-    else if (pointInsideCount == 1) {
-        CanvasPoint v0 = orderY.vertices[2];
-        CanvasPoint v1 = orderY.vertices[1];
-        CanvasPoint v2 = orderY.vertices[0];
-
-        int intersection_x1 = v0.x + (50-v0.y)*(v1.x-v0.x)/(v1.y-v0.y);
-        double intersection_z1 = v0.depth + (50-v0.y)*(v1.depth-v0.depth)/(v1.y-v0.y);
-        int intersection_x2 = v0.x + (50-v0.y)*(v2.x-v0.x)/(v2.y-v0.y);
-        double intersection_z2 = v0.depth + (50-v0.y)*(v2.depth-v0.depth)/(v2.y-v0.y);
-
-        CanvasTriangle t1 = orderY;
-        t1.vertices[0].x = intersection_x1; t1.vertices[0].y = 50; t1.vertices[0].depth = intersection_z1;
-        t1.vertices[1].x = intersection_x2; t1.vertices[1].y = 50; t1.vertices[1].depth = intersection_z2;
-
-        return {t1};
-    }
-
-    return {};
+    return clippedTriangles;
 }
 
 

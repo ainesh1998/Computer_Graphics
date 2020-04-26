@@ -8,6 +8,7 @@ class Colour
     int green;
     int blue;
     int alpha;
+    std::string mtlProperty;
 
     Colour()
     {

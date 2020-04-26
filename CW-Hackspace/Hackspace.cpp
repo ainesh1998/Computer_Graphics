@@ -170,18 +170,16 @@ int main(int argc, char* argv[])
     std::vector<ModelTriangle> block_triangles = readOBJ("extra-objects/block.obj", "extra-objects/block.mtl", BOX_SCALE );
     // std::vector<ModelTriangle> ground_triangles = readOBJ("extra-objects/ground.obj", "extra-objects/ground.mtl", 0.7);
     std::vector<ModelTriangle> ground_triangles= readOBJ("extra-objects/groundT.obj", "extra-objects/groundT.mtl", 0.7);
+    std::vector<ModelTriangle> sphere_triangles = readOBJ("extra-objects/sphere.obj", "extra-objects/sphere.mtl", SPHERE_SCALE);
 
-
-
-    // std::vector<ModelTriangle> sphere_triangles = readOBJ("extra-objects/sphere.obj", "extra-objects/sphere.mtl", SPHERE_SCALE);
-    // //for sphere remove texture and set colour to be white
-    // for (size_t i = 0; i < sphere_triangles.size(); i++) {
-    //     sphere_triangles[i].colour = Colour(255,255,255);
-    //     sphere_triangles[i].isTexture = false;
-    //     for (size_t j = 0; j < 3; j++) {
-    //         sphere_triangles[i].texturePoints[j] = TexturePoint(-1,-1);
-    //     }
-    // }
+    //for sphere remove texture and set colour to be white
+    for (size_t i = 0; i < sphere_triangles.size(); i++) {
+        sphere_triangles[i].colour = Colour(255,255,255);
+        sphere_triangles[i].isTexture = false;
+        for (size_t j = 0; j < 3; j++) {
+            sphere_triangles[i].texturePoints[j] = TexturePoint(-1,-1);
+        }
+    }
 
     // std::vector<ModelTriangle> generated_triangles = generateGeometry(grid, width, 2.5, 10, genCount);
 
@@ -193,12 +191,12 @@ int main(int argc, char* argv[])
     // }
 
     // calculate vertex normals for each triangle of the sphere - for gouraud and phong shading
-    // calcVertexNormals(sphere_triangles);
+    calcVertexNormals(sphere_triangles);
 
     // add and position objects in scene
     scene["logo"] = logo_triangles;
     scene["box"] = box_triangles;
-    // scene["sphere"] = sphere_triangles;
+    scene["sphere"] = sphere_triangles;
     // scene["terrain"] = generated_triangles;
     scene["ground"] = ground_triangles;
     // scene["box"] = empty_box_triangles;
@@ -208,6 +206,7 @@ int main(int argc, char* argv[])
     moveObject("ground",vec3(0,0,-70));
     moveObject("logo",vec3(-100,500,0)); // set logo to world origin
     moveObject("box",vec3(0,-170,90));
+    // moveObject("sphere", vec3(-200, -10, 0));
 
     // moveObject("logo",vec3(-50,240,0));
     // rotateObject("logo",vec3(0,90,0));
@@ -634,6 +633,7 @@ std::vector<Colour> readMTL(std::string filename,int* textureWidth, int* texture
             int b = std::stof(bc) * 255;
 
             Colour c = Colour(colourName, r, g, b);
+            c.mtlProperty = mtlProperty;
             colours.push_back(c);
 
             char newLine[256];
@@ -721,6 +721,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
             for (size_t i = 0; i < colours.size(); i++) {
                 if(colours[i].name.compare(contents[1]) == 0){
                     colour = colours[i];
+                    isSpecular = colours[i].mtlProperty.compare("Ks") == 0;
                 }
             }
         }
@@ -1399,13 +1400,15 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
                 newColour = 0.8f *  vec3(c.red,c.green,c.blue); // 0.8 is to make mirror slightly darker than the real object
                 final_mirror_intersection.intersectedTriangle.colour = Colour(newColour.x,newColour.y,newColour.z);
                 final_intersection = final_mirror_intersection;
-            }else if (t.isSpecular){
+            }
+
+            else if (t.isSpecular){
                 vec3 oldColour = vec3(t.colour.red, t.colour.green, t.colour.blue);
                 float specular = calcSpecular(ray,point,t);
                 float diffuse = calcBrightness(point,t,triangles,light_positions,final_intersection.solution);
                 //s and d to determine proportions of diffuse and specular lighting (not sure if correct)
-                // float s = specular/(specular+diffuse);
-                // float d = diffuse/(specular+diffuse);
+                float s = specular/(specular+diffuse);
+                float d = diffuse/(specular+diffuse);
                 //not sure how you blend the 2 components together
                 newColour = specular * vec3(255,255,255) +  (1-specular) * diffuse *  oldColour;
                 Colour c = Colour(newColour.x, newColour.y, newColour.z);

@@ -42,6 +42,6 @@ Computer Graphics unit
 - [ ] Environment maps
 - [x] *Complex “interesting” materials (e.g. glass)*
 - [ ] Line drawing optimisations (e.g. Bresenham)
-- [ ] Advance clipping (frustum)
+- [x] **Advance clipping (frustum)**
 - [ ] Photon maps and caustics
 - [ ] “Intelligent” model simplification

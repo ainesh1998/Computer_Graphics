@@ -72,6 +72,7 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles);
 
 // lighting
 vec3 computenorm(ModelTriangle t);
+vec3 computenorm(ModelTriangle t, vec3 solution);
 float calcSpecular(vec3 ray,vec3 point,vec3 norm);
 float calcIntensity(vec3 norm, vec3 lightPos, vec3 point, bool isBump);
 float calcShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t);
@@ -186,7 +187,7 @@ int main(int argc, char* argv[])
 
     //for sphere remove texture and set colour to be white
     for (size_t i = 0; i < sphere_triangles.size(); i++) {
-        sphere_triangles[i].colour = Colour(255,0,0);
+        // sphere_triangles[i].colour = Colour(255,255,255);
         sphere_triangles[i].isTexture = false;
         for (size_t j = 0; j < 3; j++) {
             sphere_triangles[i].texturePoints[j] = TexturePoint(-1,-1);
@@ -218,7 +219,7 @@ int main(int argc, char* argv[])
     moveObject("ground",vec3(0,0,-70));
     moveObject("logo",vec3(-100,500,0)); // set logo to world origin
     moveObject("box",vec3(0,-170,90));
-    moveObject("sphere", vec3(-30, -150, 40));
+    moveObject("sphere", vec3(-40, -160, 40));
 
     // moveObject("logo",vec3(-50,240,0));
     // rotateObject("logo",vec3(0,90,0));
@@ -375,6 +376,7 @@ int main(int argc, char* argv[])
                         light_positions[0].y += riseVelocity;
                         moveObject("logo",vec3(0,riseVelocity,0));
                         moveObject("box",vec3(0,riseVelocity,0));
+                        moveObject("sphere",vec3(0,riseVelocity,0));
                         if (riseCount > 130) riseVelocity -= 0.05;
                         riseCount++;
                         lookAtPos += vec3(0, riseVelocity, 0);
@@ -848,6 +850,8 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
                 m.isMirror = mirrored;
                 m.isGlass = isGlass;
             }
+            //moved it here cause the sphere obj has a texture
+            m.colour = colour;
             m.isSpecular = isSpecular;
             m.boundingBoxIndex = bounding_boxes.size();
             // std::cout << m.boundingBoxIndex << '\n';
@@ -1366,11 +1370,7 @@ float fresnel(vec3 ray,vec3 norm,float refractive_index){
     }
     return kr;
 }
-vec3 computenorm(ModelTriangle t, vec3 solution){
-    std::vector<vec3> vertexNormals = triangleVertexNormals[t.ID];
-    vec3 norm = vertexNormals[0] + solution.y*(vertexNormals[1]-vertexNormals[0]) + solution.z*(vertexNormals[2]-vertexNormals[0]);
-    return glm::normalize(norm);
-}
+
 //specular component = (v.r) where v is ray from object to camera and r is the reflected light ray
 float calcSpecular(vec3 ray,vec3 point,vec3 norm){
     vec3 lightReflect = calcReflectedRay((point-light_positions[0]),norm); //only do this for cornell box light
@@ -1520,6 +1520,11 @@ vec3 computenorm(ModelTriangle t) {
     norm = glm::normalize(norm);
     return norm;
 }
+vec3 computenorm(ModelTriangle t, vec3 solution){
+    std::vector<vec3> vertexNormals = triangleVertexNormals[t.ID];
+    vec3 norm = vertexNormals[0] + solution.y*(vertexNormals[1]-vertexNormals[0]) + solution.z*(vertexNormals[2]-vertexNormals[0]);
+    return glm::normalize(norm);
+}
 
 float calcIntensity(vec3 norm, vec3 lightPos, vec3 point, bool isBump) {
     vec3 lightDir = lightPos - point;
@@ -1639,8 +1644,7 @@ float gouraud(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution, std::ve
 }
 
 float phong(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution, std::vector<ModelTriangle> triangles) {
-    std::vector<vec3> vertexNormals = triangleVertexNormals[t.ID];
-    vec3 norm = vertexNormals[0] + solution.y*(vertexNormals[1]-vertexNormals[0]) + solution.z*(vertexNormals[2]-vertexNormals[0]);
+    vec3 norm = computenorm(t,solution);
     float dot = glm::dot(glm::normalize(lightPos-point), norm);
     float brightness = calcIntensity(norm, lightPos, point, false);
 

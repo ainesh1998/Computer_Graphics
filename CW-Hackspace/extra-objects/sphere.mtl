@@ -1,2 +1,5 @@
 newmtl White
 Ks 1.000000 1.000000 1.000000
+
+newmtl Dark_Green
+Ks 0.0039215 0.50000 0.1254901

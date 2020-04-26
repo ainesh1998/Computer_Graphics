@@ -63,7 +63,7 @@ void drawBox(std::vector<ModelTriangle> triangles, float focalLength);
 
 // raytracer
 bool isFacing(ModelTriangle t, vec3 ray);
-vec3 calcReflectedRay(vec3 ray,ModelTriangle t);
+vec3 calcReflectedRay(vec3 ray,vec3 norm);
 vec3 refract(vec3 ray,vec3 norm,float refraction_index);
 vec3 getTextureColour(ModelTriangle triangle, vec3 solution, vec3 point);
 glm::vec3 computeRay(float x,float y,float fov);
@@ -72,6 +72,7 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles);
 
 // lighting
 vec3 computenorm(ModelTriangle t);
+float calcSpecular(vec3 ray,vec3 point,vec3 norm);
 float calcIntensity(vec3 norm, vec3 lightPos, vec3 point, bool isBump);
 float calcShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t);
 float calcProximity(vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos, vec3 solution);
@@ -1287,10 +1288,9 @@ glm::vec3 computeRay(float x,float y,float fov){
     return rayDirection;
 }
 
-vec3 calcReflectedRay(vec3 ray,ModelTriangle t){
+vec3 calcReflectedRay(vec3 ray,vec3 norm){
     //not sure how to use mirror with multiple light sources
     vec3 incidence = ray;
-    vec3 norm = computenorm(t);
     vec3 reflect = incidence -  2.f *(norm * (glm::dot(incidence,norm)));
     reflect = glm::normalize(reflect);
     return reflect;
@@ -1366,9 +1366,14 @@ float fresnel(vec3 ray,vec3 norm,float refractive_index){
     }
     return kr;
 }
+vec3 computenorm(ModelTriangle t, vec3 solution){
+    std::vector<vec3> vertexNormals = triangleVertexNormals[t.ID];
+    vec3 norm = vertexNormals[0] + solution.y*(vertexNormals[1]-vertexNormals[0]) + solution.z*(vertexNormals[2]-vertexNormals[0]);
+    return glm::normalize(norm);
+}
 //specular component = (v.r) where v is ray from object to camera and r is the reflected light ray
-float calcSpecular(vec3 ray,vec3 point,ModelTriangle t){
-    vec3 lightReflect = calcReflectedRay((point-light_positions[0]),t); //only do this for cornell box light
+float calcSpecular(vec3 ray,vec3 point,vec3 norm){
+    vec3 lightReflect = calcReflectedRay((point-light_positions[0]),norm); //only do this for cornell box light
     vec3 toCamera = -ray;
     float specular = pow(glm::dot(toCamera,lightReflect),8);
     return specular;
@@ -1400,8 +1405,10 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
             ModelTriangle t = final_intersection.intersectedTriangle;
             vec3 point = final_intersection.intersectionPoint;
             if (t.isGlass) {
+                vec3 norm = computenorm(t);
+
                 //reflection
-                vec3 glassReflectedRay = calcReflectedRay(ray,t);
+                vec3 glassReflectedRay = calcReflectedRay(ray,norm);
                 RayTriangleIntersection glass_reflected_intersection = getFinalIntersection(triangles,glassReflectedRay,point,&final_intersection,depth+1);
                 Colour r = glass_reflected_intersection.intersectedTriangle.colour;
                 vec3 reflected_colour = vec3(r.red,r.green,r.blue);
@@ -1409,7 +1416,6 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
                 //refraction
                 //calculate refraction vector
                 float refractive_index = 1.5; //made this a variable in case we want to change it later
-                vec3 norm = computenorm(t);
                 vec3 glassRefractedRay = refract(ray,norm,refractive_index);
                 RayTriangleIntersection final_glass_intersection = getFinalIntersection(triangles,glassRefractedRay,point,&final_intersection,depth+1);
                 Colour c = final_glass_intersection.intersectedTriangle.colour;
@@ -1426,8 +1432,10 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
             }
             // mirror
             else if (t.isMirror) {
+                vec3 norm = computenorm(t);
+
                 //calculate mirror vector
-                vec3 mirrorRay = calcReflectedRay(ray,t);
+                vec3 mirrorRay = calcReflectedRay(ray,norm);
                 // original_intersection is used to ensure mirror doesn't reflect itself
                 RayTriangleIntersection final_mirror_intersection = getFinalIntersection(triangles,mirrorRay,point,&final_intersection,depth+1);
                 Colour c = final_mirror_intersection.intersectedTriangle.colour;
@@ -1440,11 +1448,13 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
 
             else if (t.isSpecular){
                 vec3 oldColour = vec3(t.colour.red, t.colour.green, t.colour.blue);
-                float specular = calcSpecular(ray,point,t);
+                // vec3 norm = computenorm(t);
+                vec3 norm = computenorm(t,final_intersection.solution);
+                float specular = calcSpecular(ray,point,norm);
                 float diffuse = calcBrightness(point,t,triangles,light_positions,final_intersection.solution);
                 //s and d to determine proportions of diffuse and specular lighting (not sure if correct)
-                float s = specular/(specular+diffuse);
-                float d = diffuse/(specular+diffuse);
+                // float s = specular/(specular+diffuse);
+                // float d = diffuse/(specular+diffuse);
                 //not sure how you blend the 2 components together
                 newColour = specular * vec3(255,255,255) +  (1-specular) * diffuse *  oldColour;
                 Colour c = Colour(newColour.x, newColour.y, newColour.z);

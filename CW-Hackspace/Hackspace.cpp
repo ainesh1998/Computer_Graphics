@@ -28,7 +28,10 @@ using glm::vec3;
 
 // helper functions
 void print_vec3(vec3 point);
+bool inRange(float x,float min,float max);
 double **malloc2dArray(int dimX, int dimY);
+void swapTriangleXY(CanvasTriangle* triangle);
+void mirrorTriangle(CanvasTriangle* triangle, int size);
 void order_triangle(CanvasTriangle *triangle);
 void order_triangle(ModelTriangle *triangle);
 void order_textured_triangle(CanvasTriangle *triangle, CanvasTriangle *texture);
@@ -49,6 +52,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
 void displayPicture(std::vector<Colour> payload,int width,int height);
 
 // rasteriser
+vec3 perspectiveProjection(vec3 point);
 void drawLine(CanvasPoint start,CanvasPoint end,Colour c);
 void drawLineAntiAlias(CanvasPoint start, CanvasPoint end, Colour c, double** depth_buffer);
 void drawRake(vec3 start,vec3 end,Colour c,double** depth_buffer);
@@ -98,6 +102,13 @@ void scaleYObject(std::string name,float scale);
 // physics
 bool isCollideGround(std::vector<ModelTriangle> o1, std::vector<ModelTriangle> o2);
 vec3 toppleBlock(std::string name, float yAngle);
+
+// clipping
+BoundingBox getBoundingBox(std::vector<ModelTriangle> triangles);
+bool pointWithinFrustum(vec3 point, float near, float far);
+bool withinFrustum(BoundingBox bbox, float near, float far);
+std::vector<ModelTriangle> removeOutsideTriangles(std::vector<ModelTriangle> triangles);
+std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle);
 
 // event handling
 void lookAt(glm::vec3 point);
@@ -417,6 +428,10 @@ void print_vec3(vec3 point){
      '\n';
 }
 
+bool inRange(float x,float min,float max){
+    return x >= min && x <= max;
+}
+
 std::vector<Colour> loadColours(){
     std::vector<Colour> colours;
     for (size_t y = 0; y < HEIGHT; y++) {
@@ -461,8 +476,39 @@ std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValu
     return vals;
 }
 
+void swapTriangleXY(CanvasTriangle* triangle) {
+    for (int j = 0; j < 3; j++) {
+        // float temp = triangle->vertices[j].x;
+        // triangle->vertices[j].x = triangle->vertices[j].y;
+        // triangle->vertices[j].y = temp;
+        std::swap(triangle->vertices[j].x,triangle->vertices[j].y);
+        //swap texture coords
+        //tried this but gives bad alloc on my computer
+        std::swap(triangle->vertices[j].texturePoint.x,triangle->vertices[j].texturePoint.y);
+    }
+}
+
+void mirrorTriangle(CanvasTriangle* triangle, int size) {
+    for (int i = 0; i < 3; i++) {
+        triangle->vertices[i].y = (size-1) - triangle->vertices[i].y;
+    }
+}
+
 //sort triangle vertices in ascending order accroding to y
 void order_triangle(CanvasTriangle *triangle){
+    if(triangle->vertices[1].y < triangle->vertices[0].y){
+        std::swap(triangle->vertices[0],triangle->vertices[1]);
+    }
+
+    if(triangle->vertices[2].y < triangle->vertices[1].y){
+        std::swap(triangle->vertices[1],triangle->vertices[2]);
+        if(triangle->vertices[1].y < triangle->vertices[0].y){
+            std::swap(triangle->vertices[1],triangle->vertices[0]);
+        }
+    }
+}
+
+void order_triangle(ModelTriangle *triangle){
     if(triangle->vertices[1].y < triangle->vertices[0].y){
         std::swap(triangle->vertices[0],triangle->vertices[1]);
     }
@@ -696,7 +742,8 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
     bool isSpecular = false;
     int textureIndex = textures.size();
     int bumpIndex = bump_maps.size();
-    BoundingBox bounding_box = BoundingBox(vec3(0,0,0),0,0,0);
+    // vec3 minBBox = vec3(infinity, infinity, infinity);
+    // vec3 maxBBox = vec3(-infinity, -infinity, -infinity);
 
     while(stream.getline(line,256)){
         std::string* contents = split(line,' ');
@@ -740,24 +787,13 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
             vec3 newPoint = vec3(x,y,z);
             vertices.push_back(newPoint);
 
-            // clipping
-            if (x < bounding_box.startVertex.x) {
-                bounding_box.startVertex.x = x;
-                bounding_box.width += std::abs(x);
-            }
-            else if (x > bounding_box.startVertex.x + bounding_box.width) bounding_box.width = x - bounding_box.startVertex.x;
-
-            if (y < bounding_box.startVertex.y) {
-                bounding_box.startVertex.y = y;
-                bounding_box.height += std::abs(y);
-            }
-            else if (y > bounding_box.startVertex.y + bounding_box.height) bounding_box.height = y - bounding_box.startVertex.y;
-
-            if (z < bounding_box.startVertex.z) {
-                bounding_box.startVertex.z = z;
-                bounding_box.depth += std::abs(z);
-            }
-            else if (z > bounding_box.startVertex.z + bounding_box.depth) bounding_box.depth = z - bounding_box.startVertex.z;
+            // bounding box
+            // if (x < minBBox.x) minBBox.x = x;
+            // else if (x > maxBBox.x) maxBBox.x = x;
+            // if (y < minBBox.y) minBBox.y = y;
+            // else if (y > maxBBox.y) maxBBox.y = y;
+            // if (z < minBBox.z) minBBox.z = z;
+            // else if (z > maxBBox.z) maxBBox.z = z;
         }
 
         else if(contents[0].compare("f") == 0){
@@ -814,6 +850,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
             }
 
             m.boundingBoxIndex = bounding_boxes.size();
+            // std::cout << m.boundingBoxIndex << '\n';
             modelTriangles.push_back(m);
             newTriangleID++;
         }
@@ -832,7 +869,13 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
     stream.clear();
     stream.close();
 
-    bounding_boxes.push_back(bounding_box);
+    // construct bounding box
+
+    // print_vec3(minBBox);
+    // print_vec3(maxBBox);
+    // std::cout << '\n';
+    // BoundingBox bounding_box = BoundingBox(minBBox, maxBBox.x-minBBox.x, maxBBox.y-minBBox.y, maxBBox.z-minBBox.z);
+    // bounding_boxes.push_back(bounding_box);
 
     return modelTriangles;
 }
@@ -900,26 +943,31 @@ void drawLineAntiAlias(CanvasPoint start, CanvasPoint end, Colour c, double** de
 
         if (isSteep) {
             // swap the coordinates back
-            if (x >= 0 && x < HEIGHT && y1 >= 0 && y1 < WIDTH){
-                if (depth_buffer[y1][x] <= line[i].z) {
+            if (depth_buffer[y1][x] <= line[i].z) {
+                // if (x >= 0 && x < HEIGHT && y1 >= 0 && y1 < WIDTH){
+                if (y1 < WIDTH) {
                     Colour newColour1 = Colour(c.toVec3() * dist1 + Colour(window.getPixelColour(y1,x)).toVec3() * dist2);
-                    Colour newColour2 = Colour(c.toVec3() * dist2 + Colour(window.getPixelColour(y2,x)).toVec3() * dist1);
                     window.setPixelColour(y1, x, newColour1.packed_colour());
-                    window.setPixelColour(y2, x, newColour2.packed_colour());
-                    depth_buffer[y1][x] = line[i].z;
                 }
+                if (y2 >= 0) {
+                    Colour newColour2 = Colour(c.toVec3() * dist2 + Colour(window.getPixelColour(y2,x)).toVec3() * dist1);
+                    window.setPixelColour(y2, x, newColour2.packed_colour());
+                }
+                depth_buffer[y1][x] = line[i].z;
             }
 
         }
         else {
-            if (x >= 0 && x < WIDTH && y1 >= 0 && y1 < HEIGHT){
-                if (line[i].z > depth_buffer[x][y1] ) {
+            if (line[i].z > depth_buffer[x][y1] ) {
+                if (y1 < HEIGHT) {
                     Colour newColour1 = Colour(c.toVec3() * dist1 + Colour(window.getPixelColour(x,y1)).toVec3() * dist2);
-                    Colour newColour2 = Colour(c.toVec3() * dist2 + Colour(window.getPixelColour(x,y2)).toVec3() * dist1);
                     window.setPixelColour(x, y1, newColour1.packed_colour());
-                    window.setPixelColour(x, y2, newColour2.packed_colour());
-                    depth_buffer[x][y1] = line[i].z;
                 }
+                if (y2 >= 0) {
+                    Colour newColour2 = Colour(c.toVec3() * dist2 + Colour(window.getPixelColour(x,y2)).toVec3() * dist1);
+                    window.setPixelColour(x, y2, newColour2.packed_colour());
+                }
+                depth_buffer[x][y1] = line[i].z;
             }
         }
     }
@@ -927,17 +975,15 @@ void drawLineAntiAlias(CanvasPoint start, CanvasPoint end, Colour c, double** de
 
 // draws HORIZONTAL lines only
 void drawRake(vec3 start, vec3 end, Colour c, double** depth_buffer){
-    float numberOfSteps = std::abs(end.x - start.x);
+    int numberOfSteps = std::abs(end.x - start.x);
     int y = start.y;
     std::vector<vec3> rake = interpolate3(start, end, numberOfSteps+1);
 
     for (uint32_t i = 0; i < rake.size(); i++) {
-        int x = rake[i].x; double depth = rake[i].z;
-        if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
-            if (depth > depth_buffer[x][y]) {
-                depth_buffer[x][y] = depth;
-                window.setPixelColour(x, y, c.packed_colour());
-            }
+        int x = std::round(rake[i].x); double depth = rake[i].z;
+        if (depth > depth_buffer[x][y]) {
+            depth_buffer[x][y] = depth;
+            window.setPixelColour(x, y, c.packed_colour());
         }
     }
 }
@@ -964,7 +1010,7 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer){
 
     //fill top triangle
     std::vector<vec3> leftSide = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v2.x,v2.y,v2.depth), v2.y-v1.y+1);
-    std::vector<vec3> rightSide = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v4.x,v4.y,v4.depth), v2.y-v1.y+1);
+    std::vector<vec3> rightSide = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v4.x,v4.y,v4.depth), v4.y-v1.y+1);
 
     for (uint32_t i = 0; i < leftSide.size(); i++) {
         vec3 start = vec3((int) leftSide[i].x, leftSide[i].y, leftSide[i].z);
@@ -973,17 +1019,14 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer){
     }
 
    //fill bottom triangle
-   leftSide = interpolate3(vec3(v3.x,v3.y,v3.depth), vec3(v2.x,v2.y,v2.depth), std::abs(v2.y-v3.y)+1);
-   rightSide = interpolate3(vec3(v3.x,v3.y,v3.depth), vec3(v4.x,v4.y,v4.depth), std::abs(v4.y-v3.y)+1);
+   leftSide = interpolate3(vec3(v3.x,v3.y,v3.depth), vec3(v2.x,v2.y,v2.depth), v3.y-v2.y+1);
+   rightSide = interpolate3(vec3(v3.x,v3.y,v3.depth), vec3(v4.x,v4.y,v4.depth), v3.y-v4.y+1);
 
     for (uint32_t i = 0; i < leftSide.size(); i++) {
         vec3 start = vec3((int) leftSide[i].x, leftSide[i].y, leftSide[i].z);
         vec3 end = vec3((int) rightSide[i].x, rightSide[i].y, rightSide[i].z);
         drawRake(start, end, c, depth_buffer);
    }
-
-   // drawTriangle(triangle, depth_buffer);
-
 }
 
 float compute_texture_row(float z_far,float z_near,float c_far,float c_near,float v,float textureHeight){
@@ -993,8 +1036,8 @@ float compute_texture_row(float z_far,float z_near,float c_far,float c_near,floa
 }
 
 void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
+    order_triangle(&triangle);
     CanvasTriangle texturedTriangle = triangle.getTextureTriangle();
-    order_textured_triangle(&triangle, &texturedTriangle);
 
     CanvasPoint v1 = triangle.vertices[0];
     CanvasPoint v2 = triangle.vertices[1];
@@ -1026,7 +1069,6 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
     CanvasPoint u4 = CanvasPoint(u4_x,u4_y);
 
 
-
     //fill top triangle
     std::vector<vec3> triangleLeft = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v2.x,v2.y,v2.depth), (v2.y-v1.y)+1);
     std::vector<vec3> textureLeft = interpolate3(vec3(u1.x,u1.y,u1.depth), vec3(u2.x,u2.y,u2.depth), (v2.y-v1.y)+1);
@@ -1039,7 +1081,7 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
         vec3 endTriangle = vec3((int) triangleRight[i].x, triangleRight[i].y, triangleRight[i].z);
         std::vector<vec3> rakeTriangle = interpolate3(startTriangle, endTriangle, std::abs(endTriangle.x-startTriangle.x)+1);
 
-        vec3 startTexture = vec3( textureLeft[i].x, textureLeft[i].y, textureLeft[i].z);
+        vec3 startTexture = vec3(textureLeft[i].x, textureLeft[i].y, textureLeft[i].z);
 
         vec3 endTexture = vec3(textureRight[i].x, textureRight[i].y, textureRight[i].z);
 
@@ -1053,27 +1095,22 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
             float v = rakeTexture[j].y;
 
             double depth = rakeTriangle[j].z;
-            int ui = u/depth;
-            int vi = v/depth;
+            int ui = std::round(u/depth);
+            int vi = std::round(v/depth);
 
+            if (depth >= depth_buffer[x][y]) {
+                depth_buffer[x][y] = depth;
+                int textureWidth = textureDimensions[triangle.textureIndex].x;
+                int texturePoint = ui + (vi*textureWidth);
 
-            if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
-                if (depth >= depth_buffer[x][y]) {
-                    depth_buffer[x][y] = depth;
-                    int textureWidth = textureDimensions[triangle.textureIndex].x;
-                    // int textureHeight = textureDimensions[triangle.textureIndex].y;
-                    int texturePoint = ui + (vi*textureWidth);
+                //texturePoint being out of range might be a minor rounding error
+                if (texturePoint >= 0 && texturePoint < textureDimensions[triangle.textureIndex].x * textureDimensions[triangle.textureIndex].y) {
 
-                    //Added if guard as there were cases when texturePoint was out of bounds
-                    // if(texturePoint < textureWidth*textureHeight){
-                        Colour c = textures[triangle.textureIndex][texturePoint];
-                        window.setPixelColour(x, y, c.packed_colour());
-                    // }
-
+                    Colour c = textures[triangle.textureIndex][texturePoint];
+                    window.setPixelColour(x, y, c.packed_colour());
                 }
             }
         }
-
     }
 
     // fill bottom triangle
@@ -1104,28 +1141,31 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
             int ui = u/depth;
             int vi = v/depth;
 
-            if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT){
-                if (depth >= depth_buffer[x][y]) {
-                    depth_buffer[x][y] = depth;
+            if (depth >= depth_buffer[x][y]) {
+                depth_buffer[x][y] = depth;
 
-                    int textureWidth = textureDimensions[triangle.textureIndex].x;
-                    // int textureHeight = textureDimensions[triangle.textureIndex].y;
-                    int texturePoint = ui + (vi*textureWidth);
+                int textureWidth = textureDimensions[triangle.textureIndex].x;
+                int texturePoint = ui + (vi*textureWidth);
 
-                    //Added if guard as there were cases when texturePoint was out of bounds
-                    // if(texturePoint < textureWidth*textureHeight){
-                        Colour c = textures[triangle.textureIndex][texturePoint];
-                        window.setPixelColour(x, y, c.packed_colour());
-                    // }
+                //texturePoint being out of range might be a minor rounding error
+                if (texturePoint >= 0 && texturePoint < textureDimensions[triangle.textureIndex].x * textureDimensions[triangle.textureIndex].y) {
 
+                    Colour c = textures[triangle.textureIndex][texturePoint];
+                    window.setPixelColour(x, y, c.packed_colour());
                 }
             }
         }
     }
 }
 
-bool inRange(float x,float min,float max){
-    return x >= min && x <= max;
+vec3 perspectiveProjection(vec3 point) {
+    vec3 wrtCamera = (point - cameraPos) * cameraOrientation;
+    float ratio = FOCALLENGTH/(-wrtCamera.z);
+
+    int x = wrtCamera.x * ratio + WIDTH/2;
+    int y = (-wrtCamera.y) * ratio + HEIGHT/2;
+
+    return vec3(x, y, -wrtCamera.z);
 }
 
 void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
@@ -1148,40 +1188,37 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
     for (int i = 0; i < (int) modelTriangles.size(); i++) {
         std::vector<CanvasPoint> points;
         for (int j = 0; j < 3; j++) {
-            glm::vec3 wrtCamera = (modelTriangles[i].vertices[j] - cameraPos) * cameraOrientation;
-            float ratio = focalLength/(-wrtCamera.z);
-
-            int x = wrtCamera.x * ratio + WIDTH/2;
-            int y = (-wrtCamera.y) * ratio + HEIGHT/2;
-
-            CanvasPoint point = CanvasPoint(x, y,-wrtCamera.z, modelTriangles[i].texturePoints[j]);
+            vec3 persp = perspectiveProjection(modelTriangles[i].vertices[j]);
+            CanvasPoint point = CanvasPoint(persp.x, persp.y,persp.z, modelTriangles[i].texturePoints[j]);
             points.push_back(point);
         }
-        if(inRange(points[0].depth,100,1000)&& inRange(points[1].depth,100,1000) && inRange(points[2].depth,100,1000)){ //near plane clipping
+
+        // near and far plane clipping
+        if(inRange(points[0].depth,100,1000) && inRange(points[1].depth,100,1000) && inRange(points[2].depth,100,1000)){
             CanvasTriangle triangle = CanvasTriangle(points[0], points[1], points[2], modelTriangles[i].colour);
             triangle.textureIndex = modelTriangles[i].textureIndex;
-            triangles.push_back(triangle);
-        }
+            triangle.vertices[0].depth = 1/triangle.vertices[0].depth;
+            triangle.vertices[1].depth = 1/triangle.vertices[1].depth;
+            triangle.vertices[2].depth = 1/triangle.vertices[2].depth;
 
-    }
+            std::vector<CanvasTriangle> clippedTriangles = fragmentTriangle(triangle);
 
-    for(int i = 0; i < (int)triangles.size(); i++){
-        for (int j = 0; j < 3; j++) {
-            triangles[i].vertices[j].depth = 1/triangles[i].vertices[j].depth;
-        }
+            for (int j = 0; j < clippedTriangles.size(); j++) {
+                if (mode == 2) {
+                    if (clippedTriangles[j].isTexture) {
+                        drawTexturedTriangle(clippedTriangles[j],depth_buffer);
+                    }
+                    else drawFilledTriangle(clippedTriangles[j],depth_buffer);
+                }
 
-        if (mode == 2) {
-            if (triangles[i].isTexture) {
-                drawTexturedTriangle(triangles[i],depth_buffer);
+                else if (mode == 1) {
+                    clippedTriangles[j].colour = Colour(255, 255, 255);
+                    drawTriangle(clippedTriangles[j], depth_buffer);
+                }
             }
-            else drawFilledTriangle(triangles[i],depth_buffer);
-        }
-
-        else if (mode == 1) {
-            triangles[i].colour = Colour(255, 255, 255);
-            drawTriangle(triangles[i], depth_buffer);
         }
     }
+
     free(depth_buffer);
 }
 
@@ -1736,10 +1773,17 @@ void drawScene(){
     window.clearPixels();
     std::map<std::string,std::vector<ModelTriangle>>::iterator it;
     std::vector<ModelTriangle> triangles;
-    for (it=scene.begin(); it!=scene.end(); ++it){
-        //append triangle list
-        triangles.insert(triangles.end(),it->second.begin(),it->second.end());
+
+    for (it = scene.begin(); it !=scene.end(); ++it){
+        BoundingBox bounding_box = getBoundingBox(it->second);
+
+        if (withinFrustum(bounding_box, 100, 1000)) {
+            std::vector<ModelTriangle> insideTriangles = removeOutsideTriangles(it->second);
+            triangles.insert(triangles.end(),insideTriangles.begin(), insideTriangles.end());
+        }
+        // else std::cout << it->first << " is out of frame" << '\n';
     }
+
     if(mode==3){
         time_t tic;
         time(&tic);
@@ -1886,6 +1930,191 @@ vec3 toppleBlock(std::string name, float yAngle) {
     //
     // return block_centroid_y;
 }
+
+// CLIPPING //
+
+
+BoundingBox getBoundingBox(std::vector<ModelTriangle> triangles) {
+    vec3 minBBox = vec3(infinity, infinity, infinity);
+    vec3 maxBBox = vec3(-infinity, -infinity, -infinity);
+
+    for (int i = 0; i < triangles.size(); i++) {
+        for (int j = 0; j < 3; j++) {
+            float x = triangles[i].vertices[j].x;
+            float y = triangles[i].vertices[j].y;
+            float z = triangles[i].vertices[j].z;
+
+            if (x < minBBox.x) minBBox.x = x;
+            else if (x > maxBBox.x) maxBBox.x = x;
+            if (y < minBBox.y) minBBox.y = y;
+            else if (y > maxBBox.y) maxBBox.y = y;
+            if (z < minBBox.z) minBBox.z = z;
+            else if (z > maxBBox.z) maxBBox.z = z;
+        }
+    }
+    BoundingBox bounding_box = BoundingBox(minBBox, maxBBox.x-minBBox.x, maxBBox.y-minBBox.y, maxBBox.z-minBBox.z);
+    return bounding_box;
+}
+
+bool pointWithinFrustum(vec3 point, float near, float far) {
+    vec3 persp = perspectiveProjection(point);
+
+    // return inRange(-wrtCamera.z, near, far) && inRange(x, 0, WIDTH-1) && inRange(y, 0, HEIGHT-1);
+    return inRange(persp.x, 0, WIDTH-1) && inRange(persp.y, 0, HEIGHT-1);
+}
+
+bool withinFrustum(BoundingBox bbox, float near, float far) {
+    std::vector<vec3> bbox_points = bbox.getPoints();
+    for (int i = 0; i < bbox_points.size(); i++) {
+        if (pointWithinFrustum(bbox_points[i], near, far)) return true;
+    }
+    return false;
+}
+
+std::vector<ModelTriangle> removeOutsideTriangles(std::vector<ModelTriangle> triangles) {
+    std::vector<ModelTriangle> final_triangles;
+
+    for (int i = 0; i < triangles.size(); i++) {
+        ModelTriangle orderY = triangles[i];
+        order_triangle(&orderY);
+        vec3 v0 = perspectiveProjection(orderY.vertices[2]);
+        vec3 v1 = perspectiveProjection(orderY.vertices[1]);
+        vec3 v2 = perspectiveProjection(orderY.vertices[0]);
+
+        if (!((v0.y < 0 && v1.y < 0 && v2.y < 0) || (v0.y >= HEIGHT && v1.y >= HEIGHT && v2.y >= HEIGHT) ||
+             (v0.x < 0 && v1.x < 0 && v2.x < 0) || (v0.x >= WIDTH && v1.x >= WIDTH && v2.x >= WIDTH))) {
+             final_triangles.push_back(triangles[i]);
+        }
+    }
+    return final_triangles;
+}
+
+std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle) {
+    std::vector<CanvasTriangle> clippedTriangles = {triangle};
+
+    for (int i = 0; i < 4; i++) {
+        std::vector<CanvasTriangle> newClippedTriangles;
+
+        for (int j = 0; j < clippedTriangles.size(); j++) {
+            CanvasTriangle orderY = clippedTriangles[j];
+
+            if (i%2 == 0) swapTriangleXY(&orderY);
+            // mirror triangle along x axis - y = (HEIGHT-1)-y
+            int mirrorSize = i == 2 ? WIDTH : HEIGHT;
+            if (i >= 2) mirrorTriangle(&orderY, mirrorSize);
+
+            order_triangle(&orderY);
+            int pointInsideCount = 0;
+
+            for (int k = 0; k < 3; k++) {
+                if (orderY.vertices[k].y >= 0) pointInsideCount++;
+            }
+
+            if (pointInsideCount == 3) newClippedTriangles.push_back(clippedTriangles[j]);
+
+            else if (pointInsideCount == 2) {
+                CanvasPoint v0 = orderY.vertices[0];
+                CanvasPoint v1 = orderY.vertices[1];
+                CanvasPoint v2 = orderY.vertices[2];
+                //
+                // v0.texturePoint.x *= v0.depth;
+                // v1.texturePoint.x *= v1.depth;
+                // v2.texturePoint.x *= v2.depth;
+                // v0.texturePoint.y *= v0.depth;
+                // v1.texturePoint.y *= v1.depth;
+                // v2.texturePoint.y *= v2.depth;
+
+                float u0_x = v0.texturePoint.x * v0.depth;
+                float u1_x = v1.texturePoint.x * v1.depth;
+                float u2_x = v2.texturePoint.x * v2.depth;
+                float u0_y = v0.texturePoint.y * v0.depth;
+                float u1_y = v1.texturePoint.y * v1.depth;
+                float u2_y = v2.texturePoint.y * v2.depth;
+
+
+                int intersection_x1 = v0.x + (-v0.y)*(v1.x-v0.x)/(v1.y-v0.y);
+                double intersection_z1 = v0.depth + (-v0.y)*(v1.depth-v0.depth)/(v1.y-v0.y);
+                float k_x = (v1.x == v0.x) ? 0 : (u1_x-u0_x)/(v1.x-v0.x);
+                float k_y = (v1.y == v0.y) ? 0 : (u1_y-u0_y)/(v1.y-v0.y);
+                int texture_x1 = (u0_x + (intersection_x1-v0.x) * k_x)/intersection_z1;
+                int texture_y1 = (u0_y + (-v0.y) * k_y)/intersection_z1;
+
+                int intersection_x2 = v0.x + (-v0.y)*(v2.x-v0.x)/(v2.y-v0.y);
+                double intersection_z2 = v0.depth + (-v0.y)*(v2.depth-v0.depth)/(v2.y-v0.y);
+
+                k_x = (v2.x == v0.x) ? 0 : (u2_x-u0_x)/(v2.x-v0.x);
+                k_y = (v2.y == v0.y) ? 0 : (u2_y-u0_y)/(v2.y-v0.y);
+                int texture_x2 = (u0_x + (intersection_x2-v0.x) * k_x)/intersection_z2;
+                int texture_y2 = (u0_y + (-v0.y) * k_y)/intersection_z2;
+
+                CanvasTriangle t1 = orderY;
+                t1.vertices[0].x = intersection_x2; t1.vertices[0].y = 0; t1.vertices[0].depth = intersection_z2;
+                t1.vertices[0].texturePoint = TexturePoint(texture_x2, texture_y2);
+                CanvasTriangle t2 = orderY;
+                t2.vertices[0].x = intersection_x1; t2.vertices[0].y = 0; t2.vertices[0].depth = intersection_z1;
+                t2.vertices[0].texturePoint = TexturePoint(texture_x1, texture_y1);
+                t2.vertices[2].x = intersection_x2; t2.vertices[2].y = 0; t2.vertices[2].depth = intersection_z2;
+                t2.vertices[2].texturePoint = TexturePoint(texture_x2, texture_y2);
+
+                if (i >= 2) {
+                    mirrorTriangle(&t1, mirrorSize);
+                    mirrorTriangle(&t2, mirrorSize);
+                }
+
+                if (i%2 == 0) {
+                    swapTriangleXY(&t1);
+                    swapTriangleXY(&t2);
+                    //swapTexture Coords
+                }
+
+                newClippedTriangles.push_back(t1);
+                newClippedTriangles.push_back(t2);
+            }
+
+            else if (pointInsideCount == 1) {
+                CanvasPoint v0 = orderY.vertices[2];
+                CanvasPoint v1 = orderY.vertices[1];
+                CanvasPoint v2 = orderY.vertices[0];
+
+                int intersection_x1 = v0.x + (-v0.y)*(v1.x-v0.x)/(v1.y-v0.y);
+                double intersection_z1 = v0.depth + (-v0.y)*(v1.depth-v0.depth)/(v1.y-v0.y);
+
+                float u0_x = v0.texturePoint.x * v0.depth;
+                float u1_x = v1.texturePoint.x * v1.depth;
+                float u2_x = v2.texturePoint.x * v2.depth;
+                float u0_y = v0.texturePoint.y * v0.depth;
+                float u1_y = v1.texturePoint.y * v1.depth;
+                float u2_y = v2.texturePoint.y * v2.depth;
+
+                float k_x = (v1.x == v0.x) ? 0 : (u1_x-u0_x)/(v1.x-v0.x);
+                float k_y = (v1.y == v0.y) ? 0 : (u1_y-u0_y)/(v1.y-v0.y);
+                int texture_x1 = (u0_x + (intersection_x1-v0.x) * k_x)/intersection_z1;
+                int texture_y1 = (u0_y + (-v0.y) * k_y)/intersection_z1;
+
+                int intersection_x2 = v0.x + (-v0.y)*(v2.x-v0.x)/(v2.y-v0.y);
+                double intersection_z2 = v0.depth + (-v0.y)*(v2.depth-v0.depth)/(v2.y-v0.y);
+
+                k_x = (v2.x == v0.x) ? 0 : (u2_x-u0_x)/(v2.x-v0.x);
+                k_y = (v2.y == v0.y) ? 0 : (u2_y-u0_y)/(v2.y-v0.y);
+                int texture_x2 = (u0_x + (intersection_x2-v0.x) * k_x)/intersection_z2;
+                int texture_y2 = (u0_y + (-v0.y) * k_y)/intersection_z2;
+
+                CanvasTriangle t1 = orderY;
+                t1.vertices[0].x = intersection_x1; t1.vertices[0].y = 0; t1.vertices[0].depth = intersection_z1;
+                t1.vertices[0].texturePoint = TexturePoint(texture_x1, texture_y1);
+                t1.vertices[1].x = intersection_x2; t1.vertices[1].y = 0; t1.vertices[1].depth = intersection_z2;
+                t1.vertices[1].texturePoint = TexturePoint(texture_x2, texture_y2);
+
+                if (i >= 2) mirrorTriangle(&t1, mirrorSize);
+                if (i%2 == 0) swapTriangleXY(&t1);
+                newClippedTriangles.push_back(t1);
+            }
+        }
+        clippedTriangles = newClippedTriangles;
+    }
+    return clippedTriangles;
+}
+
 
 // EVENT HANDLING //
 

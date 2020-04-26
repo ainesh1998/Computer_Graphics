@@ -22,7 +22,7 @@
 #define WORKING_DIRECTORY ""
 #define BOX_SCALE 25
 #define LOGO_SCALE 0.3
-#define SPHERE_SCALE 10
+#define SPHERE_SCALE 8
 
 using glm::vec3;
 
@@ -185,7 +185,7 @@ int main(int argc, char* argv[])
 
     //for sphere remove texture and set colour to be white
     for (size_t i = 0; i < sphere_triangles.size(); i++) {
-        sphere_triangles[i].colour = Colour(255,255,255);
+        sphere_triangles[i].colour = Colour(255,0,0);
         sphere_triangles[i].isTexture = false;
         for (size_t j = 0; j < 3; j++) {
             sphere_triangles[i].texturePoints[j] = TexturePoint(-1,-1);
@@ -217,7 +217,7 @@ int main(int argc, char* argv[])
     moveObject("ground",vec3(0,0,-70));
     moveObject("logo",vec3(-100,500,0)); // set logo to world origin
     moveObject("box",vec3(0,-170,90));
-    // moveObject("sphere", vec3(-200, -10, 0));
+    moveObject("sphere", vec3(-30, -150, 40));
 
     // moveObject("logo",vec3(-50,240,0));
     // rotateObject("logo",vec3(0,90,0));
@@ -403,10 +403,10 @@ int main(int argc, char* argv[])
             if (currentFrame < 400) {
                 if(isStart){
                     if (currentFrame%2 == 0) {
-                        std::vector<Colour> colours = loadColours();
-                        std::string filename = "video/image" + std::to_string(currentFrame/2) + ".ppm";
-                        std::cout << "Creating frame " << std::to_string(currentFrame/2) << '\n';
-                        writePPM(filename,WIDTH,HEIGHT,colours);
+                        // std::vector<Colour> colours = loadColours();
+                        // std::string filename = "video/image" + std::to_string(currentFrame/2) + ".ppm";
+                        // std::cout << "Creating frame " << std::to_string(currentFrame/2) << '\n';
+                        // writePPM(filename,WIDTH,HEIGHT,colours);
                     }
                     currentFrame++;
                 }
@@ -846,9 +846,8 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
                 m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1], colour, newTriangleID);
                 m.isMirror = mirrored;
                 m.isGlass = isGlass;
-                m.isSpecular = isSpecular;
             }
-
+            m.isSpecular = isSpecular;
             m.boundingBoxIndex = bounding_boxes.size();
             // std::cout << m.boundingBoxIndex << '\n';
             modelTriangles.push_back(m);
@@ -1371,7 +1370,7 @@ float fresnel(vec3 ray,vec3 norm,float refractive_index){
 float calcSpecular(vec3 ray,vec3 point,ModelTriangle t){
     vec3 lightReflect = calcReflectedRay((point-light_positions[0]),t); //only do this for cornell box light
     vec3 toCamera = -ray;
-    float specular = pow(glm::dot(toCamera,lightReflect),16);
+    float specular = pow(glm::dot(toCamera,lightReflect),8);
     return specular;
 }
 RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangles,vec3 ray,vec3 origin,RayTriangleIntersection* original_intersection,int depth){

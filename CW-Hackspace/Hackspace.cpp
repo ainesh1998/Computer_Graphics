@@ -444,7 +444,7 @@ void swapTriangleXY(CanvasTriangle* triangle) {
         std::swap(triangle->vertices[j].x,triangle->vertices[j].y);
         //swap texture coords
         //tried this but gives bad alloc on my computer
-        // std::swap(triangle->vertices[j].texturePoint.x,triangle->vertices[j].texturePoint.y);
+        std::swap(triangle->vertices[j].texturePoint.x,triangle->vertices[j].texturePoint.y);
     }
 }
 
@@ -1050,16 +1050,20 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
             float v = rakeTexture[j].y;
 
             double depth = rakeTriangle[j].z;
-            int ui = u/depth;
-            int vi = v/depth;
+            int ui = std::round(u/depth);
+            int vi = std::round(v/depth);
 
             if (depth >= depth_buffer[x][y]) {
                 depth_buffer[x][y] = depth;
                 int textureWidth = textureDimensions[triangle.textureIndex].x;
                 int texturePoint = ui + (vi*textureWidth);
 
-                Colour c = textures[triangle.textureIndex][texturePoint];
-                window.setPixelColour(x, y, c.packed_colour());
+                //texturePoint being out of range might be a minor rounding error
+                if (texturePoint >= 0 && texturePoint < textureDimensions[triangle.textureIndex].x * textureDimensions[triangle.textureIndex].y) {
+
+                    Colour c = textures[triangle.textureIndex][texturePoint];
+                    window.setPixelColour(x, y, c.packed_colour());
+                }
             }
         }
     }
@@ -1098,8 +1102,12 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
                 int textureWidth = textureDimensions[triangle.textureIndex].x;
                 int texturePoint = ui + (vi*textureWidth);
 
-                Colour c = textures[triangle.textureIndex][texturePoint];
-                window.setPixelColour(x, y, c.packed_colour());
+                //texturePoint being out of range might be a minor rounding error
+                if (texturePoint >= 0 && texturePoint < textureDimensions[triangle.textureIndex].x * textureDimensions[triangle.textureIndex].y) {
+
+                    Colour c = textures[triangle.textureIndex][texturePoint];
+                    window.setPixelColour(x, y, c.packed_colour());
+                }
             }
         }
     }

@@ -103,8 +103,8 @@ bool isCollideGround(std::vector<ModelTriangle> o1, std::vector<ModelTriangle> o
 
 // clipping
 BoundingBox getBoundingBox(std::vector<ModelTriangle> triangles);
-bool pointWithinFrustum(vec3 point, float near, float far);
-bool withinFrustum(BoundingBox bbox, float near, float far);
+bool pointWithinFrustum(vec3 point);
+bool withinFrustum(BoundingBox bbox);
 std::vector<ModelTriangle> removeOutsideTriangles(std::vector<ModelTriangle> triangles);
 std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle);
 
@@ -371,8 +371,8 @@ int main(int argc, char* argv[])
                 }
             }
             else {
-                std::cout << "Finished video" << '\n';
-                isStart = false;
+                // std::cout << "Finished video" << '\n';
+                // isStart = false;
             }
         }
     }
@@ -680,8 +680,8 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
     bool isGlass = false;
     int textureIndex = textures.size();
     int bumpIndex = bump_maps.size();
-    // vec3 minBBox = vec3(infinity, infinity, infinity);
-    // vec3 maxBBox = vec3(-infinity, -infinity, -infinity);
+    vec3 minBBox = vec3(infinity, infinity, infinity);
+    vec3 maxBBox = vec3(-infinity, -infinity, -infinity);
 
     while(stream.getline(line,256)){
         std::string* contents = split(line,' ');
@@ -723,13 +723,13 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
             vec3 newPoint = vec3(x,y,z);
             vertices.push_back(newPoint);
 
-            // bounding box
-            // if (x < minBBox.x) minBBox.x = x;
-            // else if (x > maxBBox.x) maxBBox.x = x;
-            // if (y < minBBox.y) minBBox.y = y;
-            // else if (y > maxBBox.y) maxBBox.y = y;
-            // if (z < minBBox.z) minBBox.z = z;
-            // else if (z > maxBBox.z) maxBBox.z = z;
+            // build bounding box
+            if (x < minBBox.x) minBBox.x = x;
+            else if (x > maxBBox.x) maxBBox.x = x;
+            if (y < minBBox.y) minBBox.y = y;
+            else if (y > maxBBox.y) maxBBox.y = y;
+            if (z < minBBox.z) minBBox.z = z;
+            else if (z > maxBBox.z) maxBBox.z = z;
         }
 
         else if(contents[0].compare("f") == 0){
@@ -805,12 +805,8 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
     stream.close();
 
     // construct bounding box
-
-    // print_vec3(minBBox);
-    // print_vec3(maxBBox);
-    // std::cout << '\n';
-    // BoundingBox bounding_box = BoundingBox(minBBox, maxBBox.x-minBBox.x, maxBBox.y-minBBox.y, maxBBox.z-minBBox.z);
-    // bounding_boxes.push_back(bounding_box);
+    BoundingBox bounding_box = BoundingBox(minBBox, maxBBox.x-minBBox.x, maxBBox.y-minBBox.y, maxBBox.z-minBBox.z);
+    bounding_boxes.push_back(bounding_box);
 
     return modelTriangles;
 }
@@ -1015,6 +1011,7 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
     CanvasPoint u4_2 = CanvasPoint((int) (u4_temp.x/v4.depth), (int) (u4_temp.y/v4.depth));
 
     if (u4_2.x >= 300 || u4_2.y >= 300) {
+        std::cout << "u4 is out of bounds!" << '\n';
         std::cout << u4_2 << '\n';
         // std::cout << triangle << '\n';
         std::cout << texturedTriangle << '\n';
@@ -1047,8 +1044,8 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
             double v = rakeTexture[j].y;
 
             double depth = rakeTriangle[j].z;
-            int ui = u/depth;
-            int vi = v/depth;
+            int ui = std::round(u/depth);
+            int vi = std::round(v/depth);
 
             if (depth >= depth_buffer[x][y]) {
                 depth_buffer[x][y] = depth;
@@ -1056,12 +1053,13 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
                 int textureHeight = textureDimensions[triangle.textureIndex].y;
                 int texturePoint = ui + (vi*textureWidth);
 
-                // if (ui >= textureWidth || vi >= textureHeight ) {
-                    // std::cout << ui << " " << vi << '\n';
-                    // std::cout << triangle << '\n';
-                    // std::cout << texturedTriangle << '\n';
-                    // std::cout << u4_2 << '\n';
-                // }
+                if (ui >= textureWidth || vi >= textureHeight ) {
+                    std::cout << "texture coordinate is out of bounds!" << '\n';
+                    std::cout << ui << " " << vi << '\n';
+                    std::cout << triangle << '\n';
+                    std::cout << texturedTriangle << '\n';
+                    std::cout << u4_2 << '\n';
+                }
                 // else {
                     Colour c = textures[triangle.textureIndex][texturePoint];
                     window.setPixelColour(x, y, c.packed_colour());
@@ -1101,8 +1099,8 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
             double v = rakeTexture[j].y;
 
             double depth = rakeTriangle[j].z;
-            int ui = u/depth;
-            int vi = v/depth;
+            int ui = std::round(u/depth);
+            int vi = std::round(v/depth);
 
             if (depth >= depth_buffer[x][y]) {
                 depth_buffer[x][y] = depth;
@@ -1114,12 +1112,13 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
                 //texturePoint being out of range might be a minor rounding error
                 // if (texturePoint >= 0 && texturePoint < textureDimensions[triangle.textureIndex].x * textureDimensions[triangle.textureIndex].y) {
 
-                // if (ui >= textureWidth || vi >= textureHeight ) {
-                    // std::cout << ui << " " << vi << '\n';
-                    // std::cout << triangle << '\n';
-                    // std::cout << texturedTriangle << '\n';
-                    // std::cout << u4_2 << '\n';
-                // }
+                if (ui >= textureWidth || vi >= textureHeight ) {
+                    std::cout << "texture coordinate is out of bounds!" << '\n';
+                    std::cout << ui << " " << vi << '\n';
+                    std::cout << triangle << '\n';
+                    std::cout << texturedTriangle << '\n';
+                    std::cout << u4_2 << '\n';
+                }
                 // else {
                     Colour c = textures[triangle.textureIndex][texturePoint];
                     window.setPixelColour(x, y, c.packed_colour());
@@ -1731,14 +1730,15 @@ void drawScene(){
     std::vector<ModelTriangle> triangles;
 
     for (it = scene.begin(); it !=scene.end(); ++it){
-        BoundingBox bounding_box = getBoundingBox(it->second);
+        // BoundingBox bounding_box = getBoundingBox(it->second);
+        BoundingBox bounding_box = bounding_boxes[it->second[0].boundingBoxIndex];
 
-        if (withinFrustum(bounding_box, 100, 1000)) {
+        if (withinFrustum(bounding_box)) {
             // remove triangles completely outside frustum
             std::vector<ModelTriangle> insideTriangles = removeOutsideTriangles(it->second);
             triangles.insert(triangles.end(),insideTriangles.begin(), insideTriangles.end());
         }
-        // else std::cout << it->first << " is out of frame" << '\n';
+        else std::cout << it->first << " is out of frame" << '\n';
     }
 
     if(mode==3){
@@ -1760,6 +1760,8 @@ void moveObject(std::string name,vec3 moveVec){
         }
     }
     scene[name] = triangles;
+
+    bounding_boxes[triangles[0].boundingBoxIndex].startVertex += moveVec; // update startVertex of bounding box
 }
 
 vec3 getObjectCentroid(std::string name) {
@@ -1796,12 +1798,26 @@ void rotateObject(std::string name,vec3 rotationAngles){
     rotation_matrix *= rotationY;
 
     std::vector<ModelTriangle> triangles = scene[name];
+    vec3 minBBox = vec3(infinity, infinity, infinity);
+    vec3 maxBBox = vec3(-infinity, -infinity, -infinity);
+
     for (size_t i = 0; i < triangles.size(); i++) {
         for (size_t j = 0; j < 3; j++) {
-            triangles[i].vertices[j] = rotation_matrix* triangles[i].vertices[j] ;
+            triangles[i].vertices[j] = rotation_matrix* triangles[i].vertices[j];
+
+            // recalculate bounding box
+            if (triangles[i].vertices[j].x < minBBox.x) minBBox.x = triangles[i].vertices[j].x;
+            else if (triangles[i].vertices[j].x > maxBBox.x) maxBBox.x = triangles[i].vertices[j].x;
+            if (triangles[i].vertices[j].y < minBBox.y) minBBox.y = triangles[i].vertices[j].y;
+            else if (triangles[i].vertices[j].y > maxBBox.y) maxBBox.y = triangles[i].vertices[j].y;
+            if (triangles[i].vertices[j].z < minBBox.z) minBBox.z = triangles[i].vertices[j].z;
+            else if (triangles[i].vertices[j].z > maxBBox.z) maxBBox.z = triangles[i].vertices[j].z;
         }
     }
     scene[name] = triangles;
+
+    BoundingBox bbox = BoundingBox(minBBox, maxBBox.x-minBBox.x, maxBBox.y-minBBox.y, maxBBox.z-minBBox.z);
+    bounding_boxes[triangles[0].boundingBoxIndex] = bbox;
 }
 
 void rotateAroundPoint(std::string name, vec3 rotationAngles, vec3 point){
@@ -1818,6 +1834,14 @@ void scaleObject(std::string name,float scale){
         }
    }
    scene[name] = triangles;
+
+   // update bounding box
+   BoundingBox bbox = bounding_boxes[triangles[0].boundingBoxIndex];
+   bbox.startVertex *= scale;
+   bbox.width *= scale;
+   bbox.height *= scale;
+   bbox.depth *= scale;
+   bounding_boxes[triangles[0].boundingBoxIndex] = bbox;
 }
 
 void scaleYObject(std::string name,float scale){
@@ -1828,6 +1852,12 @@ void scaleYObject(std::string name,float scale){
         }
    }
    scene[name] = triangles;
+
+   // update bounding box
+   BoundingBox bbox = bounding_boxes[triangles[0].boundingBoxIndex];
+   bbox.startVertex.y *= scale;
+   bbox.height *= scale;
+   bounding_boxes[triangles[0].boundingBoxIndex] = bbox;
 }
 
 
@@ -1900,17 +1930,15 @@ BoundingBox getBoundingBox(std::vector<ModelTriangle> triangles) {
     return bounding_box;
 }
 
-bool pointWithinFrustum(vec3 point, float near, float far) {
+bool pointWithinFrustum(vec3 point) {
     vec3 persp = perspectiveProjection(point);
-
-    // return inRange(-wrtCamera.z, near, far) && inRange(x, 0, WIDTH-1) && inRange(y, 0, HEIGHT-1);
     return inRange(persp.x, 0, WIDTH-1) && inRange(persp.y, 0, HEIGHT-1);
 }
 
-bool withinFrustum(BoundingBox bbox, float near, float far) {
+bool withinFrustum(BoundingBox bbox) {
     std::vector<vec3> bbox_points = bbox.getPoints();
     for (int i = 0; i < bbox_points.size(); i++) {
-        if (pointWithinFrustum(bbox_points[i], near, far)) return true;
+        if (pointWithinFrustum(bbox_points[i])) return true;
     }
     return false;
 }

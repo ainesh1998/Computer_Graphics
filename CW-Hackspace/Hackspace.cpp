@@ -1911,6 +1911,34 @@ std::vector<ModelTriangle> removeOutsideTriangles(std::vector<ModelTriangle> tri
     return final_triangles;
 }
 
+void getFragmentIntersection(CanvasPoint v0, CanvasPoint v1, CanvasPoint v2, glm::vec2* intersection1, glm::vec2* intersection2,
+                    glm::vec2* texture1, glm::vec2* texture2) {
+    float u0_x = v0.texturePoint.x * v0.depth;
+    float u1_x = v1.texturePoint.x * v1.depth;
+    float u2_x = v2.texturePoint.x * v2.depth;
+    float u0_y = v0.texturePoint.y * v0.depth;
+    float u1_y = v1.texturePoint.y * v1.depth;
+    float u2_y = v2.texturePoint.y * v2.depth;
+
+    int intersection_x1 = v0.x + (-v0.y)*(v1.x-v0.x)/(v1.y-v0.y);
+    double intersection_z1 = v0.depth + (-v0.y)*(v1.depth-v0.depth)/(v1.y-v0.y);
+    float k_x = (v1.x == v0.x) ? 0 : (u1_x-u0_x)/(v1.x-v0.x);
+    float k_y = (v1.y == v0.y) ? 0 : (u1_y-u0_y)/(v1.y-v0.y);
+    int texture_x1 = (u0_x + (intersection_x1-v0.x) * k_x)/intersection_z1;
+    int texture_y1 = (u0_y + (-v0.y) * k_y)/intersection_z1;
+    intersection1->x = intersection_x1; intersection1->y = intersection_z1;
+    texture1->x = texture_x1; texture1->y = texture_y1;
+
+    int intersection_x2 = v0.x + (-v0.y)*(v2.x-v0.x)/(v2.y-v0.y);
+    double intersection_z2 = v0.depth + (-v0.y)*(v2.depth-v0.depth)/(v2.y-v0.y);
+    k_x = (v2.x == v0.x) ? 0 : (u2_x-u0_x)/(v2.x-v0.x);
+    k_y = (v2.y == v0.y) ? 0 : (u2_y-u0_y)/(v2.y-v0.y);
+    int texture_x2 = (u0_x + (intersection_x2-v0.x) * k_x)/intersection_z2;
+    int texture_y2 = (u0_y + (-v0.y) * k_y)/intersection_z2;
+    intersection2->x = intersection_x2; intersection2->y = intersection_z2;
+    texture2->x = texture_x2; texture2->y = texture_y2;
+}
+
 std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle) {
     std::vector<CanvasTriangle> clippedTriangles = {triangle};
 
@@ -1934,102 +1962,57 @@ std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle) {
 
             if (pointInsideCount == 3) newClippedTriangles.push_back(clippedTriangles[j]);
 
-            else if (pointInsideCount == 2) {
-                CanvasPoint v0 = orderY.vertices[0];
+            else if (pointInsideCount == 2 || pointInsideCount == 1) {
+                CanvasPoint v0 = pointInsideCount == 2 ? orderY.vertices[0] : orderY.vertices[2];
                 CanvasPoint v1 = orderY.vertices[1];
-                CanvasPoint v2 = orderY.vertices[2];
-                //
-                // v0.texturePoint.x *= v0.depth;
-                // v1.texturePoint.x *= v1.depth;
-                // v2.texturePoint.x *= v2.depth;
-                // v0.texturePoint.y *= v0.depth;
-                // v1.texturePoint.y *= v1.depth;
-                // v2.texturePoint.y *= v2.depth;
+                CanvasPoint v2 = pointInsideCount == 1 ? orderY.vertices[0] : orderY.vertices[2];
 
-                float u0_x = v0.texturePoint.x * v0.depth;
-                float u1_x = v1.texturePoint.x * v1.depth;
-                float u2_x = v2.texturePoint.x * v2.depth;
-                float u0_y = v0.texturePoint.y * v0.depth;
-                float u1_y = v1.texturePoint.y * v1.depth;
-                float u2_y = v2.texturePoint.y * v2.depth;
+                glm::vec2 intersection1; glm::vec2 intersection2;
+                glm::vec2 texture1; glm::vec2 texture2;
 
+                getFragmentIntersection(v0, v1, v2, &intersection1, &intersection2, &texture1, &texture2);
 
-                int intersection_x1 = v0.x + (-v0.y)*(v1.x-v0.x)/(v1.y-v0.y);
-                double intersection_z1 = v0.depth + (-v0.y)*(v1.depth-v0.depth)/(v1.y-v0.y);
-                float k_x = (v1.x == v0.x) ? 0 : (u1_x-u0_x)/(v1.x-v0.x);
-                float k_y = (v1.y == v0.y) ? 0 : (u1_y-u0_y)/(v1.y-v0.y);
-                int texture_x1 = (u0_x + (intersection_x1-v0.x) * k_x)/intersection_z1;
-                int texture_y1 = (u0_y + (-v0.y) * k_y)/intersection_z1;
+                int intersection_x1 = intersection1.x; double intersection_z1 = intersection1.y;
+                int intersection_x2 = intersection2.x; double intersection_z2 = intersection2.y;
+                int texture_x1 = texture1.x; int texture_y1 = texture1.y;
+                int texture_x2 = texture2.y; int texture_y2 = texture2.y;
 
-                int intersection_x2 = v0.x + (-v0.y)*(v2.x-v0.x)/(v2.y-v0.y);
-                double intersection_z2 = v0.depth + (-v0.y)*(v2.depth-v0.depth)/(v2.y-v0.y);
+                if (pointInsideCount == 2) {
+                    CanvasTriangle t1 = orderY;
+                    t1.vertices[0].x = intersection_x2; t1.vertices[0].y = 0; t1.vertices[0].depth = intersection_z2;
+                    t1.vertices[0].texturePoint = TexturePoint(texture_x2, texture_y2);
+                    CanvasTriangle t2 = orderY;
+                    t2.vertices[0].x = intersection_x1; t2.vertices[0].y = 0; t2.vertices[0].depth = intersection_z1;
+                    t2.vertices[0].texturePoint = TexturePoint(texture_x1, texture_y1);
+                    t2.vertices[2].x = intersection_x2; t2.vertices[2].y = 0; t2.vertices[2].depth = intersection_z2;
+                    t2.vertices[2].texturePoint = TexturePoint(texture_x2, texture_y2);
 
-                k_x = (v2.x == v0.x) ? 0 : (u2_x-u0_x)/(v2.x-v0.x);
-                k_y = (v2.y == v0.y) ? 0 : (u2_y-u0_y)/(v2.y-v0.y);
-                int texture_x2 = (u0_x + (intersection_x2-v0.x) * k_x)/intersection_z2;
-                int texture_y2 = (u0_y + (-v0.y) * k_y)/intersection_z2;
+                    if (i >= 2) {
+                        mirrorTriangle(&t1, mirrorSize);
+                        mirrorTriangle(&t2, mirrorSize);
+                    }
 
-                CanvasTriangle t1 = orderY;
-                t1.vertices[0].x = intersection_x2; t1.vertices[0].y = 0; t1.vertices[0].depth = intersection_z2;
-                t1.vertices[0].texturePoint = TexturePoint(texture_x2, texture_y2);
-                CanvasTriangle t2 = orderY;
-                t2.vertices[0].x = intersection_x1; t2.vertices[0].y = 0; t2.vertices[0].depth = intersection_z1;
-                t2.vertices[0].texturePoint = TexturePoint(texture_x1, texture_y1);
-                t2.vertices[2].x = intersection_x2; t2.vertices[2].y = 0; t2.vertices[2].depth = intersection_z2;
-                t2.vertices[2].texturePoint = TexturePoint(texture_x2, texture_y2);
+                    if (i%2 == 0) {
+                        swapTriangleXY(&t1);
+                        swapTriangleXY(&t2);
+                        //swapTexture Coords
+                    }
 
-                if (i >= 2) {
-                    mirrorTriangle(&t1, mirrorSize);
-                    mirrorTriangle(&t2, mirrorSize);
+                    newClippedTriangles.push_back(t1);
+                    newClippedTriangles.push_back(t2);
                 }
 
-                if (i%2 == 0) {
-                    swapTriangleXY(&t1);
-                    swapTriangleXY(&t2);
-                    //swapTexture Coords
+                else {
+                    CanvasTriangle t1 = orderY;
+                    t1.vertices[0].x = intersection_x1; t1.vertices[0].y = 0; t1.vertices[0].depth = intersection_z1;
+                    t1.vertices[0].texturePoint = TexturePoint(texture_x1, texture_y1);
+                    t1.vertices[1].x = intersection_x2; t1.vertices[1].y = 0; t1.vertices[1].depth = intersection_z2;
+                    t1.vertices[1].texturePoint = TexturePoint(texture_x2, texture_y2);
+
+                    if (i >= 2) mirrorTriangle(&t1, mirrorSize);
+                    if (i%2 == 0) swapTriangleXY(&t1);
+                    newClippedTriangles.push_back(t1);
                 }
-
-                newClippedTriangles.push_back(t1);
-                newClippedTriangles.push_back(t2);
-            }
-
-            else if (pointInsideCount == 1) {
-                CanvasPoint v0 = orderY.vertices[2];
-                CanvasPoint v1 = orderY.vertices[1];
-                CanvasPoint v2 = orderY.vertices[0];
-
-                int intersection_x1 = v0.x + (-v0.y)*(v1.x-v0.x)/(v1.y-v0.y);
-                double intersection_z1 = v0.depth + (-v0.y)*(v1.depth-v0.depth)/(v1.y-v0.y);
-
-                float u0_x = v0.texturePoint.x * v0.depth;
-                float u1_x = v1.texturePoint.x * v1.depth;
-                float u2_x = v2.texturePoint.x * v2.depth;
-                float u0_y = v0.texturePoint.y * v0.depth;
-                float u1_y = v1.texturePoint.y * v1.depth;
-                float u2_y = v2.texturePoint.y * v2.depth;
-
-                float k_x = (v1.x == v0.x) ? 0 : (u1_x-u0_x)/(v1.x-v0.x);
-                float k_y = (v1.y == v0.y) ? 0 : (u1_y-u0_y)/(v1.y-v0.y);
-                int texture_x1 = (u0_x + (intersection_x1-v0.x) * k_x)/intersection_z1;
-                int texture_y1 = (u0_y + (-v0.y) * k_y)/intersection_z1;
-
-                int intersection_x2 = v0.x + (-v0.y)*(v2.x-v0.x)/(v2.y-v0.y);
-                double intersection_z2 = v0.depth + (-v0.y)*(v2.depth-v0.depth)/(v2.y-v0.y);
-
-                k_x = (v2.x == v0.x) ? 0 : (u2_x-u0_x)/(v2.x-v0.x);
-                k_y = (v2.y == v0.y) ? 0 : (u2_y-u0_y)/(v2.y-v0.y);
-                int texture_x2 = (u0_x + (intersection_x2-v0.x) * k_x)/intersection_z2;
-                int texture_y2 = (u0_y + (-v0.y) * k_y)/intersection_z2;
-
-                CanvasTriangle t1 = orderY;
-                t1.vertices[0].x = intersection_x1; t1.vertices[0].y = 0; t1.vertices[0].depth = intersection_z1;
-                t1.vertices[0].texturePoint = TexturePoint(texture_x1, texture_y1);
-                t1.vertices[1].x = intersection_x2; t1.vertices[1].y = 0; t1.vertices[1].depth = intersection_z2;
-                t1.vertices[1].texturePoint = TexturePoint(texture_x2, texture_y2);
-
-                if (i >= 2) mirrorTriangle(&t1, mirrorSize);
-                if (i%2 == 0) swapTriangleXY(&t1);
-                newClippedTriangles.push_back(t1);
             }
         }
         clippedTriangles = newClippedTriangles;

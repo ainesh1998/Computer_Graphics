@@ -34,7 +34,6 @@ void swapTriangleXY(CanvasTriangle* triangle);
 void mirrorTriangle(CanvasTriangle* triangle, int size);
 void order_triangle(CanvasTriangle *triangle);
 void order_triangle(ModelTriangle *triangle);
-void order_textured_triangle(CanvasTriangle *triangle, CanvasTriangle *texture);
 std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValues);
 vec3 cramer_rule(glm::mat3 DEMatrix,vec3 SPVector);
 bool isEqualTriangle(ModelTriangle t1,ModelTriangle t2);
@@ -503,23 +502,6 @@ void order_triangle_Z(ModelTriangle *triangle){
         std::swap(triangle->vertices[1],triangle->vertices[2]);
         if(triangle->vertices[1].z < triangle->vertices[0].z){
             std::swap(triangle->vertices[1],triangle->vertices[0]);
-        }
-    }
-}
-
-void order_textured_triangle(CanvasTriangle *triangle, CanvasTriangle *texture) {
-    if(triangle->vertices[1].y < triangle->vertices[0].y){
-        std::swap(triangle->vertices[0],triangle->vertices[1]);
-        std::swap(texture->vertices[0],texture->vertices[1]);
-    }
-
-    if(triangle->vertices[2].y < triangle->vertices[1].y){
-        std::swap(triangle->vertices[1],triangle->vertices[2]);
-        std::swap(texture->vertices[1],texture->vertices[2]);
-
-        if(triangle->vertices[1].y < triangle->vertices[0].y){
-            std::swap(triangle->vertices[1],triangle->vertices[0]);
-            std::swap(texture->vertices[1],texture->vertices[0]);
         }
     }
 }
@@ -999,9 +981,9 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
     CanvasPoint v3 = triangle.vertices[2];
 
     double slope = (v2.y - v1.y)/(v3.y - v1.y);
-    int newX = v1.x + slope * (v3.x - v1.x);
+    double newX = v1.x + slope * (v3.x - v1.x);
     double newZ = v1.depth +  (double) slope * (v3.depth - v1.depth);
-    CanvasPoint v4 = CanvasPoint(newX, v2.y, newZ);
+    CanvasPoint v4 = CanvasPoint((int) newX, v2.y, newZ);
 
     if (v1.y == v3.y) return;
     CanvasPoint u1 = texturedTriangle.vertices[0];
@@ -1018,7 +1000,7 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
 
     float k_x = (v3.x==v1.x)? 0 : (u3.x-u1.x)/(v3.x-v1.x);
     float k_y = (v3.y==v1.y)? 0 : (u3.y-u1.y)/(v3.y-v1.y);
-    float u4_x = u1.x + k_x * (v4.x-v1.x);
+    float u4_x = u1.x + k_x * (newX-v1.x);
     float u4_y = u1.y + k_y * (v4.y-v1.y);
 
     CanvasPoint u4 = CanvasPoint(u4_x,u4_y);
@@ -1056,11 +1038,14 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
             if (depth >= depth_buffer[x][y]) {
                 depth_buffer[x][y] = depth;
                 int textureWidth = textureDimensions[triangle.textureIndex].x;
+                // int textureHeight = te
                 int texturePoint = ui + (vi*textureWidth);
+
+                // if (ui ? )
+                // std::cout << u << " " << v << '\n';
 
                 //texturePoint being out of range might be a minor rounding error
                 // if (texturePoint >= 0 && texturePoint < textureDimensions[triangle.textureIndex].x * textureDimensions[triangle.textureIndex].y) {
-
                     Colour c = textures[triangle.textureIndex][texturePoint];
                     window.setPixelColour(x, y, c.packed_colour());
                 // }
@@ -1104,6 +1089,8 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
 
                 //texturePoint being out of range might be a minor rounding error
                 // if (texturePoint >= 0 && texturePoint < textureDimensions[triangle.textureIndex].x * textureDimensions[triangle.textureIndex].y) {
+
+                // std::cout << ui << " " << vi << '\n';
 
                     Colour c = textures[triangle.textureIndex][texturePoint];
                     window.setPixelColour(x, y, c.packed_colour());
@@ -1713,6 +1700,7 @@ void drawScene(){
         BoundingBox bounding_box = getBoundingBox(it->second);
 
         if (withinFrustum(bounding_box, 100, 1000)) {
+            // remove triangles completely outside frustum
             std::vector<ModelTriangle> insideTriangles = removeOutsideTriangles(it->second);
             triangles.insert(triangles.end(),insideTriangles.begin(), insideTriangles.end());
         }
@@ -1911,8 +1899,9 @@ std::vector<ModelTriangle> removeOutsideTriangles(std::vector<ModelTriangle> tri
     return final_triangles;
 }
 
+// finds the intersection points of the triangle and top of screen, as well as the texture points
 void getFragmentIntersection(CanvasPoint v0, CanvasPoint v1, CanvasPoint v2, glm::vec2* intersection1, glm::vec2* intersection2,
-                    glm::vec2* texture1, glm::vec2* texture2, int textureIndex, int pointInsideCount) {
+                    glm::vec2* texture1, glm::vec2* texture2) {
     double u0_x = v0.texturePoint.x * v0.depth;
     double u1_x = v1.texturePoint.x * v1.depth;
     double u2_x = v2.texturePoint.x * v2.depth;
@@ -1937,44 +1926,49 @@ void getFragmentIntersection(CanvasPoint v0, CanvasPoint v1, CanvasPoint v2, glm
     int texture_y2 = (u0_y + (-v0.y) * k_y)/intersection_z2;
     intersection2->x = (int) intersection_x2; intersection2->y = intersection_z2;
     texture2->x = texture_x2; texture2->y = texture_y2;
-
-    int textureWidth = textureDimensions[textureIndex].x;
-    int textureHeight = textureDimensions[textureIndex].y;
-    if (v0.isTexture) {
-        if (texture_x1 >= textureWidth || texture_x2 >= textureWidth || texture_y1 >= textureHeight
-                || texture_y2 >= textureHeight) {
-                    std::cout << v0.texturePoint << " " << v1.texturePoint << " " << v2.texturePoint << '\n';
-                    std::cout << "texture1: " << texture_x1 << " " << texture_y1 << '\n';
-                    std::cout << "texture2: " << texture_x2 << " " << texture_y2 << "\n";
-                    std::cout << pointInsideCount << " points inside screen" << "\n\n";
-                }
-    }
 }
 
+// cuts the given triangle into smaller triangles that are inside the screen
 std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle) {
     std::vector<CanvasTriangle> clippedTriangles = {triangle};
 
+    // check triangles (and fragment if necessary) for each side of the screen
     for (int i = 0; i < 4; i++) {
         std::vector<CanvasTriangle> newClippedTriangles;
 
+        // loop through all the fragmented triangles so far - they could be fragmented along
+        // one side but could still be partially outside the screen on other sides
         for (int j = 0; j < clippedTriangles.size(); j++) {
             CanvasTriangle orderY = clippedTriangles[j];
 
+            // i = 0 and 2 correspond to left and right of the screen
+            // for these cases we swap the x and y coordinates of the triangle
+            // to reduce the problem so that it's vertical since we only have to check y
             if (i%2 == 0) swapTriangleXY(&orderY);
-            // mirror triangle along x axis - y = (HEIGHT-1)-y
-            int mirrorSize = i == 2 ? WIDTH : HEIGHT;
+
+            // i == 2 and 3 correspond to right and bottom of the screen
+            // for these cases the boundary we have to check is either (HEIGHT-1) or (WIDTH-1)
+            // so to make it consistent with the other two cases, we flip the y axis
+            // this makes the boundary 0 for all 4 cases
+            int mirrorSize = i == 2 ? WIDTH : HEIGHT; // if right, do y = (WIDTH-1) - y, if bottom do y = (HEIGHT-1) - y
             if (i >= 2) mirrorTriangle(&orderY, mirrorSize);
 
+            // after swapping and mirroring, we've basically converted everything to the top of the screen and only have to check this
+
             order_triangle(&orderY);
-            int pointInsideCount = 0;
+            int pointInsideCount = 0; // the number of points of the triangle inside the screen
 
             for (int k = 0; k < 3; k++) {
                 if (orderY.vertices[k].y >= 0) pointInsideCount++;
             }
 
+            // if all 3 are in, keep the original triangle
             if (pointInsideCount == 3) newClippedTriangles.push_back(clippedTriangles[j]);
 
+            // if 2 or 1 are in, find the intersection points and create new triangles
             else if (pointInsideCount == 2 || pointInsideCount == 1) {
+                // if 2 are in, we find the intersection points from the top-most point
+                // if 1 is in, we find them from the bottom-most point (because the intersections are along the bottom point and not the top)
                 CanvasPoint v0 = pointInsideCount == 2 ? orderY.vertices[0] : orderY.vertices[2];
                 CanvasPoint v1 = orderY.vertices[1];
                 CanvasPoint v2 = pointInsideCount == 1 ? orderY.vertices[0] : orderY.vertices[2];
@@ -1982,26 +1976,17 @@ std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle) {
                 glm::vec2 intersection1; glm::vec2 intersection2;
                 glm::vec2 texture1; glm::vec2 texture2;
 
-                getFragmentIntersection(v0, v1, v2, &intersection1, &intersection2, &texture1, &texture2, triangle.textureIndex, pointInsideCount);
+                getFragmentIntersection(v0, v1, v2, &intersection1, &intersection2, &texture1, &texture2);
 
                 int intersection_x1 = intersection1.x; double intersection_z1 = intersection1.y;
                 int intersection_x2 = intersection2.x; double intersection_z2 = intersection2.y;
                 int texture_x1 = texture1.x; int texture_y1 = texture1.y;
                 int texture_x2 = texture2.x; int texture_y2 = texture2.y;
 
-                // int textureWidth = textureDimensions[triangle.textureIndex].x;
-                // int textureHeight = textureDimensions[triangle.textureIndex].y;
-
-                // if (triangle.isTexture) std::cout << textureWidth << " " << textureHeight << '\n';
-
-                // if (triangle.isTexture) {
-                //     if (texture_x1 >= textureWidth || texture_x2 >= textureWidth || texture_y1 >= textureHeight
-                //         || texture_y2 >= textureHeight) std::cout << texture_x1 << " " << texture_y1 << " " << texture_x2 << " " << texture_y2 << '\n';
-                //     }
-
-                // if (triangle.isTexture) std::cout << texture_x1 << " " << texture_y1 << " " << texture_x2 << " " << texture_y2 << '\n';
-
+                // construct the new triangles - hard to explain this without drawing it out
                 if (pointInsideCount == 2) {
+                    // if 2 points are in, the portion of the triangle inside the screen is a quadrilateral
+                    // we split this quadrilateral into two triangles
                     CanvasTriangle t1 = orderY;
                     t1.vertices[0].x = intersection_x2; t1.vertices[0].y = 0; t1.vertices[0].depth = intersection_z2;
                     t1.vertices[0].texturePoint = TexturePoint(texture_x2, texture_y2);
@@ -2011,6 +1996,7 @@ std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle) {
                     t2.vertices[2].x = intersection_x2; t2.vertices[2].y = 0; t2.vertices[2].depth = intersection_z2;
                     t2.vertices[2].texturePoint = TexturePoint(texture_x2, texture_y2);
 
+                    // undo the transformations we did at the start
                     if (i >= 2) {
                         mirrorTriangle(&t1, mirrorSize);
                         mirrorTriangle(&t2, mirrorSize);
@@ -2019,7 +2005,6 @@ std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle) {
                     if (i%2 == 0) {
                         swapTriangleXY(&t1);
                         swapTriangleXY(&t2);
-                        //swapTexture Coords
                     }
 
                     newClippedTriangles.push_back(t1);
@@ -2027,18 +2012,26 @@ std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle) {
                 }
 
                 else {
+                    // if 1 point is in, the portion of the triangle inside is also a triangle
+                    // the upper-two points are replaced with the intersection points
                     CanvasTriangle t1 = orderY;
                     t1.vertices[0].x = intersection_x1; t1.vertices[0].y = 0; t1.vertices[0].depth = intersection_z1;
                     t1.vertices[0].texturePoint = TexturePoint(texture_x1, texture_y1);
                     t1.vertices[1].x = intersection_x2; t1.vertices[1].y = 0; t1.vertices[1].depth = intersection_z2;
                     t1.vertices[1].texturePoint = TexturePoint(texture_x2, texture_y2);
 
+                    // undo the transformations we did at the start
                     if (i >= 2) mirrorTriangle(&t1, mirrorSize);
                     if (i%2 == 0) swapTriangleXY(&t1);
                     newClippedTriangles.push_back(t1);
                 }
             }
+
+            // we don't have to consider triangles with no points in the boundary
+            // because we've removed them via removeOutsideTriangles
         }
+
+        // set clipped triangles to the triangles we just fragmented and repeat for next boundary
         clippedTriangles = newClippedTriangles;
     }
     return clippedTriangles;

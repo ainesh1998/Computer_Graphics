@@ -417,18 +417,16 @@ double **malloc2dArray(int dimX, int dimY)
 }
 
 std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValues) {
-    // print_vec3(start);
-    // print_vec3(end);
     std::vector<glm::vec3> vals;
-    float stepX = (end.x - start.x)/(noOfValues-1);
-    float stepY = (end.y - start.y)/(noOfValues-1);
-    float stepZ = (end.z - start.z)/(noOfValues-1);
+    double stepX = (end.x - start.x)/(noOfValues-1);
+    double stepY = (end.y - start.y)/(noOfValues-1);
+    double stepZ = (end.z - start.z)/(noOfValues-1);
 
     vals.push_back(start);
     for(int i = 0; i < noOfValues-1; i++){
-      float tempX = vals[i].x + stepX;
-      float tempY = vals[i].y + stepY;
-      float tempZ = vals[i].z + stepZ;
+      double tempX = vals[i].x + stepX;
+      double tempY = vals[i].y + stepY;
+      double tempZ = vals[i].z + stepZ;
       glm::vec3 temp(tempX, tempY, tempZ);
       vals.push_back(temp);
     }
@@ -990,6 +988,10 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
     CanvasPoint u2 = texturedTriangle.vertices[1];
     CanvasPoint u3 = texturedTriangle.vertices[2];
 
+    if (u1.x >= 300 || u1.y >= 300 || u2.x >= 300 || u2.y >= 300 || u3.x >= 300 || u3.y >= 300) {
+        // std::cout << texturedTriangle << '\n';
+    }
+
     u1.x = u1.x * v1.depth;
     u2.x = u2.x * v2.depth;
     u3.x = u3.x * v3.depth;
@@ -998,12 +1000,25 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
     u2.y = u2.y * v2.depth;
     u3.y = u3.y * v3.depth;
 
-    float k_x = (v3.x==v1.x)? 0 : (u3.x-u1.x)/(v3.x-v1.x);
-    float k_y = (v3.y==v1.y)? 0 : (u3.y-u1.y)/(v3.y-v1.y);
-    float u4_x = u1.x + k_x * (newX-v1.x);
-    float u4_y = u1.y + k_y * (v4.y-v1.y);
+    // float k_x = (v3.x==v1.x)? 0 : (u3.x-u1.x)/(v3.x-v1.x);
+    // float k_y = (v3.y==v1.y)? 0 : (u3.y-u1.y)/(v3.y-v1.y);
+    // float u4_x = u1.x + k_x * (newX-v1.x);
+    // float u4_y = u1.y + k_y * (v4.y-v1.y);
 
-    CanvasPoint u4 = CanvasPoint(u4_x,u4_y);
+    double dist1 = glm::distance(glm::vec2(v1.x, v1.y), glm::vec2(v3.x, v3.y));
+    double dist2 = glm::distance(glm::vec2(v1.x, v1.y), glm::vec2(newX, v4.y));
+    double ratio = dist2/dist1;
+    glm::vec2 side = glm::vec2(u3.x, u3.y) - glm::vec2(u1.x, u1.y);
+    glm::vec2 u4_temp = glm::vec2(u1.x, u1.y) + (float) ratio * side;
+
+    CanvasPoint u4 = CanvasPoint(u4_temp.x,u4_temp.y);
+    CanvasPoint u4_2 = CanvasPoint((int) (u4_temp.x/v4.depth), (int) (u4_temp.y/v4.depth));
+
+    if (u4_2.x >= 300 || u4_2.y >= 300) {
+        std::cout << u4_2 << '\n';
+        // std::cout << triangle << '\n';
+        std::cout << texturedTriangle << '\n';
+    }
 
 
     //fill top triangle
@@ -1028,26 +1043,34 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
 
         for (uint32_t j = 0; j < rakeTriangle.size(); j++) {
             int x = rakeTriangle[j].x;
-            float u = rakeTexture[j].x;
-            float v = rakeTexture[j].y;
+            double u = rakeTexture[j].x;
+            double v = rakeTexture[j].y;
 
             double depth = rakeTriangle[j].z;
-            int ui = std::round(u/depth);
-            int vi = std::round(v/depth);
+            int ui = u/depth;
+            int vi = v/depth;
 
             if (depth >= depth_buffer[x][y]) {
                 depth_buffer[x][y] = depth;
                 int textureWidth = textureDimensions[triangle.textureIndex].x;
-                // int textureHeight = te
+                int textureHeight = textureDimensions[triangle.textureIndex].y;
                 int texturePoint = ui + (vi*textureWidth);
 
-                // if (ui ? )
-                // std::cout << u << " " << v << '\n';
+                // if (ui >= textureWidth || vi >= textureHeight ) {
+                    // std::cout << ui << " " << vi << '\n';
+                    // std::cout << triangle << '\n';
+                    // std::cout << texturedTriangle << '\n';
+                    // std::cout << u4_2 << '\n';
+                // }
+                // else {
+                    Colour c = textures[triangle.textureIndex][texturePoint];
+                    window.setPixelColour(x, y, c.packed_colour());
+                // }
 
                 //texturePoint being out of range might be a minor rounding error
                 // if (texturePoint >= 0 && texturePoint < textureDimensions[triangle.textureIndex].x * textureDimensions[triangle.textureIndex].y) {
-                    Colour c = textures[triangle.textureIndex][texturePoint];
-                    window.setPixelColour(x, y, c.packed_colour());
+
+                    // window.setPixelColour(x, y, Colour(255,255,255).packed_colour());
                 // }
             }
         }
@@ -1074,8 +1097,8 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
 
         for (uint32_t j = 0; j < rakeTriangle.size(); j++) {
             int x = rakeTriangle[j].x;
-            float u = rakeTexture[j].x;
-            float v = rakeTexture[j].y;
+            double u = rakeTexture[j].x;
+            double v = rakeTexture[j].y;
 
             double depth = rakeTriangle[j].z;
             int ui = u/depth;
@@ -1085,15 +1108,26 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
                 depth_buffer[x][y] = depth;
 
                 int textureWidth = textureDimensions[triangle.textureIndex].x;
+                int textureHeight = textureDimensions[triangle.textureIndex].y;
                 int texturePoint = ui + (vi*textureWidth);
 
                 //texturePoint being out of range might be a minor rounding error
                 // if (texturePoint >= 0 && texturePoint < textureDimensions[triangle.textureIndex].x * textureDimensions[triangle.textureIndex].y) {
 
-                // std::cout << ui << " " << vi << '\n';
-
+                // if (ui >= textureWidth || vi >= textureHeight ) {
+                    // std::cout << ui << " " << vi << '\n';
+                    // std::cout << triangle << '\n';
+                    // std::cout << texturedTriangle << '\n';
+                    // std::cout << u4_2 << '\n';
+                // }
+                // else {
                     Colour c = textures[triangle.textureIndex][texturePoint];
                     window.setPixelColour(x, y, c.packed_colour());
+                // }
+                    // Colour c = textures[triangle.textureIndex][texturePoint];
+                    // window.setPixelColour(x, y, c.packed_colour());
+                    // window.setPixelColour(x, y, Colour(255,255,255).packed_colour());
+
                 // }
             }
         }
@@ -1926,6 +1960,12 @@ void getFragmentIntersection(CanvasPoint v0, CanvasPoint v1, CanvasPoint v2, glm
     int texture_y2 = (u0_y + (-v0.y) * k_y)/intersection_z2;
     intersection2->x = (int) intersection_x2; intersection2->y = intersection_z2;
     texture2->x = texture_x2; texture2->y = texture_y2;
+
+    if (texture_x1 >= 300 || texture_x2 >= 300 || texture_y1 >= 300 || texture_y2 >= 300) {
+        std::cout << "fragment texture point is wrong!" << '\n';
+        std::cout << texture_x1 << " " << texture_y1 << " " << texture_x2 << " " << texture_y2 << '\n';
+        std::cout << '\n';
+    }
 }
 
 // cuts the given triangle into smaller triangles that are inside the screen

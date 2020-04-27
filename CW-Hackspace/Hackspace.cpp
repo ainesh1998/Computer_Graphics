@@ -72,8 +72,9 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles);
 // lighting
 vec3 computenorm(ModelTriangle t);
 vec3 computenorm(ModelTriangle t, vec3 solution);
-float calcSpecular(vec3 ray,vec3 point,vec3 norm);
+float calcSpecular(vec3 ray,vec3 point,vec3 norm,std::vector<ModelTriangle> triangles,ModelTriangle t);
 float calcIntensity(vec3 norm, vec3 lightPos, vec3 point, bool isBump);
+bool isShadow(std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t);
 float calcShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t);
 float calcProximity(vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos, vec3 solution);
 float calcBrightness(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,std::vector<vec3> light_positions, vec3 solution);
@@ -179,8 +180,8 @@ int main(int argc, char* argv[])
     std::vector<ModelTriangle> logo_triangles = readOBJ("HackspaceLogo/logo.obj", "HackspaceLogo/materials.mtl", LOGO_SCALE );
     std::vector<ModelTriangle> box_triangles = readOBJ("cornell-box/cornell-box.obj", "cornell-box/cornell-box.mtl", BOX_SCALE );
     std::vector<ModelTriangle> block_triangles = readOBJ("extra-objects/block.obj", "extra-objects/block.mtl", BOX_SCALE );
-    // std::vector<ModelTriangle> ground_triangles = readOBJ("extra-objects/ground.obj", "extra-objects/ground.mtl", 0.7);
-    std::vector<ModelTriangle> ground_triangles= readOBJ("extra-objects/groundT.obj", "extra-objects/groundT.mtl", 0.7);
+    std::vector<ModelTriangle> ground_triangles = readOBJ("extra-objects/ground.obj", "extra-objects/ground.mtl", 0.7);
+    // std::vector<ModelTriangle> ground_triangles= readOBJ("extra-objects/groundT.obj", "extra-objects/groundT.mtl", 0.7);
     std::vector<ModelTriangle> sphere_triangles = readOBJ("extra-objects/sphere.obj", "extra-objects/sphere.mtl", SPHERE_SCALE);
 
     //for sphere remove texture and set colour to be white
@@ -1394,10 +1395,14 @@ float fresnel(vec3 ray,vec3 norm,float refractive_index){
 }
 
 //specular component = (v.r) where v is ray from object to camera and r is the reflected light ray
-float calcSpecular(vec3 ray,vec3 point,vec3 norm){
+float calcSpecular(vec3 ray,vec3 point,vec3 norm,std::vector<ModelTriangle> triangles,ModelTriangle t){
     vec3 lightReflect = calcReflectedRay((point-light_positions[0]),norm); //only do this for cornell box light
     vec3 toCamera = -ray;
     float specular = pow(glm::dot(toCamera,lightReflect),8);
+
+    if(isShadow(triangles, point, light_positions[0], t)){
+        specular = 0;
+    }
     return specular;
 }
 RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangles,vec3 ray,vec3 origin,RayTriangleIntersection* original_intersection,int depth){
@@ -1472,7 +1477,7 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
                 vec3 oldColour = vec3(t.colour.red, t.colour.green, t.colour.blue);
                 // vec3 norm = computenorm(t);
                 vec3 norm = computenorm(t,final_intersection.solution);
-                float specular = calcSpecular(ray,point,norm);
+                float specular = calcSpecular(ray,point,norm,triangles,t);
                 float diffuse = calcBrightness(point,t,triangles,light_positions,final_intersection.solution);
                 //s and d to determine proportions of diffuse and specular lighting (not sure if correct)
                 // float s = specular/(specular+diffuse);
@@ -1584,6 +1589,22 @@ float calcShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 po
     return newBrightness;
 }
 
+bool isShadow(std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t){
+    vec3 lightDir = lightPos - point;
+    float dist = glm::length(lightDir);
+    lightDir = glm::normalize(lightDir);
+    bool isShadow = false;
+
+    for (size_t i = 0; i < triangles.size(); i++) {
+        RayTriangleIntersection shadowIntersection = getIntersection(lightDir,triangles[i],point);
+        if(shadowIntersection.distanceFromCamera < dist && !isEqualTriangle(shadowIntersection.intersectedTriangle,t)){
+            return true;
+        }
+    }
+    return false;
+}
+
+
 float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos, vec3 solution){
     vec3 norm = computenorm(t);
 
@@ -1601,8 +1622,12 @@ float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> t
     }
     else {
         // just use calcIntensity and calculate shadows like normal
-        brightness = calcShadow(brightness, triangles, point, lightPos, t);
+        // brightness = calcShadow(brightness, triangles, point, lightPos, t);
+        if(isShadow(triangles, point, lightPos, t)){
+            brightness *= SHADOW_INTENSITY;
+        }
     }
+
 
     return brightness;
 }

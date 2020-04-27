@@ -102,7 +102,6 @@ void scaleYObject(std::string name,float scale);
 
 // physics
 bool isCollideGround(std::vector<ModelTriangle> o1, std::vector<ModelTriangle> o2);
-vec3 toppleBlock(std::string name, float yAngle);
 
 // clipping
 BoundingBox getBoundingBox(std::vector<ModelTriangle> triangles);
@@ -1059,7 +1058,10 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
     CanvasPoint u4 = CanvasPoint(u4_temp.x,u4_temp.y);
     CanvasPoint u4_2 = CanvasPoint((int) (u4_temp.x/v4.depth), (int) (u4_temp.y/v4.depth));
 
-    if (u4_2.x >= 300 || u4_2.y >= 300) {
+    int textureWidth = textureDimensions[triangle.textureIndex].x;
+    int textureHeight = textureDimensions[triangle.textureIndex].y;
+
+    if (u4_2.x >= textureWidth || u4_2.y >= textureHeight) {
         std::cout << "u4 is out of bounds!" << '\n';
         std::cout << u4_2 << '\n';
         // std::cout << triangle << '\n';
@@ -1816,7 +1818,7 @@ void drawScene(){
             std::vector<ModelTriangle> insideTriangles = removeOutsideTriangles(it->second);
             triangles.insert(triangles.end(),insideTriangles.begin(), insideTriangles.end());
         }
-        else std::cout << it->first << " is out of frame" << '\n';
+        // else std::cout << it->first << " is out of frame" << '\n';
     }
 
     if(mode==3){
@@ -1982,20 +1984,6 @@ bool isCollideGround(std::vector<ModelTriangle> ground, std::vector<ModelTriangl
     return false;
 }
 
-// returns the block's centroid, projected onto the X-Z plane
-vec3 toppleBlock(std::string name, float yAngle) {
-    // vec3 block_centroid = getObjectCentroid(name);
-    // vec3 rotatePoint = (scene[name][4].vertices[1] + scene[name][4].vertices[2]) * 0.5f;
-    // vec3 block_centroid_y = vec3(block_centroid.x, 0, block_centroid.z);
-    // vec3 rotatePoint_y = vec3(rotatePoint.x, 0, rotatePoint.z);
-    //
-    // rotateAroundAxis(name, vec3(0, -yAngle, 0));
-    // rotateAroundPoint(name, vec3(-fallVelocity, 0, 0), rotatePoint);
-    // rotateAroundPoint(name, vec3(0, yAngle, 0), block_centroid);
-    //
-    // return block_centroid_y;
-}
-
 // CLIPPING //
 
 
@@ -2054,7 +2042,7 @@ std::vector<ModelTriangle> removeOutsideTriangles(std::vector<ModelTriangle> tri
 
 // finds the intersection points of the triangle and top of screen, as well as the texture points
 void getFragmentIntersection(CanvasPoint v0, CanvasPoint v1, CanvasPoint v2, glm::vec2* intersection1, glm::vec2* intersection2,
-                    glm::vec2* texture1, glm::vec2* texture2) {
+                    glm::vec2* texture1, glm::vec2* texture2, int textureIndex) {
     double u0_x = v0.texturePoint.x * v0.depth;
     double u1_x = v1.texturePoint.x * v1.depth;
     double u2_x = v2.texturePoint.x * v2.depth;
@@ -2064,26 +2052,51 @@ void getFragmentIntersection(CanvasPoint v0, CanvasPoint v1, CanvasPoint v2, glm
 
     double intersection_x1 = v0.x + (-v0.y)*(v1.x-v0.x)/(v1.y-v0.y);
     double intersection_z1 = v0.depth + (-v0.y)*(v1.depth-v0.depth)/(v1.y-v0.y);
-    double k_x = (v1.x == v0.x) ? 0 : (u1_x-u0_x)/(v1.x-v0.x);
-    double k_y = (v1.y == v0.y) ? 0 : (u1_y-u0_y)/(v1.y-v0.y);
-    int texture_x1 = (u0_x + (intersection_x1-v0.x) * k_x)/intersection_z1;
-    int texture_y1 = (u0_y + (-v0.y) * k_y)/intersection_z1;
+    // double k_x = (v1.x == v0.x) ? 0 : (u1_x-u0_x)/(v1.x-v0.x);
+    // double k_y = (v1.y == v0.y) ? 0 : (u1_y-u0_y)/(v1.y-v0.y);
+    // int texture_x1 = (u0_x + (intersection_x1-v0.x) * k_x)/intersection_z1;
+    // int texture_y1 = (u0_y + (-v0.y) * k_y)/intersection_z1;
+
+    double dist1 = glm::distance(glm::vec2(v0.x, v0.y), glm::vec2(v1.x, v1.y));
+    double dist2 = glm::distance(glm::vec2(v0.x, v0.y), glm::vec2(intersection_x1, 0));
+    double ratio = dist2/dist1;
+    glm::vec2 side = glm::vec2(u1_x, u1_y) - glm::vec2(u0_x, u0_y);
+    glm::vec2 u4_temp = glm::vec2(u0_x, u0_y) + (float) ratio * side;
+
+    int texture_x1 = (int) (u4_temp.x/intersection_z1);
+    int texture_y1 = (int) (u4_temp.y/intersection_z1);
+
     intersection1->x = (int) intersection_x1; intersection1->y = intersection_z1;
     texture1->x = texture_x1; texture1->y = texture_y1;
 
     double intersection_x2 = v0.x + (-v0.y)*(v2.x-v0.x)/(v2.y-v0.y);
     double intersection_z2 = v0.depth + (-v0.y)*(v2.depth-v0.depth)/(v2.y-v0.y);
-    k_x = (v2.x == v0.x) ? 0 : (u2_x-u0_x)/(v2.x-v0.x);
-    k_y = (v2.y == v0.y) ? 0 : (u2_y-u0_y)/(v2.y-v0.y);
-    int texture_x2 = (u0_x + (intersection_x2-v0.x) * k_x)/intersection_z2;
-    int texture_y2 = (u0_y + (-v0.y) * k_y)/intersection_z2;
+    // k_x = (v2.x == v0.x) ? 0 : (u2_x-u0_x)/(v2.x-v0.x);
+    // k_y = (v2.y == v0.y) ? 0 : (u2_y-u0_y)/(v2.y-v0.y);
+    // int texture_x2 = (u0_x + (intersection_x2-v0.x) * k_x)/intersection_z2;
+    // int texture_y2 = (u0_y + (-v0.y) * k_y)/intersection_z2;
+
+    dist1 = glm::distance(glm::vec2(v0.x, v0.y), glm::vec2(v2.x, v2.y));
+    dist2 = glm::distance(glm::vec2(v0.x, v0.y), glm::vec2(intersection_x2, 0));
+    ratio = dist2/dist1;
+    side = glm::vec2(u2_x, u2_y) - glm::vec2(u0_x, u0_y);
+    u4_temp = glm::vec2(u0_x, u0_y) + (float) ratio * side;
+
+    int texture_x2 = (int) (u4_temp.x/intersection_z2);
+    int texture_y2 = (int) (u4_temp.y/intersection_z2);
+
     intersection2->x = (int) intersection_x2; intersection2->y = intersection_z2;
     texture2->x = texture_x2; texture2->y = texture_y2;
 
-    if (texture_x1 >= 300 || texture_x2 >= 300 || texture_y1 >= 300 || texture_y2 >= 300) {
-        std::cout << "fragment texture point is wrong!" << '\n';
-        std::cout << texture_x1 << " " << texture_y1 << " " << texture_x2 << " " << texture_y2 << '\n';
-        std::cout << '\n';
+    int textureWidth = textureDimensions[textureIndex].x;
+    int textureHeight = textureDimensions[textureIndex].y;
+
+    if (v0.isTexture) {
+        if (texture_x1 >= textureWidth || texture_x2 >= textureHeight || texture_y1 >= textureWidth || texture_y2 >= textureHeight) {
+            std::cout << "fragment texture point is wrong!" << '\n';
+            std::cout << texture_x1 << " " << texture_y1 << " " << texture_x2 << " " << texture_y2 << '\n';
+            std::cout << '\n';
+        }
     }
 }
 
@@ -2135,7 +2148,7 @@ std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle) {
                 glm::vec2 intersection1; glm::vec2 intersection2;
                 glm::vec2 texture1; glm::vec2 texture2;
 
-                getFragmentIntersection(v0, v1, v2, &intersection1, &intersection2, &texture1, &texture2);
+                getFragmentIntersection(v0, v1, v2, &intersection1, &intersection2, &texture1, &texture2, triangle.textureIndex);
 
                 int intersection_x1 = intersection1.x; double intersection_z1 = intersection1.y;
                 int intersection_x2 = intersection2.x; double intersection_z2 = intersection2.y;

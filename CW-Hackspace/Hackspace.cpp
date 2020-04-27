@@ -75,7 +75,6 @@ vec3 computenorm(ModelTriangle t, vec3 solution);
 float calcSpecular(vec3 ray,vec3 point,vec3 norm,std::vector<ModelTriangle> triangles,ModelTriangle t);
 float calcIntensity(vec3 norm, vec3 lightPos, vec3 point, bool isBump);
 bool isShadow(std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t);
-float calcShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t);
 float calcProximity(vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos, vec3 solution);
 float calcBrightness(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,std::vector<vec3> light_positions, vec3 solution);
 
@@ -1571,23 +1570,6 @@ float calcIntensity(vec3 norm, vec3 lightPos, vec3 point, bool isBump) {
    return brightness;
 }
 
-float calcShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t) {
-    float newBrightness = brightness;
-    vec3 lightDir = lightPos - point;
-    float dist = glm::length(lightDir);
-    lightDir = glm::normalize(lightDir);
-    bool isShadow = false;
-
-    for (size_t i = 0; i < triangles.size(); i++) {
-        RayTriangleIntersection shadowIntersection = getIntersection(lightDir,triangles[i],point);
-        if(shadowIntersection.distanceFromCamera < dist && !isEqualTriangle(shadowIntersection.intersectedTriangle,t)){
-            isShadow = true;
-            break;
-        }
-    }
-    if(isShadow) newBrightness *= SHADOW_INTENSITY;
-    return newBrightness;
-}
 
 bool isShadow(std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t){
     vec3 lightDir = lightPos - point;
@@ -1622,7 +1604,6 @@ float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> t
     }
     else {
         // just use calcIntensity and calculate shadows like normal
-        // brightness = calcShadow(brightness, triangles, point, lightPos, t);
         if(isShadow(triangles, point, lightPos, t)){
             brightness *= SHADOW_INTENSITY;
         }

@@ -14,6 +14,13 @@ class BoundingBox
       width = w;
       height = h;
       depth = d;
+  }
+
+    BoundingBox(std::vector<glm::vec3> points) {
+        startVertex = points[0];
+        width = points[7].x - points[0].x;
+        height = points[6].y - points[0].y;
+        depth = points[4].z - points[0].z;
     }
 
     glm::vec3 getBackBottomRight() {

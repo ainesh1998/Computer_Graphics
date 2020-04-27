@@ -1059,11 +1059,11 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
                 int texturePoint = ui + (vi*textureWidth);
 
                 //texturePoint being out of range might be a minor rounding error
-                if (texturePoint >= 0 && texturePoint < textureDimensions[triangle.textureIndex].x * textureDimensions[triangle.textureIndex].y) {
+                // if (texturePoint >= 0 && texturePoint < textureDimensions[triangle.textureIndex].x * textureDimensions[triangle.textureIndex].y) {
 
                     Colour c = textures[triangle.textureIndex][texturePoint];
                     window.setPixelColour(x, y, c.packed_colour());
-                }
+                // }
             }
         }
     }
@@ -1103,11 +1103,11 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
                 int texturePoint = ui + (vi*textureWidth);
 
                 //texturePoint being out of range might be a minor rounding error
-                if (texturePoint >= 0 && texturePoint < textureDimensions[triangle.textureIndex].x * textureDimensions[triangle.textureIndex].y) {
+                // if (texturePoint >= 0 && texturePoint < textureDimensions[triangle.textureIndex].x * textureDimensions[triangle.textureIndex].y) {
 
                     Colour c = textures[triangle.textureIndex][texturePoint];
                     window.setPixelColour(x, y, c.packed_colour());
-                }
+                // }
             }
         }
     }
@@ -1912,31 +1912,43 @@ std::vector<ModelTriangle> removeOutsideTriangles(std::vector<ModelTriangle> tri
 }
 
 void getFragmentIntersection(CanvasPoint v0, CanvasPoint v1, CanvasPoint v2, glm::vec2* intersection1, glm::vec2* intersection2,
-                    glm::vec2* texture1, glm::vec2* texture2) {
-    float u0_x = v0.texturePoint.x * v0.depth;
-    float u1_x = v1.texturePoint.x * v1.depth;
-    float u2_x = v2.texturePoint.x * v2.depth;
-    float u0_y = v0.texturePoint.y * v0.depth;
-    float u1_y = v1.texturePoint.y * v1.depth;
-    float u2_y = v2.texturePoint.y * v2.depth;
+                    glm::vec2* texture1, glm::vec2* texture2, int textureIndex, int pointInsideCount) {
+    double u0_x = v0.texturePoint.x * v0.depth;
+    double u1_x = v1.texturePoint.x * v1.depth;
+    double u2_x = v2.texturePoint.x * v2.depth;
+    double u0_y = v0.texturePoint.y * v0.depth;
+    double u1_y = v1.texturePoint.y * v1.depth;
+    double u2_y = v2.texturePoint.y * v2.depth;
 
-    int intersection_x1 = v0.x + (-v0.y)*(v1.x-v0.x)/(v1.y-v0.y);
+    double intersection_x1 = v0.x + (-v0.y)*(v1.x-v0.x)/(v1.y-v0.y);
     double intersection_z1 = v0.depth + (-v0.y)*(v1.depth-v0.depth)/(v1.y-v0.y);
-    float k_x = (v1.x == v0.x) ? 0 : (u1_x-u0_x)/(v1.x-v0.x);
-    float k_y = (v1.y == v0.y) ? 0 : (u1_y-u0_y)/(v1.y-v0.y);
+    double k_x = (v1.x == v0.x) ? 0 : (u1_x-u0_x)/(v1.x-v0.x);
+    double k_y = (v1.y == v0.y) ? 0 : (u1_y-u0_y)/(v1.y-v0.y);
     int texture_x1 = (u0_x + (intersection_x1-v0.x) * k_x)/intersection_z1;
     int texture_y1 = (u0_y + (-v0.y) * k_y)/intersection_z1;
-    intersection1->x = intersection_x1; intersection1->y = intersection_z1;
+    intersection1->x = (int) intersection_x1; intersection1->y = intersection_z1;
     texture1->x = texture_x1; texture1->y = texture_y1;
 
-    int intersection_x2 = v0.x + (-v0.y)*(v2.x-v0.x)/(v2.y-v0.y);
+    double intersection_x2 = v0.x + (-v0.y)*(v2.x-v0.x)/(v2.y-v0.y);
     double intersection_z2 = v0.depth + (-v0.y)*(v2.depth-v0.depth)/(v2.y-v0.y);
     k_x = (v2.x == v0.x) ? 0 : (u2_x-u0_x)/(v2.x-v0.x);
     k_y = (v2.y == v0.y) ? 0 : (u2_y-u0_y)/(v2.y-v0.y);
     int texture_x2 = (u0_x + (intersection_x2-v0.x) * k_x)/intersection_z2;
     int texture_y2 = (u0_y + (-v0.y) * k_y)/intersection_z2;
-    intersection2->x = intersection_x2; intersection2->y = intersection_z2;
+    intersection2->x = (int) intersection_x2; intersection2->y = intersection_z2;
     texture2->x = texture_x2; texture2->y = texture_y2;
+
+    int textureWidth = textureDimensions[textureIndex].x;
+    int textureHeight = textureDimensions[textureIndex].y;
+    if (v0.isTexture) {
+        if (texture_x1 >= textureWidth || texture_x2 >= textureWidth || texture_y1 >= textureHeight
+                || texture_y2 >= textureHeight) {
+                    std::cout << v0.texturePoint << " " << v1.texturePoint << " " << v2.texturePoint << '\n';
+                    std::cout << "texture1: " << texture_x1 << " " << texture_y1 << '\n';
+                    std::cout << "texture2: " << texture_x2 << " " << texture_y2 << "\n";
+                    std::cout << pointInsideCount << " points inside screen" << "\n\n";
+                }
+    }
 }
 
 std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle) {
@@ -1970,12 +1982,24 @@ std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle) {
                 glm::vec2 intersection1; glm::vec2 intersection2;
                 glm::vec2 texture1; glm::vec2 texture2;
 
-                getFragmentIntersection(v0, v1, v2, &intersection1, &intersection2, &texture1, &texture2);
+                getFragmentIntersection(v0, v1, v2, &intersection1, &intersection2, &texture1, &texture2, triangle.textureIndex, pointInsideCount);
 
                 int intersection_x1 = intersection1.x; double intersection_z1 = intersection1.y;
                 int intersection_x2 = intersection2.x; double intersection_z2 = intersection2.y;
                 int texture_x1 = texture1.x; int texture_y1 = texture1.y;
-                int texture_x2 = texture2.y; int texture_y2 = texture2.y;
+                int texture_x2 = texture2.x; int texture_y2 = texture2.y;
+
+                // int textureWidth = textureDimensions[triangle.textureIndex].x;
+                // int textureHeight = textureDimensions[triangle.textureIndex].y;
+
+                // if (triangle.isTexture) std::cout << textureWidth << " " << textureHeight << '\n';
+
+                // if (triangle.isTexture) {
+                //     if (texture_x1 >= textureWidth || texture_x2 >= textureWidth || texture_y1 >= textureHeight
+                //         || texture_y2 >= textureHeight) std::cout << texture_x1 << " " << texture_y1 << " " << texture_x2 << " " << texture_y2 << '\n';
+                //     }
+
+                // if (triangle.isTexture) std::cout << texture_x1 << " " << texture_y1 << " " << texture_x2 << " " << texture_y2 << '\n';
 
                 if (pointInsideCount == 2) {
                     CanvasTriangle t1 = orderY;

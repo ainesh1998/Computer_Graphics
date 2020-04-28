@@ -722,6 +722,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
     bool isBumped = false;
     bool isGlass = false;
     bool isSpecular = false;
+    // bool isMetal = filename.compare("HackspaceLogo/logo.obj") == 0;
     bool isMetal = false;
     int textureIndex = textures.size();
     int bumpIndex = bump_maps.size();
@@ -733,7 +734,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
         if(contents[0].compare("o") == 0){
             mirrored = contents[1].compare("mirror") == 0;
             isGlass = contents[1].compare("glass") == 0;
-            isMetal = contents[1].compare("metal") == 0;
+            isMetal = isMetal || contents[1].compare("metal") == 0;
         }
 
         if(contents[0].compare("vt")== 0){
@@ -1442,16 +1443,21 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
 
             if (t.isGlass) {
                 vec3 norm = computenorm(t);
+                float maxNormRotation = 50;
+                float roughness = 1.0f;
+                // for frosted glass
+                float refractOffset = 0.003*(rand() % (int)(maxNormRotation * roughness) - (int) (maxNormRotation/2));
+                float reflectOffset = 0.003*(rand() % (int)(maxNormRotation * roughness) - (int) (maxNormRotation/2));
 
                 //reflection
-                vec3 glassReflectedRay = calcReflectedRay(ray,norm,0);
+                vec3 glassReflectedRay = calcReflectedRay(ray,norm,reflectOffset);
                 RayTriangleIntersection glass_reflected_intersection = getFinalIntersection(triangles,glassReflectedRay,point,&final_intersection,depth+1);
                 Colour r = glass_reflected_intersection.intersectedTriangle.colour;
                 vec3 reflected_colour = vec3(r.red,r.green,r.blue);
 
                 //refraction
                 //calculate refraction vector
-                float refractive_index = 1.5; //made this a variable in case we want to change it later
+                float refractive_index = 1.5+refractOffset; //made this a variable in case we want to change it later
                 vec3 glassRefractedRay = refract(ray,norm,refractive_index);
                 RayTriangleIntersection final_glass_intersection = getFinalIntersection(triangles,glassRefractedRay,point,&final_intersection,depth+1);
                 Colour c = final_glass_intersection.intersectedTriangle.colour;
@@ -1497,21 +1503,15 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
 
             else if (t.isMetal) {
                 // some variables for metal
-                float reflectivity = 0.25f;
-                float maxNormRotation = 5;
+                float reflectivity = 0.5f;
+                float maxNormRotation = 50;
                 float roughness = 1.0f;
-                float normRotation = 0.01*(rand() % (int)(maxNormRotation * roughness) - (int) (maxNormRotation/2));
-
-                std::cout << normRotation << '\n';
-
+                // this is to offset the reflection ray to cause roughness
+                float reflectOffset = 0.003*(rand() % (int)(maxNormRotation * roughness) - (int) (maxNormRotation/2));
                 vec3 norm = computenorm(t);
 
                 //reflection
-                vec3 metalReflectionRay = calcReflectedRay(ray,norm,normRotation);
-                // rotate for roughness
-                // glm::mat3 rotationMat = glm::mat3();
-                // vec3 rotatedRay = metalReflectionRay * rotationMat;
-
+                vec3 metalReflectionRay = calcReflectedRay(ray,norm,reflectOffset);
                 RayTriangleIntersection final_metal_intersection = getFinalIntersection(triangles,metalReflectionRay,point,&final_intersection,depth+1);
                 Colour c = final_metal_intersection.intersectedTriangle.colour;
 
@@ -1547,12 +1547,12 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
             // complex anti-aliasing - firing multiple rays according to quincux pattern
 
             vec3 ray1 = computeRay((x+0.5),(y+0.5),FOV);
-            // vec3 ray2 = computeRay((x),(y),FOV);
-            // vec3 ray3 = computeRay((x+1),(y),FOV);
-            // vec3 ray4 = computeRay((x),(y+1),FOV);
-            // vec3 ray5 = computeRay((x+1),(y+1),FOV);
-            // std::vector<vec3> rays = {ray1,ray2,ray3,ray4,ray5};
-            std::vector<vec3> rays = {ray1};
+            vec3 ray2 = computeRay((x),(y),FOV);
+            vec3 ray3 = computeRay((x+1),(y),FOV);
+            vec3 ray4 = computeRay((x),(y+1),FOV);
+            vec3 ray5 = computeRay((x+1),(y+1),FOV);
+            std::vector<vec3> rays = {ray1,ray2,ray3,ray4,ray5};
+            // std::vector<vec3> rays = {ray1};
             vec3 sumColour = vec3(0,0,0);
             for (size_t r = 0; r < rays.size(); r++) {
                 RayTriangleIntersection final_intersection;

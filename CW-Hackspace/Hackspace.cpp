@@ -722,6 +722,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
     bool isBumped = false;
     bool isGlass = false;
     bool isSpecular = false;
+    bool isMetal = false;
     int textureIndex = textures.size();
     int bumpIndex = bump_maps.size();
     vec3 minBBox = vec3(infinity, infinity, infinity);
@@ -731,8 +732,8 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
         std::string* contents = split(line,' ');
         if(contents[0].compare("o") == 0){
             mirrored = contents[1].compare("mirror") == 0;
-            isGlass = contents[1].compare("short_box") == 0;
-            // isSpecular = contents[1].compare("mirror") == 0;
+            isGlass = contents[1].compare("glass") == 0;
+            isMetal = contents[1].compare("metal") == 0;
         }
 
         if(contents[0].compare("vt")== 0){
@@ -828,6 +829,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
                 m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1], colour, newTriangleID);
                 m.isMirror = mirrored;
                 m.isGlass = isGlass;
+                m.isMetal = isMetal;
             }
             //moved it here cause the sphere obj has a texture
             m.colour = colour;
@@ -1367,7 +1369,7 @@ vec3 refract(vec3 ray,vec3 norm,float refractive_index){
 
     float eta = etai/etat; //snell's law
     float k = 1 - eta * eta * (1 - cosi * cosi);
-    return k < 0 ? vec3(0,0,0) : eta * ray + (eta * cosi - sqrtf(k)) * n;
+    return k < 0 ? vec3(0,0,0) : eta * ray + (eta * cosi - sqrtf(k)) * n; // if k < 0, total internal reflection
 }
 
 //https://www.scratchapixel.com/lessons/3d-basic-rendering/introduction-to-shading/reflection-refraction-fresnel
@@ -1380,10 +1382,10 @@ float fresnel(vec3 ray,vec3 norm,float refractive_index){
     else if(cosi > 1) cosi = 1;
     float etai = 1; //refractive index of medium the ray is in i.e air
     float etat = refractive_index; //refractive index of medium the ray is entering i.e 1.5 for glass
+    if (cosi > 0) std::swap(etai, etat);
     float sint = etai/etat * sqrtf(std::max(0.f,1-cosi*cosi));
-    if(sint >= 1) kr = 1;
+    if(sint >= 1) kr = 1; //total internal reflection
     else{
-
         float cost = sqrtf(std::max(0.f, 1 - sint * sint));
         cosi = fabsf(cosi); //same as abs but to specify it's a float
         float rs = ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost));
@@ -1430,6 +1432,13 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
             // glass
             ModelTriangle t = final_intersection.intersectedTriangle;
             vec3 point = final_intersection.intersectionPoint;
+            vec3 oldColour = vec3(t.colour.red, t.colour.green, t.colour.blue);
+
+            // texture mapping
+            if (t.isTexture) {
+                oldColour = getTextureColour(t, final_intersection.solution, point);
+            }
+
             if (t.isGlass) {
                 vec3 norm = computenorm(t);
 
@@ -1473,8 +1482,6 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
             }
 
             else if (t.isSpecular){
-                vec3 oldColour = vec3(t.colour.red, t.colour.green, t.colour.blue);
-                // vec3 norm = computenorm(t);
                 vec3 norm = computenorm(t,final_intersection.solution);
                 float specular = calcSpecular(ray,point,norm,triangles,t);
                 float diffuse = calcBrightness(point,t,triangles,light_positions,final_intersection.solution);
@@ -1486,14 +1493,28 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
                 Colour c = Colour(newColour.x, newColour.y, newColour.z);
                 final_intersection.intersectedTriangle.colour = c;
             }
+
+            else if (t.isMetal) {
+                // some variables for metal
+                float reflectivity = 0.3f;
+                vec3 norm = computenorm(t);
+
+                //reflection
+                vec3 metalReflectionRay = calcReflectedRay(ray,norm);
+                RayTriangleIntersection final_metal_intersection = getFinalIntersection(triangles,metalReflectionRay,point,&final_intersection,depth+1);
+                Colour c = final_metal_intersection.intersectedTriangle.colour;
+
+                float brightness = calcBrightness(point,t,triangles,light_positions,final_intersection.solution);
+                vec3 lightColourCorrected = lightColour * brightness;
+                vec3 tempColour = (1-reflectivity)*oldColour + reflectivity*vec3(c.red,c.green,c.blue);
+                newColour = lightColourCorrected * tempColour;
+
+                final_metal_intersection.intersectedTriangle.colour = Colour(newColour.x,newColour.y,newColour.z);
+                final_intersection = final_metal_intersection;
+            }
+
             else{
                 //diffuse object shade as normal
-                vec3 oldColour = vec3(t.colour.red, t.colour.green, t.colour.blue);
-
-                // texture mapping
-                if (t.isTexture) {
-                    oldColour = getTextureColour(t, final_intersection.solution, point);
-                }
 
                 float brightness = calcBrightness(point,t,triangles,light_positions,final_intersection.solution);
                 vec3 lightColourCorrected = lightColour * brightness;

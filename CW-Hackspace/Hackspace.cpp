@@ -1397,11 +1397,9 @@ float fresnel(vec3 ray,vec3 norm,float refractive_index){
 float calcSpecular(vec3 ray,vec3 point,vec3 norm,std::vector<ModelTriangle> triangles,ModelTriangle t){
     vec3 lightReflect = calcReflectedRay((point-light_positions[0]),norm); //only do this for cornell box light
     vec3 toCamera = -ray;
-    float specular = pow(glm::dot(toCamera,lightReflect),8);
+    float x = std::max(0.f,glm::dot(toCamera,lightReflect));
+    float specular = pow(x,8);
 
-    if(isShadow(triangles, point, light_positions[0], t)){
-        specular = 0;
-    }
     return specular;
 }
 RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangles,vec3 ray,vec3 origin,RayTriangleIntersection* original_intersection,int depth){

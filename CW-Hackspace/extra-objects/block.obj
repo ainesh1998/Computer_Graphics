@@ -1,6 +1,6 @@
 mtllib block.mtl
 
-o metal
+o copper
 usemtl Brown
 v -1.684011 3.139799 -2.716226
 v -0.104011 3.139409 -3.206226

@@ -20,6 +20,8 @@ class ModelTriangle
     bool isMetal = false;
     bool isSpecular = false;
     float velocity = 0;
+    float reflectivity = 0;
+    float roughness = 0;
 
     //Texture data
     int textureIndex;

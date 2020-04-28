@@ -126,7 +126,7 @@ glm::vec3 box_lightPos1 = glm::vec3(2,4.8,-3.043);
 glm::vec3 logo_lightPos = glm::vec3(300,59,15);
 glm::vec3 scene_lightPos = glm::vec3(0,-50,50);
 glm::vec3 scene_lightPos1 = glm::vec3(0,400,50);
-glm::vec3 centre_lightPos = glm::vec3(70,50,70);
+glm::vec3 centre_lightPos = glm::vec3(70,150,70);
 glm::vec3 lightPos = box_lightPos1;
 std::vector<vec3> light_positions = {scene_lightPos, scene_lightPos1};
 glm::vec3 lightColour = glm::vec3(1,1,1);
@@ -183,6 +183,7 @@ int main(int argc, char* argv[])
     std::vector<ModelTriangle> ground_triangles = readOBJ("extra-objects/ground.obj", "extra-objects/ground.mtl", 0.7);
     // std::vector<ModelTriangle> ground_triangles= readOBJ("extra-objects/groundT.obj", "extra-objects/groundT.mtl", 0.7);
     std::vector<ModelTriangle> sphere_triangles = readOBJ("extra-objects/sphere.obj", "extra-objects/sphere.mtl", SPHERE_SCALE);
+    std::vector<ModelTriangle> ground_light_triangles = readOBJ("extra-objects/ground_light.obj", "cornell-box/cornell-box.mtl", 0.7);
 
     //for sphere remove texture and set colour to be white
     for (size_t i = 0; i < sphere_triangles.size(); i++) {
@@ -212,6 +213,7 @@ int main(int argc, char* argv[])
     // scene["terrain"] = generated_triangles;
     scene["ground"] = ground_triangles;
     // scene["box"] = empty_box_triangles;
+    // scene["light"] = ground_light_triangles;
 
     // moveObject("logo",vec3(-35,-25,-100));
     // moveObject("logo",vec3(-100,50,-100));
@@ -373,6 +375,7 @@ int main(int argc, char* argv[])
                 else {
                     if (riseVelocity > 0) {
                         light_positions[0].y += riseVelocity;
+                        // light_positions[2].y += riseVelocity;
                         moveObject("logo",vec3(0,riseVelocity,0));
                         moveObject("box",vec3(0,riseVelocity,0));
                         moveObject("sphere",vec3(0,riseVelocity,0));
@@ -725,6 +728,8 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
     bool isSpecular = false;
     // bool isMetal = filename.compare("HackspaceLogo/logo.obj") == 0;
     bool isMetal = false;
+    float reflectivity = 0;
+    float roughness = 0;
     int textureIndex = textures.size();
     int bumpIndex = bump_maps.size();
     vec3 minBBox = vec3(infinity, infinity, infinity);
@@ -735,7 +740,16 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
         if(contents[0].compare("o") == 0){
             mirrored = contents[1].compare("mirror") == 0;
             isGlass = contents[1].compare("glass") == 0;
-            isMetal = isMetal || contents[1].compare("metal") == 0;
+            isMetal = contents[1].compare("copper") == 0 || contents[1].compare("shiny") == 0;
+
+            // hardcoding reflectivity and roughness
+            if (contents[1].compare("copper") == 0) {
+                reflectivity = 0.4;
+                roughness = 1;
+            }
+            else if (contents[1].compare("shiny")) {
+                reflectivity = 0.7;
+            }
         }
 
         if(contents[0].compare("vt")== 0){
@@ -829,14 +843,16 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
 
             else {
                 m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1], colour, newTriangleID);
-                m.isMirror = mirrored;
-                m.isGlass = isGlass;
-                m.isMetal = isMetal;
             }
             //moved it here cause the sphere obj has a texture
             m.colour = colour;
             m.isSpecular = isSpecular;
             m.boundingBoxIndex = bounding_boxes.size();
+            m.isMirror = mirrored;
+            m.isGlass = isGlass;
+            m.isMetal = isMetal;
+            m.reflectivity = reflectivity;
+            m.roughness = roughness;
             // std::cout << m.boundingBoxIndex << '\n';
             modelTriangles.push_back(m);
             newTriangleID++;
@@ -1504,11 +1520,11 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
 
             else if (t.isMetal) {
                 // some variables for metal
-                float reflectivity = 0.4f;
+                float reflectivity = t.reflectivity;
                 float maxNormRotation = 50;
-                float roughness = 1.0f;
+                float roughness = t.roughness;
                 // this is to offset the reflection ray to cause roughness
-                float reflectOffset = 0.003*(rand() % (int)(maxNormRotation * roughness) - (int) (maxNormRotation/2));
+                float reflectOffset = roughness == 0 ? 0 : 0.003*(rand() % (int)(maxNormRotation * roughness) - (int) (maxNormRotation/2));
                 vec3 norm = computenorm(t);
 
                 //reflection

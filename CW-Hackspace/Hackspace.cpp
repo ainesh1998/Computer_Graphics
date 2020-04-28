@@ -359,7 +359,7 @@ int main(int argc, char* argv[])
                     if (rotationSpeed < 1) rotationSpeed += 0.3;
 
                     for (int i = 0; i < blocks.size(); i++) {
-                        if (!hasToppled[i]) fallVelocity[i] += (1.35 + 0.05*i);
+                        if (!hasToppled[i]) fallVelocity[i] += (1.5 + 0.05*i);
                     }
                 }
 

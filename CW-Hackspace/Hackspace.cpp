@@ -126,9 +126,9 @@ glm::vec3 box_lightPos1 = glm::vec3(2,4.8,-3.043);
 glm::vec3 logo_lightPos = glm::vec3(300,59,15);
 glm::vec3 scene_lightPos = glm::vec3(0,-50,50);
 glm::vec3 scene_lightPos1 = glm::vec3(0,400,50);
-glm::vec3 centre_lightPos = glm::vec3(70,20,70);
+glm::vec3 centre_lightPos = glm::vec3(70,50,70);
 glm::vec3 lightPos = box_lightPos1;
-std::vector<vec3> light_positions = {scene_lightPos, scene_lightPos1, centre_lightPos};
+std::vector<vec3> light_positions = {scene_lightPos, scene_lightPos1};
 glm::vec3 lightColour = glm::vec3(1,1,1);
 
 glm::mat3 cameraOrientation = glm::mat3();
@@ -1504,7 +1504,7 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
 
             else if (t.isMetal) {
                 // some variables for metal
-                float reflectivity = 0.5f;
+                float reflectivity = 0.4f;
                 float maxNormRotation = 50;
                 float roughness = 1.0f;
                 // this is to offset the reflection ray to cause roughness

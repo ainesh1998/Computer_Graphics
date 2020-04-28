@@ -219,7 +219,7 @@ int main(int argc, char* argv[])
     // moveObject("logo",vec3(-100,50,-100));
     moveObject("ground",vec3(0,0,-70));
     moveObject("logo",vec3(-100,500,0)); // set logo to world origin
-    moveObject("box",vec3(0,-170,90));
+    moveObject("box",vec3(0,-160,90));
     moveObject("sphere", vec3(-40, -160, 40));
 
     // moveObject("logo",vec3(-50,240,0));
@@ -2011,7 +2011,7 @@ bool isCollideGround(std::vector<ModelTriangle> ground, std::vector<ModelTriangl
     float frontZ = orderZ.vertices[2].z;
 
     for (int i = 0; i < ground.size(); i++) {
-        float groundY = ground[i].vertices[0].y;
+        float groundY = ground[i].vertices[0].y + 15; // +15 so that it's above box
 
         for (int j = 0; j < object.size(); j++) {
             vec3 v1 = object[j].vertices[0];

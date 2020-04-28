@@ -126,8 +126,9 @@ glm::vec3 box_lightPos1 = glm::vec3(2,4.8,-3.043);
 glm::vec3 logo_lightPos = glm::vec3(300,59,15);
 glm::vec3 scene_lightPos = glm::vec3(0,-50,50);
 glm::vec3 scene_lightPos1 = glm::vec3(0,400,50);
+glm::vec3 centre_lightPos = glm::vec3(70,20,70);
 glm::vec3 lightPos = box_lightPos1;
-std::vector<vec3> light_positions = {scene_lightPos,scene_lightPos1};
+std::vector<vec3> light_positions = {scene_lightPos, scene_lightPos1, centre_lightPos};
 glm::vec3 lightColour = glm::vec3(1,1,1);
 
 glm::mat3 cameraOrientation = glm::mat3();
@@ -1446,8 +1447,8 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
                 float maxNormRotation = 50;
                 float roughness = 1.0f;
                 // for frosted glass
-                float refractOffset = 0.003*(rand() % (int)(maxNormRotation * roughness) - (int) (maxNormRotation/2));
-                float reflectOffset = 0.003*(rand() % (int)(maxNormRotation * roughness) - (int) (maxNormRotation/2));
+                float refractOffset = 0.007*(rand() % (int)(maxNormRotation * roughness) - (int) (maxNormRotation/2));
+                float reflectOffset = 0.007*(rand() % (int)(maxNormRotation * roughness) - (int) (maxNormRotation/2));
 
                 //reflection
                 vec3 glassReflectedRay = calcReflectedRay(ray,norm,reflectOffset);
@@ -1547,12 +1548,12 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
             // complex anti-aliasing - firing multiple rays according to quincux pattern
 
             vec3 ray1 = computeRay((x+0.5),(y+0.5),FOV);
-            vec3 ray2 = computeRay((x),(y),FOV);
-            vec3 ray3 = computeRay((x+1),(y),FOV);
-            vec3 ray4 = computeRay((x),(y+1),FOV);
-            vec3 ray5 = computeRay((x+1),(y+1),FOV);
-            std::vector<vec3> rays = {ray1,ray2,ray3,ray4,ray5};
-            // std::vector<vec3> rays = {ray1};
+            // vec3 ray2 = computeRay((x),(y),FOV);
+            // vec3 ray3 = computeRay((x+1),(y),FOV);
+            // vec3 ray4 = computeRay((x),(y+1),FOV);
+            // vec3 ray5 = computeRay((x+1),(y+1),FOV);
+            // std::vector<vec3> rays = {ray1,ray2,ray3,ray4,ray5};
+            std::vector<vec3> rays = {ray1};
             vec3 sumColour = vec3(0,0,0);
             for (size_t r = 0; r < rays.size(); r++) {
                 RayTriangleIntersection final_intersection;
@@ -1561,9 +1562,10 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
                 final_intersection = getFinalIntersection(triangles,ray,cameraPos,nullptr,1);
                 Colour c = final_intersection.intersectedTriangle.colour;
                 vec3 newColour = {c.red,c.green,c.blue};
-                sumColour += newColour;
+                if (r == 0) sumColour += (newColour * 3.0f); // for quincux the centre has the most weight
+                else sumColour += newColour;
             }
-            vec3 avgColour = (1/(float)rays.size()) * sumColour;
+            vec3 avgColour = (1/(float)(rays.size()+2)) * sumColour;
             Colour c = Colour(avgColour.x, avgColour.y, avgColour.z);
             window.setPixelColour(x,y,c.packed_colour());
         }

@@ -1606,7 +1606,7 @@ float calcIntensity(vec3 norm, vec3 lightPos, vec3 point, bool isBump) {
     float dot_product = glm::dot(lightDir,norm);
     float distance = glm::distance(lightPos,point);
     float brightness = (float) INTENSITY*(1/(2*M_PI* distance * distance));
-    brightness *= std::max(0.f,dot_product);
+    // brightness *= std::max(0.f,dot_product);
 
     if (!isBump) brightness *= std::max(0.f,dot_product);
 
@@ -1640,7 +1640,7 @@ float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> t
 
     if (t.isBump) norm = calcBumpNormal(t, solution);
 
-    float brightness = calcIntensity(norm, lightPos, point, t.isBump);
+    float brightness;
 
     // true if we precalculated the vertex normals for this triangle
     if (triangleVertexNormals.find(t.ID) != triangleVertexNormals.end()) {
@@ -1652,10 +1652,12 @@ float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> t
     }
     else {
         // just use calcIntensity and calculate shadows like normal
+        brightness = calcIntensity(norm, lightPos, point, t.isBump);
         if(isShadow(triangles, point, lightPos, t)){
             brightness *= SHADOW_INTENSITY;
         }
     }
+
 
 
     return brightness;

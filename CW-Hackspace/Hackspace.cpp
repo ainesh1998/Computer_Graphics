@@ -1249,96 +1249,76 @@ bool isShadow(std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, M
     float dist = glm::length(lightDir);
     lightDir = glm::normalize(lightDir);
     bool shadow = false;
-
+    if(dist<shadowExclusionZone) return false;
     for (size_t i = 0; i < triangles.size(); i++) {
         RayTriangleIntersection shadowIntersection = getIntersection(lightDir,triangles[i],point);
-        if(shadowIntersection.distanceFromCamera < dist && !isEqualTriangle(shadowIntersection.intersectedTriangle,t)){
-        // if(shadowIntersection.distanceFromCamera < dist){
-        // if(shadowIntersection.distanceFromCamera < dist && !triangles[i].colour.equals(t.colour)){
-
-            // if (triangles[i].colour.red == t.colour.red && triangles[i].colour.green == t.colour.green && triangles[i].colour.blue == t.colour.blue ) {
+        if(shadowIntersection.distanceFromCamera < dist && (!isEqualTriangle(triangles[i],t))  ){
             if (shadowIntersection.distanceFromCamera < shadowExclusionZone) {
-                // std::cout << shadowIntersection.distanceFromCamera << '\n';
-                // print_vec3(point);
-                // std::cout << t.objectID << " " << triangles[i].objectID << " " << shadowIntersection.intersectedTriangle.objectID << '\n';
                 return false;
             }
-            shadow = true;
+            return true;
         }
     }
     return shadow;
 }
 
+//(-10 240 -162.15)
+
 float calcSoftShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t, int* penumbra) {
     float newBrightness = brightness;
-    float heightStep = 1;
-    float shadowExclusionZone = 2.5;
+    float heightStep = 5;
+    float shadowExclusionZone = 2;
     int searchMaxDepth = 5;
-    vec3 norm = computenorm(t);
+    vec3 norm =  computenorm(t);
     vec3 highPoint = point + heightStep*norm;
     vec3 lowPoint = point - heightStep*norm;
     bool highShadow = isShadow(triangles, highPoint, lightPos, t, shadowExclusionZone);
+    bool trueShadow = isShadow(triangles, point, lightPos, t, shadowExclusionZone);
     bool lowShadow = isShadow(triangles, lowPoint, lightPos, t, shadowExclusionZone);
-
-    if (highShadow && lowShadow) {
-        newBrightness = AMBIENCE/1.3;
-        // *penumbra = 2;
+    //penumbra = 1 black, penumbra 2 white
+    if(trueShadow){
+        newBrightness = AMBIENCE/2;
     }
-    // if (highShadow || lowShadow) {
-        // find out how far point is from being under light
-        else if (lowShadow && !highShadow) {
-            float currStep = heightStep;
-            float currHeight = -heightStep;
-            int searchDepth = 0;
-
-            while (searchDepth < searchMaxDepth) {
-                float tempHeight = currHeight + currStep;
-                vec3 tempPoint = point + (norm * tempHeight);
-                bool tempShadow = isShadow(triangles, tempPoint, lightPos, t, shadowExclusionZone);
-                if (!tempShadow) {
-                    currStep /= 2;
-                    searchDepth++;
-                }
-                else currHeight = tempHeight;
-            }
-
-            float gradient = (heightStep*2-(currHeight+heightStep))/(heightStep*2);
-            newBrightness = gradient * (newBrightness - AMBIENCE/1.3) + AMBIENCE/1.3;
-            // std::cout << brightness << " " << newBrightness << '\n';
-            // std::cout << gradient << '\n';
-            // newBrightness = 1;
-            // *penumbra = 1;
-        }
-
-        else if (highShadow && !lowShadow) {
+    else if(highShadow){
+        if(!lowShadow){ // hs && !ls
             float currStep = -heightStep;
-            float currHeight = heightStep;
+            // float currHeight = heightStep;
             int searchDepth = 0;
-
-            while (searchDepth < searchMaxDepth) {
-                float tempHeight = currHeight + currStep;
-                vec3 tempPoint = point + (norm * tempHeight);
-                bool tempShadow = isShadow(triangles, tempPoint, lightPos, t, shadowExclusionZone);
-                if (!tempShadow) {
-                    currStep /= 2;
-                    searchDepth++;
-                }
-                else currHeight = tempHeight;
+            vec3 tempPoint;
+            bool foundTemp = false;
+            float val = 0;
+            while (!foundTemp) {
+                tempPoint = highPoint + (norm * val * currStep);
+                //find first light point
+                foundTemp = !isShadow(triangles, tempPoint, lightPos, t, shadowExclusionZone);
+                val += 0.1;
             }
-
-            float gradient = ((currHeight+heightStep))/(heightStep*2);
-            newBrightness = gradient * (newBrightness - AMBIENCE/2) + AMBIENCE/2;
-            // *penumbra = 2;
-            // newBrightness = 1;
+            float gradient = glm::distance(highPoint,lowPoint)/glm::distance(highPoint,tempPoint);
+            // newBrightness = brightness - (brightness - AMBIENCE/2)/gradient;
+            newBrightness = brightness - (brightness - AMBIENCE/2)/gradient;
+            // if(trueShadow) *penumbra = 1;
+            // else *penumbra = 2;
         }
-
-        // graphical debugging
-        // if (!(highShadow && lowShadow) && (highShadow || lowShadow)) {
-        //     if (isShadow(triangles, point, lightPos, t, shadowExclusionZone)) *penumbra = 1;
-        //     else *penumbra = 2;
-        // }
-
-    // }
+    }else{
+        if(lowShadow){
+            float currStep = heightStep;
+            // float currHeight = -heightStep;
+            int searchDepth = 0;
+            vec3 tempPoint;
+            float val = 0;
+            bool foundTemp = false;
+            while (!foundTemp) {
+                tempPoint = lowPoint + (norm * val * currStep);
+                foundTemp = !isShadow(triangles, tempPoint, lightPos, t, shadowExclusionZone);
+                val += 0.1;
+            }
+            // std::cout << val << '\n';
+            float gradient = glm::distance(highPoint,lowPoint)/glm::distance(highPoint,tempPoint);
+            newBrightness = AMBIENCE/2 + (brightness - AMBIENCE/2)/gradient;
+            // if(trueShadow) *penumbra = 1;
+            // else *penumbra = 2;
+        }
+    }
     return newBrightness;
 }
 

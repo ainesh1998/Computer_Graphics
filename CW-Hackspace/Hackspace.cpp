@@ -220,7 +220,7 @@ int main(int argc, char* argv[])
     moveObject("ground",vec3(0,0,-70));
     moveObject("logo",vec3(-100,500,0)); // set logo to world origin
     moveObject("box",vec3(0,-160,90));
-    moveObject("sphere", vec3(-40, -160, 40));
+    moveObject("sphere", vec3(-40, -150, 40));
 
     // moveObject("logo",vec3(-50,240,0));
     // rotateObject("logo",vec3(0,90,0));
@@ -418,7 +418,7 @@ int main(int argc, char* argv[])
             }
             else {
                 // std::cout << "Finished video" << '\n';
-                // isStart = false;
+                isStart = false;
             }
         }
     }

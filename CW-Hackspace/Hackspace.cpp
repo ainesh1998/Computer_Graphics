@@ -445,7 +445,7 @@ int main(int argc, char* argv[])
                         // window.renderFrame();
 
                         std::cout << "Creating frame " << std::to_string(currentFrame/2) << '\n';
-                        writePPM(filename,WIDTH,HEIGHT,colours);
+                        // writePPM(filename,WIDTH,HEIGHT,colours);
                     }
                     currentFrame++;
                 }
@@ -1275,7 +1275,7 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
         }
 
         // near and far plane clipping
-        if(inRange(points[0].depth,100,1000) && inRange(points[1].depth,100,1000) && inRange(points[2].depth,100,1000)){
+        if(inRange(points[0].depth,50,1000) && inRange(points[1].depth,50,1000) && inRange(points[2].depth,50,1000)){
             CanvasTriangle triangle = CanvasTriangle(points[0], points[1], points[2], modelTriangles[i].colour);
             triangle.textureIndex = modelTriangles[i].textureIndex;
             triangle.vertices[0].depth = 1/triangle.vertices[0].depth;

@@ -1685,13 +1685,13 @@ float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> t
         // phong shading
         brightness = phong(t, point, lightPos, solution, triangles);
     }
-    // else {
+    else {
         // just use calcIntensity and calculate shadows like normal
         brightness = calcIntensity(norm, lightPos, point, t.isBump);
 
         if(isShadow(triangles, point, lightPos, t)){
             brightness *= SHADOW_INTENSITY;
-        // }
+        }
     }
 
 
@@ -2309,6 +2309,7 @@ std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle) {
         // set clipped triangles to the triangles we just fragmented and repeat for next boundary
         clippedTriangles = newClippedTriangles;
     }
+
     return clippedTriangles;
 }
 

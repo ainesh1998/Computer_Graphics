@@ -362,7 +362,7 @@ int main(int argc, char* argv[])
 
             // RENDER ANIMATION //
 
-            
+
             // capping it at 200 frames because that's probably enough for 10 seconds
             if (currentFrame < 400) {
                 if(isStart){
@@ -1044,10 +1044,8 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
     glm::vec2 u4_temp = glm::vec2(u1.x, u1.y) + (float) ratio * side;
 
     CanvasPoint u4 = CanvasPoint(u4_temp.x,u4_temp.y);
-    CanvasPoint u4_2 = CanvasPoint((int) (u4_temp.x/v4.depth), (int) (u4_temp.y/v4.depth));
 
     int textureWidth = textureDimensions[triangle.textureIndex].x;
-    int textureHeight = textureDimensions[triangle.textureIndex].y;
 
     //fill top triangle
     std::vector<vec3> triangleLeft = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v2.x,v2.y,v2.depth), (v2.y-v1.y)+1);
@@ -1510,7 +1508,6 @@ bool isShadow(std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, M
     vec3 lightDir = lightPos - point;
     float dist = glm::length(lightDir);
     lightDir = glm::normalize(lightDir);
-    bool isShadow = false;
 
     // fire shadow rays through all triangles
     for (size_t i = 0; i < triangles.size(); i++) {
@@ -1547,9 +1544,6 @@ float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> t
             brightness *= SHADOW_INTENSITY;
         }
     }
-
-
-
     return brightness;
 }
 
@@ -1557,7 +1551,6 @@ float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> t
 float calcBrightness(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,std::vector<vec3> light_positions, vec3 solution){
     float brightness = 0.f;
     for (size_t i = 0; i < light_positions.size(); i++) {
-        bool shadow = false;
         float newBrightness = calcProximity(point,t,triangles,light_positions[i], solution);
         brightness += newBrightness;
     }
@@ -2348,19 +2341,7 @@ bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAng
         // rotate down
         if(event.key.keysym.sym == SDLK_DOWN) rotationAngles->x += 0.1;
 
-        // light translate left
-        if(event.key.keysym.sym == SDLK_j) light_translation->x -= 10;
-        // light translate right
-        if(event.key.keysym.sym == SDLK_l) light_translation->x += 10;
-        // light translate up
-        if(event.key.keysym.sym == SDLK_i) light_translation->y += 10;
-        // light translate down
-        if(event.key.keysym.sym == SDLK_k) light_translation->y -= 10;
-        // light translate back
-        if(event.key.keysym.sym == SDLK_o) light_translation->z += 10;
-        // light translate front
-        if(event.key.keysym.sym == SDLK_p) light_translation->z -= 10;
-
+        // start/stop animation
         if(event.key.keysym.sym == SDLK_q) *isStart = !(*isStart);
 
 
@@ -2409,7 +2390,4 @@ void update(glm::vec3 translation, glm:: vec3 rotationAngles, glm::vec3 light_tr
     cameraOrientation *= rotationY;
 
     cameraPos += translation * glm::inverse(cameraOrientation);
-    for (size_t i = 0; i < light_positions.size(); i++) {
-        light_positions[i] += light_translation;
-    }
 }

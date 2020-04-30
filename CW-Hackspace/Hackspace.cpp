@@ -121,14 +121,36 @@ void update(glm::vec3 translation, glm::vec3 rotationAngles,glm::vec3 light_tran
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 glm::vec3 cameraPos = glm::vec3(0, 296.697, 335.07);
-glm::vec3 box_lightPos = glm::vec3(-0.2,4.8,-3.043);
-glm::vec3 box_lightPos1 = glm::vec3(2,4.8,-3.043);
-glm::vec3 logo_lightPos = glm::vec3(300,59,15);
-glm::vec3 scene_lightPos = glm::vec3(0,-50,50);
-glm::vec3 scene_lightPos1 = glm::vec3(0,400,50);
-glm::vec3 centre_lightPos = glm::vec3(70,150,70);
-glm::vec3 lightPos = box_lightPos1;
-std::vector<vec3> light_positions = {scene_lightPos, scene_lightPos1};
+// glm::vec3 box_lightPos = glm::vec3(-0.2,4.8,-3.043);
+// glm::vec3 box_lightPos1 = glm::vec3(2,4.8,-3.043);
+// glm::vec3 logo_lightPos = glm::vec3(300,59,15);
+// glm::vec3 box_light1 = glm::vec3(50,-50,50);
+// glm::vec3 box_light2 = glm::vec3(49,-50,49);
+// glm::vec3 box_light3 = glm::vec3(49,-50,51);
+// glm::vec3 box_light4 = glm::vec3(50,-50,49);
+// glm::vec3 box_light5 = glm::vec3(50,-50,51);
+// glm::vec3 box_light6 = glm::vec3(49,-50,50);
+// glm::vec3 box_light7 = glm::vec3(51,-50,50);
+// glm::vec3 box_light8 = glm::vec3(50,-50,49);
+// glm::vec3 box_light9 = glm::vec3(50,-50,51);
+glm::vec3 box_light1 = glm::vec3(0,-45,50);
+glm::vec3 box_light2 = glm::vec3(-2,-45,48);
+glm::vec3 box_light3 = glm::vec3(-2,-45,52);
+glm::vec3 box_light4 = glm::vec3(2,-45,48);
+glm::vec3 box_light5 = glm::vec3(2,-45,52);
+glm::vec3 box_light6 = glm::vec3(-1,-50,50);
+glm::vec3 box_light7 = glm::vec3(1,-50,50);
+glm::vec3 box_light8 = glm::vec3(0,-50,49);
+glm::vec3 box_light9 = glm::vec3(0,-50,51);
+glm::vec3 scene_toplight1 = glm::vec3(0,200,50);
+glm::vec3 scene_toplight2 = glm::vec3(-1,200,49);
+glm::vec3 scene_toplight3 = glm::vec3(1,200,49);
+glm::vec3 scene_toplight4 = glm::vec3(-1,200,51);
+glm::vec3 scene_toplight5 = glm::vec3(1,200,51);
+// glm::vec3 centre_lightPos = glm::vec3(70,150,70);
+// glm::vec3 lightPos = box_lightPos1;
+std::vector<vec3> light_positions = {box_light1, box_light2, box_light3, box_light4, box_light5,
+                                     scene_toplight1, scene_toplight2, scene_toplight3, scene_toplight4, scene_toplight5};
 glm::vec3 lightColour = glm::vec3(1,1,1);
 
 glm::mat3 cameraOrientation = glm::mat3();
@@ -239,10 +261,10 @@ int main(int argc, char* argv[])
         rotateAroundAxis(blocks[i], vec3(0, 180 + i*90, 0));
     }
 
-    moveObject("block1", vec3(-200, -20, -200));
-    moveObject("block2", vec3(-200, -20, 250));
-    moveObject("block3", vec3(250, -20, 250));
-    moveObject("block4", vec3(250, -20, -200));
+    moveObject("block1", vec3(-150, -20, -150));
+    moveObject("block2", vec3(-150, -20, 250));
+    moveObject("block3", vec3(200, -20, 250));
+    moveObject("block4", vec3(200, -20, -150));
 
     // setup camera
     lookAt(vec3(0,0,0));
@@ -374,8 +396,8 @@ int main(int argc, char* argv[])
                 if (!hasLanded) velocity++;
                 else {
                     if (riseVelocity > 0) {
-                        light_positions[0].y += riseVelocity;
-                        // light_positions[2].y += riseVelocity;
+                        for (int k = 0; k < light_positions.size(); k++) light_positions[k].y += riseVelocity;
+
                         moveObject("logo",vec3(0,riseVelocity,0));
                         moveObject("box",vec3(0,riseVelocity,0));
                         moveObject("sphere",vec3(0,riseVelocity,0));
@@ -384,6 +406,7 @@ int main(int argc, char* argv[])
                         riseCount++;
                         lookAtPos += vec3(0, riseVelocity, 0);
                         lookAt(lookAtPos);
+                        print_vec3(getObjectCentroid("logo"));
                     }
                 }
 
@@ -396,6 +419,11 @@ int main(int argc, char* argv[])
 
             update(translation, rotationAngles,light_translation);
 
+            drawScene();
+
+            // Need to render the frame at the end, or nothing actually gets shown on the screen !
+            window.renderFrame();
+
             if(light_translation != vec3(0,0,0)){
                 std::cout << "light is at" << '\n';
                 print_vec3(light_positions[0]);
@@ -405,18 +433,17 @@ int main(int argc, char* argv[])
             if (currentFrame < 400) {
                 if(isStart){
                     if (currentFrame%2 == 0) {
-                        std::cout << currentFrame << '\n';
                         std::vector<Colour> colours = loadColours();
                         std::string filename = "video/image" + std::to_string(currentFrame/2) + ".ppm";
 
-                        std::cout << "Rendering frame " << std::to_string(currentFrame/2) << '\n';
-                        drawScene();
-
-                        // Need to render the frame at the end, or nothing actually gets shown on the screen !
-                        window.renderFrame();
+                        // std::cout << "Rendering frame " << std::to_string(currentFrame/2) << '\n';
+                        // drawScene();
+                        //
+                        // // Need to render the frame at the end, or nothing actually gets shown on the screen !
+                        // window.renderFrame();
 
                         std::cout << "Creating frame " << std::to_string(currentFrame/2) << '\n';
-                        writePPM(filename,WIDTH,HEIGHT,colours);
+                        // writePPM(filename,WIDTH,HEIGHT,colours);
                     }
                     currentFrame++;
                 }
@@ -1567,7 +1594,7 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
     // window.clearPixels();
     for (size_t x = 0; x < WIDTH; x++) {
         for (size_t y = 0; y < HEIGHT; y++) {
-            // complex anti-aliasing - firing multiple rays according to quincux pattern
+            // complex anti-aliasing - firing multiple rays according to quincunx pattern
 
             vec3 ray1 = computeRay((x+0.5),(y+0.5),FOV);
            vec3 ray2 = computeRay((x),(y),FOV);
@@ -1661,9 +1688,17 @@ float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> t
     else {
         // just use calcIntensity and calculate shadows like normal
         brightness = calcIntensity(norm, lightPos, point, t.isBump);
-        if(isShadow(triangles, point, lightPos, t)){
-            brightness *= SHADOW_INTENSITY;
-        }
+
+        // int count = 0;
+        // for (int i = 0; i < light_positions.size(); i++) {
+            if(isShadow(triangles, point, lightPos, t)){
+                brightness *= SHADOW_INTENSITY;
+                // count++;
+            }
+        // }
+
+        // brightness *= (SHADOW_INTENSITY * (((float) count)/light_positions.size()));
+
     }
 
 
@@ -1671,15 +1706,51 @@ float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> t
     return brightness;
 }
 
+float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos, vec3 solution, bool* shadow){
+    vec3 norm = computenorm(t);
+
+    if (t.isBump) norm = calcBumpNormal(t, solution);
+
+    float brightness;
+
+    // true if we precalculated the vertex normals for this triangle
+    if (triangleVertexNormals.find(t.ID) != triangleVertexNormals.end()) {
+        // gouraud shading
+        // brightness = gouraud(t, point, lightPos, solution, triangles);
+
+        // phong shading
+        brightness = phong(t, point, lightPos, solution, triangles);
+    }
+    else {
+        // just use calcIntensity and calculate shadows like normal
+        brightness = calcIntensity(norm, lightPos, point, t.isBump);
+        if(isShadow(triangles, point, lightPos, t)){
+            // brightness *= SHADOW_INTENSITY;
+            *shadow = true;
+        }
+    }
+
+    return brightness;
+}
+
 float calcBrightness(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,std::vector<vec3> light_positions, vec3 solution){
     // soft shadows - multiple light sources
     float brightness = 0.f;
+    // int count = 0;
     for (size_t i = 0; i < light_positions.size(); i++) {
+        bool shadow = false;
         brightness += calcProximity(point,t,triangles,light_positions[i], solution);
+        // if (shadow) count++;
         // std::cout << light_positions[i].x<<" "<<light_positions[i].y << " " << light_positions[i].z<<'\n';
     }
+    // if(brightness > 1) brightness = 1;
+    // brightness /= 2;
+    // float shadowVal = ((float) count)/light_positions.size();
+    // brightness *= (shadowVal * SHADOW_INTENSITY);
+    brightness = brightness/(light_positions.size()*0.65);
     if(brightness > 1) brightness = 1;
     return brightness;
+    // return brightness;
 }
 
 

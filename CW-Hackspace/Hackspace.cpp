@@ -37,15 +37,11 @@ void order_triangle(ModelTriangle *triangle);
 std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValues);
 vec3 cramer_rule(glm::mat3 DEMatrix,vec3 SPVector);
 bool isEqualTriangle(ModelTriangle t1,ModelTriangle t2);
-//load colours from the window to a vector
 std::vector<Colour> loadColours();
-
 
 // file readers
 std::vector<Colour> readPPM(std::string filename,int* width, int* height);
-//given filename and dimensions create a ppm file
 void writePPM(std::string filename,int width, int height, std::vector<Colour> colours);
-// std::map<std::string,Colour> readMTL(std::string filename);
 std::vector<Colour> readMTL(std::string filename,int* textureWidth, int* textureHeight, std::vector<vec3>* bump_map);
 std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, float scale);
 void displayPicture(std::vector<Colour> payload,int width,int height);
@@ -63,7 +59,6 @@ void drawBox(std::vector<ModelTriangle> triangles, float focalLength);
 // raytracer
 bool isFacing(ModelTriangle t, vec3 ray);
 vec3 calcReflectedRay(vec3 ray,vec3 norm,float reflectOffset);
-vec3 refract(vec3 ray,vec3 norm,float refraction_index);
 vec3 getTextureColour(ModelTriangle triangle, vec3 solution, vec3 point);
 glm::vec3 computeRay(float x,float y,float fov);
 RayTriangleIntersection getIntersection(glm::vec3 ray,std::vector<ModelTriangle> modelTriangles,vec3 origin);
@@ -86,19 +81,9 @@ float phong(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution, std::vect
 // bump mapping
 vec3 calcBumpNormal(ModelTriangle t, vec3 solution);
 
-// generative geometry
-void diamondSquare(double** pointHeights, int width, double currentSize);
-std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, float scale, int intensity, int count);
-
-// scene map
-void drawScene();
-void moveObject(std::string name,vec3 moveVec);
-vec3 getObjectCentroid(std::string name);
-void rotateObject(std::string name,vec3 rotationAngles);
-void rotateAroundPoint(std::string name, vec3 rotationAngles, vec3 point);
-void rotateAroundAxis(std::string name,vec3 rotationAngles);
-void scaleObject(std::string name,float scale);
-void scaleYObject(std::string name,float scale);
+// glass
+vec3 refract(vec3 ray,vec3 norm,float refraction_index);
+float fresnel(vec3 ray,vec3 norm,float refractive_index);
 
 // physics
 bool isCollideGround(std::vector<ModelTriangle> o1, std::vector<ModelTriangle> o2);
@@ -110,7 +95,24 @@ bool withinFrustum(BoundingBox bbox);
 std::vector<ModelTriangle> removeOutsideTriangles(std::vector<ModelTriangle> triangles);
 std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle);
 
-// event handling
+// soft shadow with virtual surfaces (not working)
+float calcSoftShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t);
+
+// generative geometry
+void diamondSquare(double** pointHeights, int width, double currentSize);
+std::vector<ModelTriangle> generateGeometry(int width, float scale);
+
+// scene map
+void drawScene();
+void moveObject(std::string name,vec3 moveVec);
+vec3 getObjectCentroid(std::string name);
+void rotateObject(std::string name,vec3 rotationAngles);
+void rotateAroundPoint(std::string name, vec3 rotationAngles, vec3 point);
+void rotateAroundAxis(std::string name,vec3 rotationAngles);
+void scaleObject(std::string name,float scale);
+void scaleYObject(std::string name,float scale);
+
+// event handling and camera
 void lookAt(glm::vec3 point);
 bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAngles, glm::vec3* light_translation, bool* isStart);
 void update(glm::vec3 translation, glm::vec3 rotationAngles,glm::vec3 light_translation);
@@ -120,53 +122,19 @@ void update(glm::vec3 translation, glm::vec3 rotationAngles,glm::vec3 light_tran
 
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
+float infinity = std::numeric_limits<float>::infinity();
+int mode = 1;   // mode 1 = wireframe, mode 2 = rasteriser, mode 3 = raytracer
 glm::vec3 cameraPos = glm::vec3(0, 296.697, 335.07);
-// glm::vec3 box_lightPos = glm::vec3(-0.2,4.8,-3.043);
-// glm::vec3 box_lightPos1 = glm::vec3(2,4.8,-3.043);
-// glm::vec3 logo_lightPos = glm::vec3(300,59,15);
-// glm::vec3 box_light1 = glm::vec3(50,-50,50);
-// glm::vec3 box_light2 = glm::vec3(49,-50,49);
-// glm::vec3 box_light3 = glm::vec3(49,-50,51);
-// glm::vec3 box_light4 = glm::vec3(50,-50,49);
-// glm::vec3 box_light5 = glm::vec3(50,-50,51);
-// glm::vec3 box_light6 = glm::vec3(49,-50,50);
-// glm::vec3 box_light7 = glm::vec3(51,-50,50);
-// glm::vec3 box_light8 = glm::vec3(50,-50,49);
-// glm::vec3 box_light9 = glm::vec3(50,-50,51);
-glm::vec3 box_light1 = glm::vec3(0,-50,50);
-glm::vec3 box_light2 = glm::vec3(-2,-50,48);
-glm::vec3 box_light3 = glm::vec3(-2,-50,52);
-glm::vec3 box_light4 = glm::vec3(2,-50,48);
-glm::vec3 box_light5 = glm::vec3(2,-50,52);
-glm::vec3 box_light6 = glm::vec3(-1,-50,50);
-glm::vec3 box_light7 = glm::vec3(1,-50,50);
-glm::vec3 box_light8 = glm::vec3(0,-50,49);
-glm::vec3 box_light9 = glm::vec3(0,-50,51);
-glm::vec3 scene_toplight1 = glm::vec3(0,400,50);
-glm::vec3 scene_toplight2 = glm::vec3(-1,400,49);
-glm::vec3 scene_toplight3 = glm::vec3(1,400,49);
-glm::vec3 scene_toplight4 = glm::vec3(-1,400,51);
-glm::vec3 scene_toplight5 = glm::vec3(1,400,51);
-glm::vec3 scene_toplight6 = glm::vec3(0,400,250);
-glm::vec3 scene_toplight7 = glm::vec3(0,400,-400);
+glm::mat3 cameraOrientation = glm::mat3();
 
-// glm::vec3 centre_lightPos = glm::vec3(70,150,70);
-// glm::vec3 lightPos = box_lightPos1;
-std::vector<vec3> light_positions = {box_light1,
-                                     scene_toplight1};
+glm::vec3 box_light1 = glm::vec3(0,-50,50);
+glm::vec3 scene_toplight1 = glm::vec3(0,400,50);
+std::vector<vec3> light_positions = {box_light1, scene_toplight1};
 glm::vec3 lightColour = glm::vec3(1,1,1);
 
-glm::mat3 cameraOrientation = glm::mat3();
-float infinity = std::numeric_limits<float>::infinity();
-double depth_buffer[WIDTH][HEIGHT];
-int mode = 1;
 std::map<std::string, std::vector<ModelTriangle>> scene;
 int newTriangleID = 0;
 std::map<int, std::vector<vec3>> triangleVertexNormals; //given a triangle ID, return its vertex normals
-
-int genCount = 0;
-int width = 60;
-double** grid = malloc2dArray(width, width);
 
 std::vector<std::vector<Colour>> textures;
 std::vector<glm::vec2> textureDimensions;
@@ -177,27 +145,7 @@ std::vector<BoundingBox> bounding_boxes;
 
 int main(int argc, char* argv[])
 {
-    // for(int x = 0; x < WIDTH; x++){
-    //     for(int y = 0; y < HEIGHT; y++){
-    //         // depth_buffer[x][y] = std::numeric_limits<float>::infinity();
-    //         depth_buffer[x][y] = 0;
-    //
-    //     }
-    // }
     SDL_Event event;
-    // for (float i = -2; i <= 2; i+=0.5) {
-    //     // std::cout << i << '\n';
-    //     vec3 lightPos = vec3(i,4.8,-3.043);
-    //     print_vec3(lightPos);
-    //     light_positions.push_back(lightPos);
-    // }
-
-    for (int x = 0; x < width; x++) {
-        for (int y = 0; y < width; y++) {
-            double temp = (rand() % (10 * 2)) - 10;
-            grid[x][y] = temp;
-        }
-    }
 
     // SET UP SCENE //
 
@@ -212,21 +160,11 @@ int main(int argc, char* argv[])
 
     //for sphere remove texture and set colour to be white
     for (size_t i = 0; i < sphere_triangles.size(); i++) {
-        // sphere_triangles[i].colour = Colour(255,255,255);
         sphere_triangles[i].isTexture = false;
         for (size_t j = 0; j < 3; j++) {
             sphere_triangles[i].texturePoints[j] = TexturePoint(-1,-1);
         }
     }
-
-    // std::vector<ModelTriangle> generated_triangles = generateGeometry(grid, width, 2.5, 10, genCount);
-
-
-    // std::vector<ModelTriangle> empty_box_triangles = readOBJ("extra-objects/empty-box.obj", "extra-objects/empty-box.mtl", BOX_SCALE);
-
-    // for (size_t i = 0; i < light_positions.size(); i++) {
-    //     light_positions[i] *= (float)BOX_SCALE; //cornell box light
-    // }
 
     // calculate vertex normals for each triangle of the sphere - for gouraud and phong shading
     calcVertexNormals(sphere_triangles);
@@ -235,25 +173,12 @@ int main(int argc, char* argv[])
     scene["logo"] = logo_triangles;
     scene["box"] = box_triangles;
     scene["sphere"] = sphere_triangles;
-    // scene["terrain"] = generated_triangles;
     scene["ground"] = ground_triangles;
-    // scene["box"] = empty_box_triangles;
-    // scene["light"] = ground_light_triangles;
 
-    // moveObject("logo",vec3(-35,-25,-100));
-    // moveObject("logo",vec3(-100,50,-100));
     moveObject("ground",vec3(0,0,-70));
     moveObject("logo",vec3(-100,500,0)); // set logo to world origin
     moveObject("box",vec3(0,-160,90));
     moveObject("sphere", vec3(-40, -150, 40));
-
-    // moveObject("logo",vec3(-50,240,0));
-    // rotateObject("logo",vec3(0,90,0));
-    // moveObject("logo",vec3(0,0,-120));
-    // // moveObject("sphere",vec3(35,100,-100)); // place sphere above red box
-    // moveObject("sphere", vec3(-70, 20, -70)); // place sphere in front of blue box
-    // scaleObject("ground",0.5f);
-
 
     // setup the four blocks
     std::vector<std::string> blocks = {"block1", "block2", "block3", "block4"};
@@ -279,18 +204,23 @@ int main(int argc, char* argv[])
     // ANIMATION //
 
 
-    float velocity = 0;
+    int currentFrame = 0;
+    bool isStart = false; // has the animation started?
+    float velocity = 0; // for falling hackspace logo
     float unbounciness = 6; // the higher the value, the less bouncy the logo is
-    bool hasCollided = false;
-    bool hasLanded = false;
-    bool isStart = false;
+    bool hasCollided = false; // has the logo collided with the ground?
+    bool hasLanded = false; // has the logo landed?
+    float rotationSpeed = 0; // for logo spinning
+    vec3 lookAtPos = vec3(0,0,0); // camera lookAt position
+
+    // for logo and cornell box rising
     int riseCount = 0;
     float riseVelocity = 2;
-    float rotationSpeed = 0;
-    vec3 lookAtPos = vec3(0,0,0);
+
+    // for toppling blocks
     std::vector<float> fallVelocity = {0, 0, 0, 0};
     std::vector<bool> hasToppled = {false, false, false, false};
-    int currentFrame = 0;
+
 
     // for blocks - this is to calculate the angle between the direction of rotation and x-axis.
     // Basically to rotate the block along an edge we have to rotate it so that the edge is parallel
@@ -337,11 +267,12 @@ int main(int argc, char* argv[])
         }
 
 
-        if (isUpdate || isStart) {
+        if (isUpdate || isStart) { // only render if the animation has started of if there has been camera movement
             if (isStart) {
                 moveObject("logo",vec3(0,-velocity,0));
                 rotateObject("logo",vec3(0,rotationSpeed,0));
 
+                // FOR TOPPLING BLOCKS
                 for (int i = 0; i < blocks.size(); i++) {
                     vec3 block_centroid = getObjectCentroid(blocks[i]);
 
@@ -380,32 +311,31 @@ int main(int argc, char* argv[])
                     }
                 }
 
-                if (isCollideGround(scene["ground"], scene["logo"]) && !hasCollided) {
+                // FOR BOUNCING LOGO
+                if (isCollideGround(scene["ground"], scene["logo"]) && !hasCollided) { // logo collides with ground
                     velocity *= -1;
                     velocity += unbounciness;
                     hasCollided = true; // to remove multiple collision detections for the same collision
-                    if (rotationSpeed < 1) rotationSpeed += 0.3;
+                    if (rotationSpeed < 1) rotationSpeed += 0.3; // starts spinning
 
                     for (int i = 0; i < blocks.size(); i++) {
                         if (!hasToppled[i]) fallVelocity[i] += (1.5 + 0.05*i);
                     }
                 }
 
-                else if (!isCollideGround(scene["ground"], scene["logo"])){
+                else if (!isCollideGround(scene["ground"], scene["logo"])){ // logo is off the ground
                     hasCollided = false;
                 }
 
                 // only increase velocity if it hasn't landed (otherwise it'll fall through the ground)
                 if (!hasLanded) velocity++;
                 else {
-                    if (riseVelocity > 0) {
-                        // for (int k = 0; k < light_positions.size(); k++) light_positions[k].y += riseVelocity;
+                    if (riseVelocity > 0) { // cornell box and hackspace logo rise
                         light_positions[0].y += riseVelocity;
                         moveObject("logo",vec3(0,riseVelocity,0));
                         moveObject("box",vec3(0,riseVelocity,0));
                         moveObject("sphere",vec3(0,riseVelocity,0));
-                        // calcVertexNormals(scene["sphere"]);
-                        if (riseCount > 130) riseVelocity -= 0.05;
+                        if (riseCount > 130) riseVelocity -= 0.05; // slow down as it reaches the top
                         riseCount++;
                         lookAtPos += vec3(0, riseVelocity, 0);
                         lookAt(lookAtPos);
@@ -419,18 +349,20 @@ int main(int argc, char* argv[])
                 }
             }
 
-            update(translation, rotationAngles,light_translation);
 
+            // END OF ANIMATION //
+
+
+            update(translation, rotationAngles,light_translation);
             drawScene();
 
             // Need to render the frame at the end, or nothing actually gets shown on the screen !
             window.renderFrame();
 
-            if(light_translation != vec3(0,0,0)){
-                std::cout << "light is at" << '\n';
-                print_vec3(light_positions[0]);
-            }
 
+            // RENDER ANIMATION //
+
+            
             // capping it at 200 frames because that's probably enough for 10 seconds
             if (currentFrame < 400) {
                 if(isStart){
@@ -516,12 +448,8 @@ std::vector<glm::vec3> interpolate3(glm::vec3 start, glm::vec3 end, int noOfValu
 
 void swapTriangleXY(CanvasTriangle* triangle) {
     for (int j = 0; j < 3; j++) {
-        // float temp = triangle->vertices[j].x;
-        // triangle->vertices[j].x = triangle->vertices[j].y;
-        // triangle->vertices[j].y = temp;
         std::swap(triangle->vertices[j].x,triangle->vertices[j].y);
         //swap texture coords
-        //tried this but gives bad alloc on my computer
         std::swap(triangle->vertices[j].texturePoint.x,triangle->vertices[j].texturePoint.y);
     }
 }
@@ -595,6 +523,7 @@ bool isEqualTriangle(ModelTriangle t1,ModelTriangle t2){
 // FILE READING //
 
 
+// Reads in a ppm file
 std::vector<Colour> readPPM(std::string filename,int* width, int* height){
     std::ifstream stream;
     stream.open(filename.c_str(),std::ifstream::in);
@@ -651,6 +580,7 @@ std::vector<Colour> readPPM(std::string filename,int* width, int* height){
     return payload;
 }
 
+// Writes out a ppm file
 void writePPM(std::string filename,int width, int height, std::vector<Colour> colours){
     std::ofstream afile(filename, std::ios::out);
 
@@ -673,6 +603,7 @@ void writePPM(std::string filename,int width, int height, std::vector<Colour> co
     }
 }
 
+// Reads in a mtl file for obj file parsing
 std::vector<Colour> readMTL(std::string filename,int* textureWidth, int* textureHeight, std::vector<vec3>* bump_map){
     std::vector<Colour> colours;
     std::ifstream stream;
@@ -682,6 +613,7 @@ std::vector<Colour> readMTL(std::string filename,int* textureWidth, int* texture
 
     while(stream.getline(newmtl, 256, ' ')) {
         if (strcmp(newmtl, "newmtl") == 0) {
+            // store new colour
             char colourName[256];
             stream.getline(colourName, 256);
 
@@ -700,7 +632,7 @@ std::vector<Colour> readMTL(std::string filename,int* textureWidth, int* texture
             int b = std::stof(bc) * 255;
 
             Colour c = Colour(colourName, r, g, b);
-            c.mtlProperty = mtlProperty;
+            c.mtlProperty = mtlProperty; // allows for Kd (diffuse) and Ks (specular) material types
             colours.push_back(c);
 
             char newLine[256];
@@ -708,6 +640,7 @@ std::vector<Colour> readMTL(std::string filename,int* textureWidth, int* texture
         }
 
         else if (strcmp(newmtl, "map_Kd") == 0) {
+            // diffuse texture mapping
             char textureFile[256];
             stream.getline(textureFile, 256);
             std::string* contents = split(filename,'/'); // Since the filename contains the directory
@@ -724,6 +657,7 @@ std::vector<Colour> readMTL(std::string filename,int* textureWidth, int* texture
             std::vector<Colour> tempColours = readPPM( contents[0] + (std::string) textureFile, textureWidth, textureHeight);
 
             for (int i = 0; i < tempColours.size(); i++) {
+                // construct normal
                 vec3 normal = vec3(tempColours[i].red, tempColours[i].green, tempColours[i].blue);
                 normal = glm::normalize(normal);
                 normal = vec3(normal.x, normal.z, normal.y);
@@ -736,6 +670,7 @@ std::vector<Colour> readMTL(std::string filename,int* textureWidth, int* texture
     return colours;
 }
 
+// parses OBJ files
 std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, float scale) {
     std::ifstream stream;
     stream.open(WORKING_DIRECTORY + filename, std::ifstream::in);
@@ -750,9 +685,9 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
 
     std::vector<Colour> colours = readMTL(WORKING_DIRECTORY + (std::string) mtlName,&textureWidth,&textureHeight,&bump_map);
 
-    std::vector<glm::vec3> vertices;
-    std::vector<TexturePoint> texturePoints;
-    std::vector<BumpPoint> bumpPoints;
+    std::vector<glm::vec3> vertices; // triangle vertices listed in the file
+    std::vector<TexturePoint> texturePoints; // texture coordinates listed in the file
+    std::vector<BumpPoint> bumpPoints; // bump map coordinates
     std::vector<ModelTriangle> modelTriangles;
     char line[256];
     Colour colour = Colour(255,255,255);
@@ -761,12 +696,13 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
     bool isBumped = false;
     bool isGlass = false;
     bool isSpecular = false;
-    // bool isMetal = filename.compare("HackspaceLogo/logo.obj") == 0;
     bool isMetal = false;
     float reflectivity = 0;
     float roughness = 0;
+    // for obtaining texture and bump map - stored in vectors as global variables
     int textureIndex = textures.size();
     int bumpIndex = bump_maps.size();
+    // for bounding box
     vec3 minBBox = vec3(infinity, infinity, infinity);
     vec3 maxBBox = vec3(-infinity, -infinity, -infinity);
 
@@ -777,7 +713,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
             isGlass = contents[1].compare("glass") == 0;
             isMetal = contents[1].compare("copper") == 0 || contents[1].compare("shiny") == 0;
 
-            // hardcoding reflectivity and roughness
+            // hardcoding reflectivity and roughness for two metallic materials
             if (contents[1].compare("copper") == 0) {
                 reflectivity = 0.4;
                 roughness = 1;
@@ -788,6 +724,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
         }
 
         if(contents[0].compare("vt")== 0){
+            // store texture points
             float x = (int) (std::stof(contents[1]) * (textureWidth-1));
             float y = (int) (std::stof(contents[2]) * (textureHeight-1));
             TexturePoint point = TexturePoint(x, y);
@@ -799,6 +736,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
         }
 
         else if(contents[0].compare("usemtl") == 0){
+            // get colour
             for (size_t i = 0; i < colours.size(); i++) {
                 if(colours[i].name.compare(contents[1]) == 0){
                     colour = colours[i];
@@ -807,7 +745,8 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
             }
         }
 
-        else if (contents[0].compare("vb") == 0) { // don't think this is legit obj
+        else if (contents[0].compare("vb") == 0) {
+            // store bump map coordinates
             float x = (int) (std::stof(contents[1]) * (textureWidth-1));
             float y = (int) (std::stof(contents[2]) * (textureHeight-1));
             BumpPoint point = BumpPoint(x, y);
@@ -815,6 +754,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
         }
 
         else if(contents[0].compare("v") == 0){
+            // triangle vertices
             float x = std::stof(contents[1]) * scale;
             float y = std::stof(contents[2]) * scale;
             float z = std::stof(contents[3]) * scale;
@@ -831,6 +771,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
         }
 
         else if(contents[0].compare("f") == 0){
+            // build ModelTriangles
             bool notTextured = contents[1][contents[1].length()-1] == '/' ||
                               contents[2][contents[2].length()-1] == '/' ||
                               contents[3][contents[3].length()-1] == '/';
@@ -847,10 +788,9 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
 
             ModelTriangle m;
 
-            // for now a surface must either be textured, bumped, a mirror or regular
-            // might be cool to have a bumped mirror
+            // a surface must either be textured, bumped, or regular
 
-            if (bump_map.size() > 0) {
+            if (bump_map.size() > 0) { // it's a bump map
                 int bumpIndex1 = std::stoi(indexes1[2]);
                 int bumpIndex2 = std::stoi(indexes2[2]);
                 int bumpIndex3 = std::stoi(indexes3[2]);
@@ -863,7 +803,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
                 isBumped = true;
             }
 
-            else if (!notTextured) {
+            else if (!notTextured) { // it's a textured surface
                 int textureIndex1 = std::stoi(indexes1[1]);
                 int textureIndex2 = std::stoi(indexes2[1]);
                 int textureIndex3 = std::stoi(indexes3[1]);
@@ -876,10 +816,10 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
                 isTextured = true;
             }
 
-            else {
+            else { // regular surface
                 m = ModelTriangle(vertices[index1 -1], vertices[index2 - 1], vertices[index3 -1], colour, newTriangleID);
             }
-            //moved it here cause the sphere obj has a texture
+
             m.colour = colour;
             m.isSpecular = isSpecular;
             m.boundingBoxIndex = bounding_boxes.size();
@@ -888,12 +828,12 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
             m.isMetal = isMetal;
             m.reflectivity = reflectivity;
             m.roughness = roughness;
-            // std::cout << m.boundingBoxIndex << '\n';
             modelTriangles.push_back(m);
             newTriangleID++;
         }
     }
 
+    // store texture and bump maps
     if (isTextured) {
         textureDimensions.push_back(glm::vec2(textureWidth, textureHeight));
         textures.push_back(colours);
@@ -914,6 +854,7 @@ std::vector<ModelTriangle> readOBJ(std::string filename, std::string mtlName, fl
     return modelTriangles;
 }
 
+// display a PPM image on the screen
 void displayPicture(std::vector<Colour> payload,int width,int height){
     for(int i = 0; i < width; i++){
         for(int j = 0; j < height; j++){
@@ -927,6 +868,7 @@ void displayPicture(std::vector<Colour> payload,int width,int height){
 // RASTERISING //
 
 
+// draw aliased line
 void drawLine(CanvasPoint start,CanvasPoint end,Colour c){
     float xDiff = end.x - start.x;
     float yDiff = end.y - start.y;
@@ -939,9 +881,8 @@ void drawLine(CanvasPoint start,CanvasPoint end,Colour c){
     }
 }
 
+// Wu Lines implementation - adapted from https://www.geeksforgeeks.org/anti-aliased-line-xiaolin-wus-algorithm/
 void drawLineAntiAlias(CanvasPoint start, CanvasPoint end, Colour c, double** depth_buffer) {
-    // https://www.geeksforgeeks.org/anti-aliased-line-xiaolin-wus-algorithm/
-
     vec3 newStart = start.toVec3();
     vec3 newEnd = end.toVec3();
     int isSteep = std::abs(end.y - start.y) > std::abs(end.x - start.x);
@@ -1007,7 +948,7 @@ void drawLineAntiAlias(CanvasPoint start, CanvasPoint end, Colour c, double** de
     }
 }
 
-// draws HORIZONTAL lines only
+// draws HORIZONTAL lines only - using depth buffer
 void drawRake(vec3 start, vec3 end, Colour c, double** depth_buffer){
     int numberOfSteps = std::abs(end.x - start.x);
     int y = start.y;
@@ -1022,6 +963,7 @@ void drawRake(vec3 start, vec3 end, Colour c, double** depth_buffer){
     }
 }
 
+// draws stroked triangles - wireframe
 void drawTriangle(CanvasTriangle triangle, double** depth_buffer){
     Colour c = triangle.colour;
 
@@ -1030,12 +972,15 @@ void drawTriangle(CanvasTriangle triangle, double** depth_buffer){
     drawLineAntiAlias(triangle.vertices[2],triangle.vertices[0],c,depth_buffer);
 }
 
+// draws filled triangles
 void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer){
     order_triangle(&triangle);
 
     CanvasPoint v1 = triangle.vertices[0];
     CanvasPoint v2 = triangle.vertices[1];
     CanvasPoint v3 = triangle.vertices[2];
+
+    // obtain new point
     double slope = (v2.y - v1.y)/(v3.y - v1.y);
     int newX = v1.x + slope * (v3.x - v1.x);
     double newZ = v1.depth +  (double)slope * (v3.depth - v1.depth);
@@ -1063,12 +1008,7 @@ void drawFilledTriangle(CanvasTriangle triangle,double** depth_buffer){
    }
 }
 
-float compute_texture_row(float z_far,float z_near,float c_far,float c_near,float v,float textureHeight){
-    float term1 = (c_far/z_far)*(textureHeight - v) + (c_near/z_near)*v;
-    float term2 = (1/z_far)*(textureHeight - v) + (1/z_near)*v;
-    return term1/term2;
-}
-
+// texture rasteriser - using perspective correction
 void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
     order_triangle(&triangle);
     CanvasTriangle texturedTriangle = triangle.getTextureTriangle();
@@ -1087,10 +1027,7 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
     CanvasPoint u2 = texturedTriangle.vertices[1];
     CanvasPoint u3 = texturedTriangle.vertices[2];
 
-    if (u1.x >= 300 || u1.y >= 300 || u2.x >= 300 || u2.y >= 300 || u3.x >= 300 || u3.y >= 300) {
-        // std::cout << texturedTriangle << '\n';
-    }
-
+    // for perspective correction
     u1.x = u1.x * v1.depth;
     u2.x = u2.x * v2.depth;
     u3.x = u3.x * v3.depth;
@@ -1099,11 +1036,7 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
     u2.y = u2.y * v2.depth;
     u3.y = u3.y * v3.depth;
 
-    // float k_x = (v3.x==v1.x)? 0 : (u3.x-u1.x)/(v3.x-v1.x);
-    // float k_y = (v3.y==v1.y)? 0 : (u3.y-u1.y)/(v3.y-v1.y);
-    // float u4_x = u1.x + k_x * (newX-v1.x);
-    // float u4_y = u1.y + k_y * (v4.y-v1.y);
-
+    //equation to get 'extra' texture point
     double dist1 = glm::distance(glm::vec2(v1.x, v1.y), glm::vec2(v3.x, v3.y));
     double dist2 = glm::distance(glm::vec2(v1.x, v1.y), glm::vec2(newX, v4.y));
     double ratio = dist2/dist1;
@@ -1115,14 +1048,6 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
 
     int textureWidth = textureDimensions[triangle.textureIndex].x;
     int textureHeight = textureDimensions[triangle.textureIndex].y;
-
-    if (u4_2.x >= textureWidth || u4_2.y >= textureHeight) {
-        std::cout << "u4 is out of bounds!" << '\n';
-        std::cout << u4_2 << '\n';
-        // std::cout << triangle << '\n';
-        std::cout << texturedTriangle << '\n';
-    }
-
 
     //fill top triangle
     std::vector<vec3> triangleLeft = interpolate3(vec3(v1.x,v1.y,v1.depth), vec3(v2.x,v2.y,v2.depth), (v2.y-v1.y)+1);
@@ -1148,34 +1073,18 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
             int x = rakeTriangle[j].x;
             double u = rakeTexture[j].x;
             double v = rakeTexture[j].y;
-
             double depth = rakeTriangle[j].z;
+
+            // undo perspective correction to obtain actual values
             int ui = std::round(u/depth);
             int vi = std::round(v/depth);
 
             if (depth >= depth_buffer[x][y]) {
                 depth_buffer[x][y] = depth;
-                int textureWidth = textureDimensions[triangle.textureIndex].x;
-                int textureHeight = textureDimensions[triangle.textureIndex].y;
                 int texturePoint = ui + (vi*textureWidth);
+                Colour c = textures[triangle.textureIndex][texturePoint];
+                window.setPixelColour(x, y, c.packed_colour());
 
-                if (ui >= textureWidth || vi >= textureHeight ) {
-                    std::cout << "texture coordinate is out of bounds!" << '\n';
-                    std::cout << ui << " " << vi << '\n';
-                    std::cout << triangle << '\n';
-                    std::cout << texturedTriangle << '\n';
-                    std::cout << u4_2 << '\n';
-                }
-                // else {
-                    Colour c = textures[triangle.textureIndex][texturePoint];
-                    window.setPixelColour(x, y, c.packed_colour());
-                // }
-
-                //texturePoint being out of range might be a minor rounding error
-                // if (texturePoint >= 0 && texturePoint < textureDimensions[triangle.textureIndex].x * textureDimensions[triangle.textureIndex].y) {
-
-                    // window.setPixelColour(x, y, Colour(255,255,255).packed_colour());
-                // }
             }
         }
     }
@@ -1203,42 +1112,25 @@ void drawTexturedTriangle(CanvasTriangle triangle, double** depth_buffer){
             int x = rakeTriangle[j].x;
             double u = rakeTexture[j].x;
             double v = rakeTexture[j].y;
-
             double depth = rakeTriangle[j].z;
+
+            // undo perspective correction to obtain actual values
             int ui = std::round(u/depth);
             int vi = std::round(v/depth);
 
             if (depth >= depth_buffer[x][y]) {
                 depth_buffer[x][y] = depth;
-
-                int textureWidth = textureDimensions[triangle.textureIndex].x;
-                int textureHeight = textureDimensions[triangle.textureIndex].y;
                 int texturePoint = ui + (vi*textureWidth);
 
-                //texturePoint being out of range might be a minor rounding error
-                // if (texturePoint >= 0 && texturePoint < textureDimensions[triangle.textureIndex].x * textureDimensions[triangle.textureIndex].y) {
+                Colour c = textures[triangle.textureIndex][texturePoint];
+                window.setPixelColour(x, y, c.packed_colour());
 
-                if (ui >= textureWidth || vi >= textureHeight ) {
-                    std::cout << "texture coordinate is out of bounds!" << '\n';
-                    std::cout << ui << " " << vi << '\n';
-                    std::cout << triangle << '\n';
-                    std::cout << texturedTriangle << '\n';
-                    std::cout << u4_2 << '\n';
-                }
-                // else {
-                    Colour c = textures[triangle.textureIndex][texturePoint];
-                    window.setPixelColour(x, y, c.packed_colour());
-                // }
-                    // Colour c = textures[triangle.textureIndex][texturePoint];
-                    // window.setPixelColour(x, y, c.packed_colour());
-                    // window.setPixelColour(x, y, Colour(255,255,255).packed_colour());
-
-                // }
             }
         }
     }
 }
 
+// projects a point onto the canvas
 vec3 perspectiveProjection(vec3 point) {
     vec3 wrtCamera = (point - cameraPos) * cameraOrientation;
     float ratio = FOCALLENGTH/(-wrtCamera.z);
@@ -1249,9 +1141,8 @@ vec3 perspectiveProjection(vec3 point) {
     return vec3(x, y, -wrtCamera.z);
 }
 
+// Main rasterising function.
 void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
-    // stepBack = dv, focalLength = di
-
     std::vector<CanvasTriangle> triangles;
 
     double **depth_buffer;
@@ -1268,6 +1159,7 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
 
     for (int i = 0; i < (int) modelTriangles.size(); i++) {
         std::vector<CanvasPoint> points;
+        // project triangles onto canvas
         for (int j = 0; j < 3; j++) {
             vec3 persp = perspectiveProjection(modelTriangles[i].vertices[j]);
             CanvasPoint point = CanvasPoint(persp.x, persp.y,persp.z, modelTriangles[i].texturePoints[j]);
@@ -1278,12 +1170,15 @@ void drawBox(std::vector<ModelTriangle> modelTriangles, float focalLength) {
         if(inRange(points[0].depth,50,1000) && inRange(points[1].depth,50,1000) && inRange(points[2].depth,50,1000)){
             CanvasTriangle triangle = CanvasTriangle(points[0], points[1], points[2], modelTriangles[i].colour);
             triangle.textureIndex = modelTriangles[i].textureIndex;
+            //1/depth is used for perspective correct interpolation
             triangle.vertices[0].depth = 1/triangle.vertices[0].depth;
             triangle.vertices[1].depth = 1/triangle.vertices[1].depth;
             triangle.vertices[2].depth = 1/triangle.vertices[2].depth;
 
+            //triangle clipping (view frustum clipping)
             std::vector<CanvasTriangle> clippedTriangles = fragmentTriangle(triangle);
 
+            // mode 1 = wireframe, mode 2 = rasteriser
             for (int j = 0; j < clippedTriangles.size(); j++) {
                 if (mode == 2) {
                     if (clippedTriangles[j].isTexture) {
@@ -1317,7 +1212,7 @@ vec3 cramer_rule(glm::mat3 DEMatrix,vec3 SPVector){
     glm::vec3 e0 = glm::column(DEMatrix,1);
     glm::vec3 e1 = glm::column(DEMatrix,2);
     float determinant = glm::determinant(DEMatrix);
-    float determinant_x =glm::determinant(glm::mat3(SPVector,e0,e1));
+    float determinant_x = glm::determinant(glm::mat3(SPVector,e0,e1));
 
     float t = determinant_x/determinant;
     if(t >=0){
@@ -1336,6 +1231,7 @@ vec3 cramer_rule(glm::mat3 DEMatrix,vec3 SPVector){
     return glm::vec3(infinity,-1,-1);
 }
 
+// gets intersection point of a ray with a triangle, if exists
 RayTriangleIntersection getIntersection(glm::vec3 ray,ModelTriangle triangle,vec3 origin){
     glm::vec3 e0 = triangle.vertices[1] - triangle.vertices[0];
     glm::vec3 e1 = triangle.vertices[2] - triangle.vertices[0];
@@ -1348,10 +1244,10 @@ RayTriangleIntersection getIntersection(glm::vec3 ray,ModelTriangle triangle,vec
     return r;
 }
 
+// gets raytacer ray
 glm::vec3 computeRay(float x,float y,float fov){
-    //code adapted form scratch a pixel tutorial
+    // code adapted from scratch a pixel tutorial
     // https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-generating-camera-rays/generating-camera-rays
-    //0.5 added as ray goes through centre of pixel
     float ndc_x = x/WIDTH;
     float ndc_y = y/HEIGHT;
     float screen_x = 2*ndc_x -1;
@@ -1369,15 +1265,7 @@ glm::vec3 computeRay(float x,float y,float fov){
     return rayDirection;
 }
 
-// reflectOffset is for roughness
-vec3 calcReflectedRay(vec3 ray, vec3 norm, float reflectOffset){
-    //not sure how to use mirror with multiple light sources
-    vec3 incidence = ray;
-    vec3 reflect = incidence -  (2.f+reflectOffset) *(norm * (glm::dot(incidence,norm)));
-    reflect = glm::normalize(reflect);
-    return reflect;
-}
-
+// gets texture point colour of raytraced point
 vec3 getTextureColour(ModelTriangle triangle, vec3 solution, vec3 point) {
     float u = solution.y;
     float v = solution.z;
@@ -1394,16 +1282,375 @@ vec3 getTextureColour(ModelTriangle triangle, vec3 solution, vec3 point) {
     return vec3(c.red, c.green, c.blue);
 }
 
-//Calculate if the ModelTriangle normal is facing the camera
+//Calculate if the ModelTriangle is facing the camera using its normal - Back-face culling
 bool isFacing(ModelTriangle t, vec3 ray){
     vec3 toCamera = -ray; //invert the ray to get the vertex pointing towards the camera
     vec3 norm = computenorm(t);
     float val = glm::dot(toCamera,norm);
-    // std::cout << val << '\n';
     return (val>=0.f);
 }
 
+// obtain ray reflected from a reflective surface
+vec3 calcReflectedRay(vec3 ray, vec3 norm, float reflectOffset){
+    vec3 incidence = ray;
+    vec3 reflect = incidence -  (2.f+reflectOffset) *(norm * (glm::dot(incidence,norm)));
+    reflect = glm::normalize(reflect);
+    return reflect;
+}
 
+//specular component = (v.r)^n where v is ray from object to camera and r is the reflected light ray
+float calcSpecular(vec3 ray,vec3 point,vec3 norm,std::vector<ModelTriangle> triangles,ModelTriangle t){
+    vec3 lightReflect = calcReflectedRay((point-light_positions[0]),norm, 0); //only do this for cornell box light
+    vec3 toCamera = -ray;
+    float x = std::max(0.f,glm::dot(toCamera,lightReflect));
+    float specular = pow(x,8);
+
+    return specular;
+}
+
+// obtains the final intersection point of a raytraced ray (since it may be reflected multiple times)
+RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangles,vec3 ray,vec3 origin,RayTriangleIntersection* original_intersection,int depth){
+    RayTriangleIntersection final_intersection;
+    final_intersection.distanceFromCamera = infinity;
+    final_intersection.intersectedTriangle.colour = Colour(0,0,0);
+    vec3 newColour;
+
+    if(depth < 5){ // cap the number of "ray bounces" at 5 to prevent infinite recursion
+        float minDist = infinity;
+        // loop through triangles to obtain nearest intersection
+        for (size_t i = 0; i < triangles.size(); i++) {
+            // back-face culling
+            if(isFacing(triangles[i],ray) || triangles[i].isGlass){
+                RayTriangleIntersection intersection = getIntersection(ray,triangles[i],origin);
+                float distance = intersection.distanceFromCamera;
+
+                //!isEqualTriangle used to prevent acne from the mirror (doesn't affect the original raytrace)
+                bool hit = (original_intersection != nullptr && !isEqualTriangle(triangles[i],original_intersection->intersectedTriangle))
+                            || original_intersection == nullptr;
+                if(distance < minDist && hit){
+                    final_intersection = intersection;
+                    minDist = distance;
+                }
+            }
+        }
+
+        //if you found an intersection
+        if(final_intersection.distanceFromCamera != infinity){
+            ModelTriangle t = final_intersection.intersectedTriangle;
+            vec3 point = final_intersection.intersectionPoint;
+            vec3 oldColour = vec3(t.colour.red, t.colour.green, t.colour.blue);
+
+            // texture mapping
+            if (t.isTexture) {
+                oldColour = getTextureColour(t, final_intersection.solution, point);
+            }
+
+            // handle different materials
+
+            if (t.isGlass) {
+                vec3 norm = computenorm(t);
+
+                //reflection
+                vec3 glassReflectedRay = calcReflectedRay(ray,norm,0);
+                RayTriangleIntersection glass_reflected_intersection = getFinalIntersection(triangles,glassReflectedRay,point,&final_intersection,depth+1);
+                Colour r = glass_reflected_intersection.intersectedTriangle.colour;
+                vec3 reflected_colour = vec3(r.red,r.green,r.blue);
+
+                //refraction
+                //calculate refraction vector
+                float refractive_index = 1.5; //made this a variable in case we want to change it later
+                vec3 glassRefractedRay = refract(ray,norm,refractive_index);
+                RayTriangleIntersection final_glass_intersection = getFinalIntersection(triangles,glassRefractedRay,point,&final_intersection,depth+1);
+                Colour c = final_glass_intersection.intersectedTriangle.colour;
+                vec3 refracted_colour = vec3(c.red,c.green,c.blue);
+
+                //final colour should be a mixture of both reflection and refraction
+                //fresnel defines proportion
+                float kr = fresnel(ray,norm,refractive_index);
+                vec3 fin_colour = reflected_colour * kr + refracted_colour * (1-kr);
+                if(glassRefractedRay == vec3(0,0,0)) fin_colour = reflected_colour;
+                final_intersection.intersectedTriangle.colour = Colour(fin_colour.x,fin_colour.y,fin_colour.z);
+            }
+
+            // mirror
+            else if (t.isMirror) {
+                vec3 norm = computenorm(t);
+
+                //calculate mirror vector
+                vec3 mirrorRay = calcReflectedRay(ray,norm,0);
+                // original_intersection is used to ensure mirror doesn't reflect itself
+                RayTriangleIntersection final_mirror_intersection = getFinalIntersection(triangles,mirrorRay,point,&final_intersection,depth+1);
+                Colour c = final_mirror_intersection.intersectedTriangle.colour;
+                newColour = 0.8f *  vec3(c.red,c.green,c.blue); // 0.8 is to make mirror slightly darker than the real object
+                final_mirror_intersection.intersectedTriangle.colour = Colour(newColour.x,newColour.y,newColour.z);
+                final_intersection = final_mirror_intersection;
+            }
+
+            else if (t.isSpecular){
+                vec3 norm = computenorm(t,final_intersection.solution);
+                float specular = calcSpecular(ray,point,norm,triangles,t);
+                float diffuse = calcBrightness(point,t,triangles,light_positions,final_intersection.solution);
+                //combine specular and diffuse components
+                newColour = specular * vec3(255,255,255) +  (1-specular) * diffuse *  oldColour;
+                Colour c = Colour(newColour.x, newColour.y, newColour.z);
+                final_intersection.intersectedTriangle.colour = c;
+            }
+
+            else if (t.isMetal) {
+                // some variables for metal
+                float reflectivity = t.reflectivity;
+                float maxNormRotation = 50;
+                float roughness = t.roughness;
+                // this is to offset the reflection ray to cause roughness
+                float reflectOffset = roughness == 0 ? 0 : 0.003*(rand() % (int)(maxNormRotation * roughness) - (int) (maxNormRotation/2));
+                vec3 norm = computenorm(t);
+
+                //reflection
+                vec3 metalReflectionRay = calcReflectedRay(ray,norm,reflectOffset);
+                RayTriangleIntersection final_metal_intersection = getFinalIntersection(triangles,metalReflectionRay,point,&final_intersection,depth+1);
+                Colour c = final_metal_intersection.intersectedTriangle.colour;
+
+                float brightness = calcBrightness(point,t,triangles,light_positions,final_intersection.solution);
+                vec3 lightColourCorrected = lightColour * brightness;
+
+                // the metallic point's colour is a mixture of the reflected colour and the actual material colour
+                vec3 tempColour = (1-reflectivity)*oldColour + reflectivity*vec3(c.red,c.green,c.blue);
+                newColour = lightColourCorrected * tempColour; // apply lighting after obtaining colour
+
+                final_metal_intersection.intersectedTriangle.colour = Colour(newColour.x,newColour.y,newColour.z);
+                final_intersection = final_metal_intersection;
+            }
+
+            else{
+                //diffuse object - shade as normal. obtain brightness and apply it to the colour
+
+                float brightness = calcBrightness(point,t,triangles,light_positions,final_intersection.solution);
+                vec3 lightColourCorrected = lightColour * brightness;
+
+                newColour = lightColourCorrected * oldColour;
+
+                Colour c = Colour(newColour.x, newColour.y, newColour.z);
+                final_intersection.intersectedTriangle.colour = c;
+            }
+        }
+    }
+    return final_intersection;
+}
+
+// Main raytracing function.
+void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
+    for (size_t x = 0; x < WIDTH; x++) {
+        for (size_t y = 0; y < HEIGHT; y++) {
+
+            // complex anti-aliasing - firing multiple rays according to quincunx pattern
+           vec3 ray1 = computeRay((x+0.5),(y+0.5),FOV); // this ray is the centre, hence given highest weight at the end
+           vec3 ray2 = computeRay((x),(y),FOV);
+           vec3 ray3 = computeRay((x+1),(y),FOV);
+           vec3 ray4 = computeRay((x),(y+1),FOV);
+           vec3 ray5 = computeRay((x+1),(y+1),FOV);
+           std::vector<vec3> rays = {ray1,ray2,ray3,ray4,ray5};
+
+           vec3 sumColour = vec3(0,0,0);
+            for (size_t r = 0; r < rays.size(); r++) {
+                RayTriangleIntersection final_intersection;
+                final_intersection.distanceFromCamera = infinity;
+                vec3 ray = rays[r];
+                final_intersection = getFinalIntersection(triangles,ray,cameraPos,nullptr,1);
+                Colour c = final_intersection.intersectedTriangle.colour;
+                vec3 newColour = {c.red,c.green,c.blue};
+                if (r == 0) sumColour += (newColour * 3.0f); // for quincunx the centre has the most weight
+                else sumColour += newColour;
+            }
+            vec3 avgColour = (1/(float)(rays.size()+2)) * sumColour;
+            Colour c = Colour(avgColour.x, avgColour.y, avgColour.z);
+            window.setPixelColour(x,y,c.packed_colour());
+        }
+    }
+}
+
+
+// LIGHTING //
+
+
+// computes the surface normal of a triangle
+vec3 computenorm(ModelTriangle t) {
+    vec3 norm = glm::cross((t.vertices[1] - t.vertices[0]),(t.vertices[2] - t.vertices[0]));
+    norm = glm::normalize(norm);
+    return norm;
+}
+
+// computes normal using vertex normals - for phong shading
+vec3 computenorm(ModelTriangle t, vec3 solution){
+    std::vector<vec3> vertexNormals = triangleVertexNormals[t.ID];
+    vec3 norm = vertexNormals[0] + solution.y*(vertexNormals[1]-vertexNormals[0]) + solution.z*(vertexNormals[2]-vertexNormals[0]);
+    return glm::normalize(norm);
+}
+
+// proximity and angle of incidence lighting calculation
+float calcIntensity(vec3 norm, vec3 lightPos, vec3 point, bool isBump) {
+    vec3 lightDir = lightPos - point;
+    lightDir = glm::normalize(lightDir);
+    float dot_product = glm::dot(lightDir,norm);
+    float distance = glm::distance(lightPos,point);
+    float brightness = (float) INTENSITY*(1/(2*M_PI* distance * distance));
+
+    // if it's a bump map, apply dot product after ambience to preserve bump map's "bumps"
+    if (!isBump) brightness *= std::max(0.f,dot_product);
+
+    if (brightness > 1) brightness = 1;
+    if (brightness < AMBIENCE) brightness = AMBIENCE;
+
+    if (isBump) brightness *= std::max(0.f,dot_product);
+
+   return brightness;
+}
+
+// is the given point in shadow?
+bool isShadow(std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t){
+    vec3 lightDir = lightPos - point;
+    float dist = glm::length(lightDir);
+    lightDir = glm::normalize(lightDir);
+    bool isShadow = false;
+
+    // fire shadow rays through all triangles
+    for (size_t i = 0; i < triangles.size(); i++) {
+        RayTriangleIntersection shadowIntersection = getIntersection(lightDir,triangles[i],point);
+        // ignore the triangle the point is from
+        if(shadowIntersection.distanceFromCamera < dist && !isEqualTriangle(shadowIntersection.intersectedTriangle,t)){
+            return true;
+        }
+    }
+    return false;
+}
+
+// calculate the brightness of a point subject to a given point light
+float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos, vec3 solution){
+    vec3 norm = computenorm(t);
+
+    if (t.isBump) norm = calcBumpNormal(t, solution); // obtain bump map normal
+
+    float brightness;
+
+    // true if we precalculated the vertex normals for this triangle
+    if (triangleVertexNormals.find(t.ID) != triangleVertexNormals.end()) {
+        // gouraud shading
+        // brightness = gouraud(t, point, lightPos, solution, triangles);
+
+        // phong shading
+        brightness = phong(t, point, lightPos, solution, triangles);
+    }
+    else {
+        // just use calcIntensity and calculate shadows like normal
+        brightness = calcIntensity(norm, lightPos, point, t.isBump);
+
+        if(isShadow(triangles, point, lightPos, t)){
+            brightness *= SHADOW_INTENSITY;
+        }
+    }
+
+
+
+    return brightness;
+}
+
+// gets the final brightness of a point when subject to all point lights
+float calcBrightness(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,std::vector<vec3> light_positions, vec3 solution){
+    float brightness = 0.f;
+    for (size_t i = 0; i < light_positions.size(); i++) {
+        bool shadow = false;
+        float newBrightness = calcProximity(point,t,triangles,light_positions[i], solution);
+        brightness += newBrightness;
+    }
+    if(brightness > 1) brightness = 1;
+    return brightness;
+}
+
+
+// GOURAUD AND PHONG SHADING //
+
+
+// obtain vertex normals of an object and store in global map
+void calcVertexNormals(std::vector<ModelTriangle> triangles) {
+    for (size_t i = 0; i < triangles.size(); i++) {
+        std::vector<vec3> vertexNormals;
+        for (int j = 0; j < 3; j++) {
+            vec3 point = triangles[i].vertices[j];
+            vec3 avgSurfaceNormal = vec3(0, 0, 0);
+            int normalCount = 0;
+
+            for (size_t k = 0; k < triangles.size(); k++) {
+                for (int l = 0; l < 3; l++) {
+                    vec3 newPoint = triangles[k].vertices[l];
+                    if (newPoint == point) {
+                        avgSurfaceNormal += computenorm(triangles[k]);
+                        normalCount++;
+                    }
+                }
+            }
+            vec3 vertexNormal = avgSurfaceNormal* (1/(float)normalCount);
+            vertexNormals.push_back(vertexNormal);
+        }
+        triangleVertexNormals[triangles[i].ID] = vertexNormals;
+    }
+}
+
+// apply gouraud shading to a point
+float gouraud(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution, std::vector<ModelTriangle> triangles) {
+    std::vector<vec3> vertexNormals = triangleVertexNormals[t.ID];
+    float brightness0 = calcIntensity(vertexNormals[0], lightPos, t.vertices[0], false);
+    float brightness1 = calcIntensity(vertexNormals[1], lightPos, t.vertices[1], false);
+    float brightness2 = calcIntensity(vertexNormals[2], lightPos, t.vertices[2], false);
+
+    float dot0 = (glm::dot(glm::normalize(lightPos-t.vertices[0]), vertexNormals[0]));
+    float dot1 = (glm::dot(glm::normalize(lightPos-t.vertices[1]), vertexNormals[1]));
+    float dot2 = (glm::dot(glm::normalize(lightPos-t.vertices[2]), vertexNormals[2]));
+    float dot = dot0 + solution.y*(dot1-dot0) + solution.z*(dot2-dot0);
+
+    float brightness = brightness0 + solution.y*(brightness1-brightness0) + solution.z*(brightness2-brightness0);
+
+    // shadow calculation
+    if(dot <= 0) brightness = AMBIENCE/2;
+
+    return brightness;
+}
+
+// apply phong shading to a point
+float phong(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution, std::vector<ModelTriangle> triangles) {
+    vec3 norm = computenorm(t,solution);
+    float dot = glm::dot(glm::normalize(lightPos-point), norm);
+    float brightness = calcIntensity(norm, lightPos, point, false);
+
+    // shadow calculation
+    if (dot <= 0) brightness = AMBIENCE/2;
+    return brightness;
+}
+
+
+// BUMP MAPPING //
+
+
+// obtain normal from bump map
+vec3 calcBumpNormal(ModelTriangle t, vec3 solution) {
+    float u = solution.y;
+    float v = solution.z;
+
+    vec3 b1 = vec3(t.bumpPoints[0].x, t.bumpPoints[0].y, 0);
+    vec3 b2 = vec3(t.bumpPoints[1].x, t.bumpPoints[1].y, 0);
+    vec3 b3 = vec3(t.bumpPoints[2].x, t.bumpPoints[2].y, 0);
+
+    vec3 bumpPoint = b1 + u * (b2 - b1) + v * (b3 - b1);
+
+    int bumpWidth = bumpDimensions[t.bumpIndex].x;
+    vec3 norm = bump_maps[t.bumpIndex][(int) bumpPoint.x + (int) bumpPoint.y * bumpWidth];
+
+    return norm;
+}
+
+
+// GLASS //
+
+
+//refract and fresnel code source
 //https://www.scratchapixel.com/lessons/3d-basic-rendering/introduction-to-shading/reflection-refraction-fresnel
 vec3 refract(vec3 ray,vec3 norm,float refractive_index){
     float cosi = glm::dot(ray,norm);
@@ -1416,7 +1663,7 @@ vec3 refract(vec3 ray,vec3 norm,float refractive_index){
     if(cosi < 0){
         cosi = -cosi;
     }else{
-        //I think this is if the ray is leaving the surface
+        //this is if the ray is leaving the surface
         std::swap(etai,etat);
         n = -norm;
     }
@@ -1449,604 +1696,11 @@ float fresnel(vec3 ray,vec3 norm,float refractive_index){
     return kr;
 }
 
-//specular component = (v.r) where v is ray from object to camera and r is the reflected light ray
-float calcSpecular(vec3 ray,vec3 point,vec3 norm,std::vector<ModelTriangle> triangles,ModelTriangle t){
-    vec3 lightReflect = calcReflectedRay((point-light_positions[0]),norm, 0); //only do this for cornell box light
-    vec3 toCamera = -ray;
-    float x = std::max(0.f,glm::dot(toCamera,lightReflect));
-    float specular = pow(x,8);
-
-    return specular;
-}
-RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangles,vec3 ray,vec3 origin,RayTriangleIntersection* original_intersection,int depth){
-    RayTriangleIntersection final_intersection;
-    final_intersection.distanceFromCamera = infinity;
-    final_intersection.intersectedTriangle.colour = Colour(0,0,0);
-    vec3 newColour;
-    if(depth < 5){
-        float minDist = infinity;
-        for (size_t i = 0; i < triangles.size(); i++) {
-            if(isFacing(triangles[i],ray)||triangles[i].isGlass){
-                RayTriangleIntersection intersection = getIntersection(ray,triangles[i],origin);
-                float distance = intersection.distanceFromCamera;
-
-                //this is valid as you are setting distance to infinity if it's invalid
-                //!isEqualTriangle used to prevent acne from the mirror (doesn't affect the original raytrace)
-                bool hit = (original_intersection != nullptr && !isEqualTriangle(triangles[i],original_intersection->intersectedTriangle))
-                            || original_intersection == nullptr;
-                if(distance < minDist && hit){
-                    final_intersection = intersection;
-                    minDist = distance;
-                }
-            }
-        }
-        if(final_intersection.distanceFromCamera != infinity){ //if you found an intersection
-            // glass
-            ModelTriangle t = final_intersection.intersectedTriangle;
-            vec3 point = final_intersection.intersectionPoint;
-            vec3 oldColour = vec3(t.colour.red, t.colour.green, t.colour.blue);
-
-            // texture mapping
-            if (t.isTexture) {
-                oldColour = getTextureColour(t, final_intersection.solution, point);
-            }
-
-            if (t.isGlass) {
-                vec3 norm = computenorm(t);
-                float maxNormRotation = 50;
-                float roughness = 1.0f;
-                // for frosted glass
-                // float refractOffset = 0.001*(rand() % (int)(maxNormRotation * roughness) - (int) (maxNormRotation/2));
-                // float reflectOffset = 0.001*(rand() % (int)(maxNormRotation * roughness) - (int) (maxNormRotation/2));
-                float refractOffset = 0;
-                float reflectOffset = 0;
-
-                //reflection
-                vec3 glassReflectedRay = calcReflectedRay(ray,norm,reflectOffset);
-                RayTriangleIntersection glass_reflected_intersection = getFinalIntersection(triangles,glassReflectedRay,point,&final_intersection,depth+1);
-                Colour r = glass_reflected_intersection.intersectedTriangle.colour;
-                vec3 reflected_colour = vec3(r.red,r.green,r.blue);
-
-                //refraction
-                //calculate refraction vector
-                float refractive_index = 1.5+refractOffset; //made this a variable in case we want to change it later
-                vec3 glassRefractedRay = refract(ray,norm,refractive_index);
-                RayTriangleIntersection final_glass_intersection = getFinalIntersection(triangles,glassRefractedRay,point,&final_intersection,depth+1);
-                Colour c = final_glass_intersection.intersectedTriangle.colour;
-                vec3 refracted_colour = vec3(c.red,c.green,c.blue);
-
-                //final colour should be a mixture of both reflection and refraction
-                //fresnel defines proportion
-                float kr = fresnel(ray,norm,refractive_index);
-                vec3 fin_colour = reflected_colour * kr + refracted_colour * (1-kr);
-                if(glassRefractedRay == vec3(0,0,0)) fin_colour = reflected_colour;
-                final_intersection.intersectedTriangle.colour = Colour(fin_colour.x,fin_colour.y,fin_colour.z);
-                // final_intersection = glass_reflected_intersection;
-
-            }
-            // mirror
-            else if (t.isMirror) {
-                vec3 norm = computenorm(t);
-
-                //calculate mirror vector
-                vec3 mirrorRay = calcReflectedRay(ray,norm,0);
-                // original_intersection is used to ensure mirror doesn't reflect itself
-                RayTriangleIntersection final_mirror_intersection = getFinalIntersection(triangles,mirrorRay,point,&final_intersection,depth+1);
-                Colour c = final_mirror_intersection.intersectedTriangle.colour;
-                // float specular = calcSpecular(ray,point,t);
-                // newColour = specular* vec3(255,255,255) + (1-specular) *  vec3(c.red,c.green,c.blue);
-                newColour = 0.8f *  vec3(c.red,c.green,c.blue); // 0.8 is to make mirror slightly darker than the real object
-                final_mirror_intersection.intersectedTriangle.colour = Colour(newColour.x,newColour.y,newColour.z);
-                final_intersection = final_mirror_intersection;
-            }
-
-            else if (t.isSpecular){
-                vec3 norm = computenorm(t,final_intersection.solution);
-                float specular = calcSpecular(ray,point,norm,triangles,t);
-                float diffuse = calcBrightness(point,t,triangles,light_positions,final_intersection.solution);
-                //s and d to determine proportions of diffuse and specular lighting (not sure if correct)
-                // float s = specular/(specular+diffuse);
-                // float d = diffuse/(specular+diffuse);
-                //not sure how you blend the 2 components together
-                newColour = specular * vec3(255,255,255) +  (1-specular) * diffuse *  oldColour;
-                Colour c = Colour(newColour.x, newColour.y, newColour.z);
-                final_intersection.intersectedTriangle.colour = c;
-            }
-
-            else if (t.isMetal) {
-                // some variables for metal
-                float reflectivity = t.reflectivity;
-                float maxNormRotation = 50;
-                float roughness = t.roughness;
-                // this is to offset the reflection ray to cause roughness
-                float reflectOffset = roughness == 0 ? 0 : 0.003*(rand() % (int)(maxNormRotation * roughness) - (int) (maxNormRotation/2));
-                vec3 norm = computenorm(t);
-
-                //reflection
-                vec3 metalReflectionRay = calcReflectedRay(ray,norm,reflectOffset);
-                RayTriangleIntersection final_metal_intersection = getFinalIntersection(triangles,metalReflectionRay,point,&final_intersection,depth+1);
-                Colour c = final_metal_intersection.intersectedTriangle.colour;
-
-                float brightness = calcBrightness(point,t,triangles,light_positions,final_intersection.solution);
-                vec3 lightColourCorrected = lightColour * brightness;
-                vec3 tempColour = (1-reflectivity)*oldColour + reflectivity*vec3(c.red,c.green,c.blue);
-                newColour = lightColourCorrected * tempColour;
-
-                final_metal_intersection.intersectedTriangle.colour = Colour(newColour.x,newColour.y,newColour.z);
-                final_intersection = final_metal_intersection;
-            }
-
-            else{
-                //diffuse object shade as normal
-
-                float brightness = calcBrightness(point,t,triangles,light_positions,final_intersection.solution);
-                vec3 lightColourCorrected = lightColour * brightness;
-
-                newColour = lightColourCorrected * oldColour;
-
-                Colour c = Colour(newColour.x, newColour.y, newColour.z);
-                final_intersection.intersectedTriangle.colour = c;
-            }
-        }
-    }
-    return final_intersection;
-}
-
-void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
-    for (size_t x = 0; x < WIDTH; x++) {
-        for (size_t y = 0; y < HEIGHT; y++) {
-            // complex anti-aliasing - firing multiple rays according to quincunx pattern
-
-            vec3 ray1 = computeRay((x+0.5),(y+0.5),FOV);
-           vec3 ray2 = computeRay((x),(y),FOV);
-           vec3 ray3 = computeRay((x+1),(y),FOV);
-           vec3 ray4 = computeRay((x),(y+1),FOV);
-           vec3 ray5 = computeRay((x+1),(y+1),FOV);
-           std::vector<vec3> rays = {ray1,ray2,ray3,ray4,ray5};
-            // std::vector<vec3> rays = {ray1};
-            vec3 sumColour = vec3(0,0,0);
-            for (size_t r = 0; r < rays.size(); r++) {
-                RayTriangleIntersection final_intersection;
-                final_intersection.distanceFromCamera = infinity;
-                vec3 ray = rays[r];
-                final_intersection = getFinalIntersection(triangles,ray,cameraPos,nullptr,1);
-                Colour c = final_intersection.intersectedTriangle.colour;
-                vec3 newColour = {c.red,c.green,c.blue};
-                if (r == 0) sumColour += (newColour * 3.0f); // for quincux the centre has the most weight
-                else sumColour += newColour;
-            }
-            vec3 avgColour = (1/(float)(rays.size()+2)) * sumColour;
-            Colour c = Colour(avgColour.x, avgColour.y, avgColour.z);
-            window.setPixelColour(x,y,c.packed_colour());
-        }
-    }
-}
-
-
-// LIGHTING //
-vec3 computenorm(ModelTriangle t) {
-    vec3 norm = glm::cross((t.vertices[1] - t.vertices[0]),(t.vertices[2] - t.vertices[0]));
-    norm = glm::normalize(norm);
-    return norm;
-}
-vec3 computenorm(ModelTriangle t, vec3 solution){
-    std::vector<vec3> vertexNormals = triangleVertexNormals[t.ID];
-    vec3 norm = vertexNormals[0] + solution.y*(vertexNormals[1]-vertexNormals[0]) + solution.z*(vertexNormals[2]-vertexNormals[0]);
-    return glm::normalize(norm);
-}
-
-float calcIntensity(vec3 norm, vec3 lightPos, vec3 point, bool isBump) {
-    vec3 lightDir = lightPos - point;
-    lightDir = glm::normalize(lightDir);
-    float dot_product = glm::dot(lightDir,norm);
-    float distance = glm::distance(lightPos,point);
-    float brightness = (float) INTENSITY*(1/(2*M_PI* distance * distance));
-    // brightness *= std::max(0.f,dot_product);
-
-    if (!isBump) brightness *= std::max(0.f,dot_product);
-
-    if (brightness > 1) brightness = 1;
-    if (brightness < AMBIENCE) brightness = AMBIENCE;
-
-    if (isBump) brightness *= std::max(0.f,dot_product);
-
-   return brightness;
-}
-
-
-bool isShadow(std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t){
-    vec3 lightDir = lightPos - point;
-    float dist = glm::length(lightDir);
-    lightDir = glm::normalize(lightDir);
-    bool isShadow = false;
-
-    for (size_t i = 0; i < triangles.size(); i++) {
-        RayTriangleIntersection shadowIntersection = getIntersection(lightDir,triangles[i],point);
-        if(shadowIntersection.distanceFromCamera < dist && !isEqualTriangle(shadowIntersection.intersectedTriangle,t)){
-            return true;
-        }
-    }
-    return false;
-}
-
-
-float calcProximity(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,vec3 lightPos, vec3 solution){
-    vec3 norm = computenorm(t);
-
-    if (t.isBump) norm = calcBumpNormal(t, solution);
-
-    float brightness;
-
-    // true if we precalculated the vertex normals for this triangle
-    if (triangleVertexNormals.find(t.ID) != triangleVertexNormals.end()) {
-        // gouraud shading
-        // brightness = gouraud(t, point, lightPos, solution, triangles);
-
-        // phong shading
-        brightness = phong(t, point, lightPos, solution, triangles);
-    }
-    else {
-        // just use calcIntensity and calculate shadows like normal
-        brightness = calcIntensity(norm, lightPos, point, t.isBump);
-
-        if(isShadow(triangles, point, lightPos, t)){
-            brightness *= SHADOW_INTENSITY;
-        }
-    }
-
-
-
-    return brightness;
-}
-
-float calcBrightness(glm::vec3 point,ModelTriangle t,std::vector<ModelTriangle> triangles,std::vector<vec3> light_positions, vec3 solution){
-    // soft shadows - multiple light sources
-    float brightness = 0.f;
-    // int count = 0;
-    for (size_t i = 0; i < light_positions.size(); i++) {
-        bool shadow = false;
-        float newBrightness = calcProximity(point,t,triangles,light_positions[i], solution);
-        // if (i == 0 || i == 5) brightness += (newBrightness * 3);
-        brightness += newBrightness;
-        // if (shadow) count++;
-        // std::cout << light_positions[i].x<<" "<<light_positions[i].y << " " << light_positions[i].z<<'\n';
-    }
-    if(brightness > 1) brightness = 1;
-    // brightness /= 2;
-    // float shadowVal = ((float) count)/light_positions.size();
-    // brightness *= (shadowVal * SHADOW_INTENSITY);
-    // int lightTotal = light_positions.size();
-    // brightness = brightness/(lightTotal * 0.8);
-    // if(brightness > 1) brightness = 1;
-    return brightness;
-}
-
-
-// GOURAUD AND PHONG SHADING //
-
-
-void calcVertexNormals(std::vector<ModelTriangle> triangles) {
-    for (size_t i = 0; i < triangles.size(); i++) {
-        std::vector<vec3> vertexNormals;
-        for (int j = 0; j < 3; j++) {
-            vec3 point = triangles[i].vertices[j];
-            vec3 avgSurfaceNormal = vec3(0, 0, 0);
-            int normalCount = 0;
-
-            for (size_t k = 0; k < triangles.size(); k++) {
-                for (int l = 0; l < 3; l++) {
-                    vec3 newPoint = triangles[k].vertices[l];
-                    if (newPoint == point) {
-                        avgSurfaceNormal += computenorm(triangles[k]);
-                        normalCount++;
-                    }
-                }
-            }
-            vec3 vertexNormal = avgSurfaceNormal* (1/(float)normalCount);
-            vertexNormals.push_back(vertexNormal);
-        }
-        triangleVertexNormals[triangles[i].ID] = vertexNormals;
-    }
-}
-
-float gouraud(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution, std::vector<ModelTriangle> triangles) {
-    std::vector<vec3> vertexNormals = triangleVertexNormals[t.ID];
-    float brightness0 = calcIntensity(vertexNormals[0], lightPos, t.vertices[0], false);
-    float brightness1 = calcIntensity(vertexNormals[1], lightPos, t.vertices[1], false);
-    float brightness2 = calcIntensity(vertexNormals[2], lightPos, t.vertices[2], false);
-
-    float dot0 = (glm::dot(glm::normalize(lightPos-t.vertices[0]), vertexNormals[0]));
-    float dot1 = (glm::dot(glm::normalize(lightPos-t.vertices[1]), vertexNormals[1]));
-    float dot2 = (glm::dot(glm::normalize(lightPos-t.vertices[2]), vertexNormals[2]));
-    float dot = dot0 + solution.y*(dot1-dot0) + solution.z*(dot2-dot0);
-
-    float brightness = brightness0 + solution.y*(brightness1-brightness0) + solution.z*(brightness2-brightness0);
-
-    // shadow calculation - not using the shadow ray so I'm not too sure
-    if(dot <= 0) brightness = AMBIENCE/2;
-
-    return brightness;
-}
-
-float phong(ModelTriangle t, vec3 point, vec3 lightPos, vec3 solution, std::vector<ModelTriangle> triangles) {
-    vec3 norm = computenorm(t,solution);
-    float dot = glm::dot(glm::normalize(lightPos-point), norm);
-    float brightness = calcIntensity(norm, lightPos, point, false);
-
-    // shadow calculation - not using the shadow ray so I'm not too sure
-    if (dot <= 0) brightness = AMBIENCE/2;
-    return brightness;
-}
-
-
-// BUMP MAPPING //
-
-
-vec3 calcBumpNormal(ModelTriangle t, vec3 solution) {
-    float u = solution.y;
-    float v = solution.z;
-
-    vec3 b1 = vec3(t.bumpPoints[0].x, t.bumpPoints[0].y, 0);
-    vec3 b2 = vec3(t.bumpPoints[1].x, t.bumpPoints[1].y, 0);
-    vec3 b3 = vec3(t.bumpPoints[2].x, t.bumpPoints[2].y, 0);
-
-    vec3 bumpPoint = b1 + u * (b2 - b1) + v * (b3 - b1);
-
-    int bumpWidth = bumpDimensions[t.bumpIndex].x;
-    vec3 norm = bump_maps[t.bumpIndex][(int) bumpPoint.x + (int) bumpPoint.y * bumpWidth];
-
-    return norm;
-}
-
-// GENERATIVE GEOMETRY //
-
-
-double squareStep(double** pointHeights, double centreX, double centreY, double distFromCentre, bool isEven) {
-    int rightX = centreX + distFromCentre;
-    int bottomY = centreY + distFromCentre;
-    int leftX = centreX - distFromCentre;
-    int topY = centreY - distFromCentre;
-
-    double topLeft = pointHeights[leftX][topY];
-    double topRight = pointHeights[rightX][topY];
-    double bottomLeft = pointHeights[rightX][bottomY];
-    double bottomRight = pointHeights[rightX][bottomY];
-
-    return (topLeft + topRight + bottomLeft + bottomRight)/4;
-}
-
-double diamondStep(double** pointHeights, int width, int centreX, int centreY, int distFromCentre, bool isEven) {
-    int count = 4;
-
-    int rightX = centreX + distFromCentre;
-    int bottomY = centreY + distFromCentre;
-    int leftX = centreX - distFromCentre;
-    int topY = centreY - distFromCentre;
-
-    double left = centreX <= 0 ? 0 : pointHeights[leftX][centreY];
-    double right = centreX >= width-1 ? 0 : pointHeights[rightX][centreY];
-    double top = centreY <= 0 ? 0 : pointHeights[centreX][topY];
-    double bottom = centreY >= width-1 ? 0 : pointHeights[centreX][bottomY];
-
-    // there will only be at most one point outside the grid
-    if (centreX == 0 || centreY == 0 || centreX == width-1 || centreY == width-1) {
-        count -= 1;
-    }
-
-    return (left + right + top + bottom)/count;
-
-}
-
-void diamondSquare(double** pointHeights, int width, double currentSize) {
-    double half = (double) (currentSize)/2;
-    if (half < 0.1) return;
-
-    // square step
-    for (double x = half; x < width; x += currentSize) {
-        for (double y = half; y < width; y += currentSize) {
-            std::cout << x << " " << y << '\n';
-            pointHeights[(int) x][(int) y] = squareStep(pointHeights, x, y, half, true);
-        }
-    }
-
-    // diamond step
-    bool isSide = true;
-    for (double x = 0; x <= width-1; x += half) {
-        if (isSide) {
-            for (double y = half; y <= width-half; y += currentSize) {
-                pointHeights[(int) x][(int) y] = diamondStep(pointHeights, width, x, y, half, true);
-            }
-        }
-        else {
-            for (double y = 0; y <= width; y += currentSize) {
-                // std::cout << pointHeights[(int)x][(int)y] << " " << diamondStep(pointHeights,width,  x, y, half, true) << '\n';
-                pointHeights[(int) x][(int) y] = diamondStep(pointHeights, width, x, y, half, true);
-            }
-        }
-        isSide = !isSide;
-    }
-
-    // diamondSquare(pointHeights, width, half);
-}
-
-std::vector<ModelTriangle> generateGeometry(double** pointHeights, int width, float scale, int intensity, int count) {
-    // initialise grid with random values
-
-    double currentSize = width-1;
-    // run algorithm
-    for (int i = 0; i < count; i++) {
-        diamondSquare(pointHeights, width, currentSize);
-        currentSize = currentSize/2;
-        std::cout << currentSize << '\n';
-    }
-
-    // convert points into triangles to display
-    std::vector<ModelTriangle> generated_triangles;
-
-    for (int x = 1; x < width; x++) {
-        for (int y = 1; y < width; y++) {
-            // if (x >= width-2 || y >= width-2) {
-                vec3 v1 = vec3(x-1, pointHeights[x-1][y-1], y-1) * scale;
-                vec3 v2 = vec3(x, pointHeights[x][y-1], y-1) * scale;
-                vec3 v3 = vec3(x-1, pointHeights[x-1][y], y) * scale;
-                vec3 v4 = vec3(x, pointHeights[x][y], y) * scale;
-
-                ModelTriangle t1 = ModelTriangle(v1, v2, v3, Colour(255, 0, 0), newTriangleID);
-                ModelTriangle t2 = ModelTriangle(v2, v3, v4, Colour(255, 0, 0), newTriangleID+1);
-                newTriangleID += 2;
-
-                // std::cout << t1 << " " << t2 << '\n';
-
-                generated_triangles.push_back(t1);
-                generated_triangles.push_back(t2);
-            // }
-        }
-    }
-    return generated_triangles;
-}
-
-//SCENE//
-
-void drawScene(){
-    window.clearPixels();
-    std::map<std::string,std::vector<ModelTriangle>>::iterator it;
-    std::vector<ModelTriangle> triangles;
-
-    for (it = scene.begin(); it !=scene.end(); ++it){
-        // BoundingBox bounding_box = getBoundingBox(it->second);
-        BoundingBox bounding_box = bounding_boxes[it->second[0].boundingBoxIndex];
-
-        if (withinFrustum(bounding_box)) {
-            // remove triangles completely outside frustum
-            std::vector<ModelTriangle> insideTriangles = removeOutsideTriangles(it->second);
-            triangles.insert(triangles.end(),insideTriangles.begin(), insideTriangles.end());
-        }
-        // else std::cout << it->first << " is out of frame" << '\n';
-    }
-
-    if(mode==3){
-        time_t tic;
-        time(&tic);
-        drawBoxRayTraced(triangles);
-        time_t toc;
-        time(&toc);
-        std::cout << "runtime: " << toc-tic << " seconds" << '\n';
-    }
-    else drawBox(triangles,FOCALLENGTH);
-}
-
-void moveObject(std::string name,vec3 moveVec){
-    std::vector<ModelTriangle> triangles = scene[name];
-    for (size_t i = 0; i < triangles.size(); i++) {
-        for (size_t j = 0; j < 3; j++) {
-            triangles[i].vertices[j] += moveVec;
-        }
-    }
-    scene[name] = triangles;
-
-    bounding_boxes[triangles[0].boundingBoxIndex].startVertex += moveVec; // update startVertex of bounding box
-}
-
-vec3 getObjectCentroid(std::string name) {
-    std::vector<ModelTriangle> triangles = scene[name];
-
-    //get centre of mass
-    vec3 centroid = vec3(0,0,0);
-    for (size_t i = 0; i < triangles.size(); i++) {
-        for (size_t j = 0; j < 3; j++) {
-            centroid += triangles[i].vertices[j];
-        }
-    }
-    centroid = (1/((float) triangles.size()*3)) * centroid;
-
-    return centroid;
-}
-
-void rotateAroundAxis(std::string name,vec3 rotationAngles){
-    vec3 centroid = getObjectCentroid(name);
-    rotateAroundPoint(name, rotationAngles, centroid);
-}
-
-void rotateObject(std::string name,vec3 rotationAngles){
-    glm::mat3 rotation_matrix  = glm::mat3();
-    rotationAngles *= M_PI/180.0f;
-    glm::mat3 rotationX = glm::transpose(glm::mat3(glm::vec3(1, 0, 0),
-                                    glm::vec3(0, cos(rotationAngles.x), -sin(rotationAngles.x)),
-                                    glm::vec3(0, sin(rotationAngles.x), cos(rotationAngles.x))));
-
-    glm::mat3 rotationY = glm::transpose(glm::mat3(glm::vec3(cos(rotationAngles.y), 0.0, sin(rotationAngles.y)),
-                                    glm::vec3(0.0, 1.0, 0.0),
-                                    glm::vec3(-sin(rotationAngles.y), 0.0, cos(rotationAngles.y))));
-    rotation_matrix *= rotationX;
-    rotation_matrix *= rotationY;
-
-    std::vector<ModelTriangle> triangles = scene[name];
-    vec3 minBBox = vec3(infinity, infinity, infinity);
-    vec3 maxBBox = vec3(-infinity, -infinity, -infinity);
-
-    for (size_t i = 0; i < triangles.size(); i++) {
-        for (size_t j = 0; j < 3; j++) {
-            triangles[i].vertices[j] = rotation_matrix* triangles[i].vertices[j];
-
-            // recalculate bounding box
-            if (triangles[i].vertices[j].x < minBBox.x) minBBox.x = triangles[i].vertices[j].x;
-            else if (triangles[i].vertices[j].x > maxBBox.x) maxBBox.x = triangles[i].vertices[j].x;
-            if (triangles[i].vertices[j].y < minBBox.y) minBBox.y = triangles[i].vertices[j].y;
-            else if (triangles[i].vertices[j].y > maxBBox.y) maxBBox.y = triangles[i].vertices[j].y;
-            if (triangles[i].vertices[j].z < minBBox.z) minBBox.z = triangles[i].vertices[j].z;
-            else if (triangles[i].vertices[j].z > maxBBox.z) maxBBox.z = triangles[i].vertices[j].z;
-        }
-    }
-    scene[name] = triangles;
-
-    BoundingBox bbox = BoundingBox(minBBox, maxBBox.x-minBBox.x, maxBBox.y-minBBox.y, maxBBox.z-minBBox.z);
-    bounding_boxes[triangles[0].boundingBoxIndex] = bbox;
-}
-
-void rotateAroundPoint(std::string name, vec3 rotationAngles, vec3 point){
-    moveObject(name,vec3(-point.x,-point.y,-point.z));
-    rotateObject(name, rotationAngles);
-    moveObject(name, vec3(point.x,point.y,point.z));
-}
-
-void scaleObject(std::string name,float scale){
-    std::vector<ModelTriangle> triangles = scene[name];
-    for (size_t i = 0; i < triangles.size(); i++) {
-        for (size_t j = 0; j < 3; j++) {
-            triangles[i].vertices[j] *= scale;
-        }
-   }
-   scene[name] = triangles;
-
-   // update bounding box
-   BoundingBox bbox = bounding_boxes[triangles[0].boundingBoxIndex];
-   bbox.startVertex *= scale;
-   bbox.width *= scale;
-   bbox.height *= scale;
-   bbox.depth *= scale;
-   bounding_boxes[triangles[0].boundingBoxIndex] = bbox;
-}
-
-void scaleYObject(std::string name,float scale){
-    std::vector<ModelTriangle> triangles = scene[name];
-    for (size_t i = 0; i < triangles.size(); i++) {
-        for (size_t j = 0; j < 3; j++) {
-            triangles[i].vertices[j].y *= scale;
-        }
-   }
-   scene[name] = triangles;
-
-   // update bounding box
-   BoundingBox bbox = bounding_boxes[triangles[0].boundingBoxIndex];
-   bbox.startVertex.y *= scale;
-   bbox.height *= scale;
-   bounding_boxes[triangles[0].boundingBoxIndex] = bbox;
-}
-
 
 // PHYSICS AND ANIMATION //
 
 
+// checks if a given object has collided with the ground
 bool isCollideGround(std::vector<ModelTriangle> ground, std::vector<ModelTriangle> object) {
     ModelTriangle orderX = ground[0];
     ModelTriangle orderZ = ground[0];
@@ -2060,7 +1714,7 @@ bool isCollideGround(std::vector<ModelTriangle> ground, std::vector<ModelTriangl
     float frontZ = orderZ.vertices[2].z;
 
     for (int i = 0; i < ground.size(); i++) {
-        float groundY = ground[i].vertices[0].y + 15; // +15 so that it's above box
+        float groundY = ground[i].vertices[0].y + 15; // +15 because the cornell-box is jutting out of the ground
 
         for (int j = 0; j < object.size(); j++) {
             vec3 v1 = object[j].vertices[0];
@@ -2072,6 +1726,7 @@ bool isCollideGround(std::vector<ModelTriangle> ground, std::vector<ModelTriangl
 
             bool xzBound = true;
 
+            // checks along the X and Z plane
             for (int k = 0; k < 3; k++) {
                 bool temp = object[j].vertices[k].x >= leftX && object[j].vertices[k].x <= rightX &&
                             object[j].vertices[k].z >= backZ && object[j].vertices[k].z <= frontZ;
@@ -2090,6 +1745,7 @@ bool isCollideGround(std::vector<ModelTriangle> ground, std::vector<ModelTriangl
 // CLIPPING //
 
 
+// obtain the bounding box of an object
 BoundingBox getBoundingBox(std::vector<ModelTriangle> triangles) {
     vec3 minBBox = vec3(infinity, infinity, infinity);
     vec3 maxBBox = vec3(-infinity, -infinity, -infinity);
@@ -2112,11 +1768,13 @@ BoundingBox getBoundingBox(std::vector<ModelTriangle> triangles) {
     return bounding_box;
 }
 
+// is the given point within the frustum?
 bool pointWithinFrustum(vec3 point) {
     vec3 persp = perspectiveProjection(point);
     return inRange(persp.x, 0, WIDTH-1) && inRange(persp.y, 0, HEIGHT-1);
 }
 
+// is the bounding box within the frustum? i.e are any of it's points inside?
 bool withinFrustum(BoundingBox bbox) {
     std::vector<vec3> bbox_points = bbox.getPoints();
     for (int i = 0; i < bbox_points.size(); i++) {
@@ -2125,6 +1783,7 @@ bool withinFrustum(BoundingBox bbox) {
     return false;
 }
 
+// removes triangles completely outside frustum
 std::vector<ModelTriangle> removeOutsideTriangles(std::vector<ModelTriangle> triangles) {
     std::vector<ModelTriangle> final_triangles;
 
@@ -2146,6 +1805,7 @@ std::vector<ModelTriangle> removeOutsideTriangles(std::vector<ModelTriangle> tri
 // finds the intersection points of the triangle and top of screen, as well as the texture points
 void getFragmentIntersection(CanvasPoint v0, CanvasPoint v1, CanvasPoint v2, glm::vec2* intersection1, glm::vec2* intersection2,
                     glm::vec2* texture1, glm::vec2* texture2, int textureIndex) {
+    // perspective correction
     double u0_x = v0.texturePoint.x * v0.depth;
     double u1_x = v1.texturePoint.x * v1.depth;
     double u2_x = v2.texturePoint.x * v2.depth;
@@ -2153,13 +1813,11 @@ void getFragmentIntersection(CanvasPoint v0, CanvasPoint v1, CanvasPoint v2, glm
     double u1_y = v1.texturePoint.y * v1.depth;
     double u2_y = v2.texturePoint.y * v2.depth;
 
+    // first intersection point
     double intersection_x1 = v0.x + (-v0.y)*(v1.x-v0.x)/(v1.y-v0.y);
     double intersection_z1 = v0.depth + (-v0.y)*(v1.depth-v0.depth)/(v1.y-v0.y);
-    // double k_x = (v1.x == v0.x) ? 0 : (u1_x-u0_x)/(v1.x-v0.x);
-    // double k_y = (v1.y == v0.y) ? 0 : (u1_y-u0_y)/(v1.y-v0.y);
-    // int texture_x1 = (u0_x + (intersection_x1-v0.x) * k_x)/intersection_z1;
-    // int texture_y1 = (u0_y + (-v0.y) * k_y)/intersection_z1;
 
+    // texture point of the new point
     double dist1 = glm::distance(glm::vec2(v0.x, v0.y), glm::vec2(v1.x, v1.y));
     double dist2 = glm::distance(glm::vec2(v0.x, v0.y), glm::vec2(intersection_x1, 0));
     double ratio = dist2/dist1;
@@ -2172,12 +1830,11 @@ void getFragmentIntersection(CanvasPoint v0, CanvasPoint v1, CanvasPoint v2, glm
     intersection1->x = (int) intersection_x1; intersection1->y = intersection_z1;
     texture1->x = texture_x1; texture1->y = texture_y1;
 
+    // second intersection point
     double intersection_x2 = v0.x + (-v0.y)*(v2.x-v0.x)/(v2.y-v0.y);
     double intersection_z2 = v0.depth + (-v0.y)*(v2.depth-v0.depth)/(v2.y-v0.y);
-    // k_x = (v2.x == v0.x) ? 0 : (u2_x-u0_x)/(v2.x-v0.x);
-    // k_y = (v2.y == v0.y) ? 0 : (u2_y-u0_y)/(v2.y-v0.y);
-    // int texture_x2 = (u0_x + (intersection_x2-v0.x) * k_x)/intersection_z2;
-    // int texture_y2 = (u0_y + (-v0.y) * k_y)/intersection_z2;
+
+    // texture point of the new point
 
     dist1 = glm::distance(glm::vec2(v0.x, v0.y), glm::vec2(v2.x, v2.y));
     dist2 = glm::distance(glm::vec2(v0.x, v0.y), glm::vec2(intersection_x2, 0));
@@ -2190,17 +1847,6 @@ void getFragmentIntersection(CanvasPoint v0, CanvasPoint v1, CanvasPoint v2, glm
 
     intersection2->x = (int) intersection_x2; intersection2->y = intersection_z2;
     texture2->x = texture_x2; texture2->y = texture_y2;
-
-    int textureWidth = textureDimensions[textureIndex].x;
-    int textureHeight = textureDimensions[textureIndex].y;
-
-    if (v0.isTexture) {
-        if (texture_x1 >= textureWidth || texture_x2 >= textureHeight || texture_y1 >= textureWidth || texture_y2 >= textureHeight) {
-            std::cout << "fragment texture point is wrong!" << '\n';
-            std::cout << texture_x1 << " " << texture_y1 << " " << texture_x2 << " " << texture_y2 << '\n';
-            std::cout << '\n';
-        }
-    }
 }
 
 // cuts the given triangle into smaller triangles that are inside the screen
@@ -2314,9 +1960,359 @@ std::vector<CanvasTriangle> fragmentTriangle(CanvasTriangle triangle) {
 }
 
 
-// EVENT HANDLING //
+// SOFT SHADOWS - VIRTUAL SURFACES - doesn't work //
 
 
+// with shadow exclusion zone
+bool isShadow(std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t, float shadowExclusionZone){
+    vec3 lightDir = lightPos - point;
+    float dist = glm::length(lightDir);
+    lightDir = glm::normalize(lightDir);
+    bool shadow = false;
+
+    for (size_t i = 0; i < triangles.size(); i++) {
+        RayTriangleIntersection shadowIntersection = getIntersection(lightDir,triangles[i],point);
+        if(shadowIntersection.distanceFromCamera < dist && !isEqualTriangle(shadowIntersection.intersectedTriangle,t)){
+            if (shadowIntersection.distanceFromCamera < shadowExclusionZone) {
+                return false;
+            }
+            shadow = true;
+        }
+    }
+    return shadow;
+}
+
+// soft shadow - VIRTUAL SURFACES - not working
+float calcSoftShadow(float brightness, std::vector<ModelTriangle> triangles, vec3 point, vec3 lightPos, ModelTriangle t) {
+    float newBrightness = brightness;
+    float heightStep = 0.05;
+    vec3 norm = computenorm(t);
+    // raised and lowered surfaces
+    vec3 highPoint = point + heightStep*norm;
+    vec3 lowPoint = point - heightStep*norm;
+    bool highShadow = isShadow(triangles, highPoint, lightPos, t, 0.1);
+    bool lowShadow = isShadow(triangles, lowPoint, lightPos, t, 0.1);
+
+    if (highShadow && lowShadow) {
+        newBrightness = AMBIENCE/2;
+    }
+
+    else if (highShadow || lowShadow) {
+        // find out how far point is from being under light
+        // use binary search to shift a point away from the shifted point in shadow, to find the first point under light
+        if (lowShadow) {
+            float currStep = heightStep;
+            float currHeight = -heightStep;
+            int searchDepth = 0;
+
+            while (searchDepth < 5) {
+                float tempHeight = currHeight + currStep;
+                vec3 tempPoint = point + (norm * tempHeight);
+                bool tempShadow = isShadow(triangles, tempPoint, lightPos, t, 0.1);
+                if (!tempShadow) {
+                    currStep /= 2;
+                    searchDepth++;
+                }
+                else currHeight = tempHeight;
+            }
+            float gradient = (heightStep*2-(currHeight+heightStep))/(heightStep*2);
+            newBrightness = gradient * (newBrightness - AMBIENCE/2) + AMBIENCE/2;
+        }
+
+        else if (highShadow) {
+            float currStep = -heightStep;
+            float currHeight = heightStep;
+            int searchDepth = 0;
+
+            while (searchDepth < 5) {
+                float tempHeight = currHeight + currStep;
+                vec3 tempPoint = point + (norm * tempHeight);
+                bool tempShadow = isShadow(triangles, tempPoint, lightPos, t, 0.1);
+                if (!tempShadow) {
+                    currStep /= 2;
+                    searchDepth++;
+                }
+                else currHeight = tempHeight;
+            }
+
+            float gradient = ((currHeight+heightStep))/(heightStep*2);
+            newBrightness = gradient * (newBrightness - AMBIENCE/2) + AMBIENCE/2;
+        }
+    }
+    return newBrightness;
+}
+
+
+// GENERATIVE GEOMETRY - not fully working //
+
+
+double squareStep(double** pointHeights, double centreX, double centreY, double distFromCentre, bool isEven) {
+    int rightX = centreX + distFromCentre;
+    int bottomY = centreY + distFromCentre;
+    int leftX = centreX - distFromCentre;
+    int topY = centreY - distFromCentre;
+
+    double topLeft = pointHeights[leftX][topY];
+    double topRight = pointHeights[rightX][topY];
+    double bottomLeft = pointHeights[rightX][bottomY];
+    double bottomRight = pointHeights[rightX][bottomY];
+
+    return (topLeft + topRight + bottomLeft + bottomRight)/4;
+}
+
+double diamondStep(double** pointHeights, int width, int centreX, int centreY, int distFromCentre, bool isEven) {
+    int count = 4;
+
+    int rightX = centreX + distFromCentre;
+    int bottomY = centreY + distFromCentre;
+    int leftX = centreX - distFromCentre;
+    int topY = centreY - distFromCentre;
+
+    double left = centreX <= 0 ? 0 : pointHeights[leftX][centreY];
+    double right = centreX >= width-1 ? 0 : pointHeights[rightX][centreY];
+    double top = centreY <= 0 ? 0 : pointHeights[centreX][topY];
+    double bottom = centreY >= width-1 ? 0 : pointHeights[centreX][bottomY];
+
+    // there will only be at most one point outside the grid
+    if (centreX == 0 || centreY == 0 || centreX == width-1 || centreY == width-1) {
+        count -= 1;
+    }
+
+    return (left + right + top + bottom)/count;
+
+}
+
+// Diamond-Square algorithm for generating smooth terrain
+// this doesn't fully work! What we think is wrong is that some grid values aren't being updated, which leaves the
+// old random values inside, causing the terrain to be spiky, as if it were random. Some points are actually being smoothed
+// though
+void diamondSquare(double** pointHeights, int width, double currentSize) {
+    double half = (double) (currentSize)/2;
+    if (half < 1) return;
+
+    // square step
+    for (double x = half; x < width; x += currentSize) {
+        for (double y = half; y < width; y += currentSize) {
+            pointHeights[(int) x][(int) y] = squareStep(pointHeights, x, y, half, true);
+        }
+    }
+
+    // diamond step
+    bool isSide = true; // two cases for diamond step - when it's along the vertical sides of the grid (i.e left/right), or along the horizontal (top/bottom)
+    for (double x = 0; x <= width-1; x += half) {
+        if (isSide) {
+            for (double y = half; y <= width-half; y += currentSize) {
+                pointHeights[(int) x][(int) y] = diamondStep(pointHeights, width, x, y, half, true);
+            }
+        }
+        else {
+            for (double y = 0; y <= width; y += currentSize) {
+                pointHeights[(int) x][(int) y] = diamondStep(pointHeights, width, x, y, half, true);
+            }
+        }
+        isSide = !isSide;
+    }
+
+    diamondSquare(pointHeights, width, half);
+}
+
+// generates a terrain given the size and scale, using Diamond-Square
+std::vector<ModelTriangle> generateGeometry(int width, float scale) {
+    // initialise grid with random values
+    double** pointHeights = malloc2dArray(width, width);
+
+    for (int x = 0; x < width; x++) {
+        for (int y = 0; y < width; y++) {
+            double temp = (rand() % (30 * 2)) - 30;
+            pointHeights[x][y] = temp;
+        }
+    }
+
+    // run algorithm
+    diamondSquare(pointHeights, width, width-1);
+
+    // convert points into triangles to display
+    std::vector<ModelTriangle> generated_triangles;
+
+    for (int x = 1; x < width; x++) {
+        for (int y = 1; y < width; y++) {
+            vec3 v1 = vec3((x-1) * scale, pointHeights[x-1][y-1], -(y-1) * scale);
+            vec3 v2 = vec3((x) * scale, pointHeights[x][y-1], -(y-1) * scale);
+            vec3 v3 = vec3((x-1) * scale, pointHeights[x-1][y], -(y) * scale);
+            vec3 v4 = vec3((x) * scale, pointHeights[x][y],  -(y) * scale);
+
+            ModelTriangle t1 = ModelTriangle(v1, v2, v3, Colour(255, 255, 255), newTriangleID);
+            ModelTriangle t2 = ModelTriangle(v2, v3, v4, Colour(255, 255, 255), newTriangleID+1);
+            t1.boundingBoxIndex = bounding_boxes.size();
+            t2.boundingBoxIndex = bounding_boxes.size();
+            newTriangleID += 2;
+
+            generated_triangles.push_back(t1);
+            generated_triangles.push_back(t2);
+        }
+    }
+
+    // create bounding box
+    bounding_boxes.push_back(getBoundingBox(generated_triangles));
+
+    return generated_triangles;
+}
+
+
+// SCENE //
+
+
+// Displays the scene on the screen. Depending on the mode, it can render out a wireframe, rasterised or raytraced scene.
+// mode 1 = wireframe, mode 2 = rasteriser, mode 3 = raytracer
+void drawScene(){
+    window.clearPixels();
+    std::map<std::string,std::vector<ModelTriangle>>::iterator it;
+    std::vector<ModelTriangle> triangles;
+
+    for (it = scene.begin(); it !=scene.end(); ++it){
+        BoundingBox bounding_box = bounding_boxes[it->second[0].boundingBoxIndex];
+
+        // bounding box clipping
+        if (withinFrustum(bounding_box)) {
+            // remove triangles completely outside frustum - speeds up raytracer
+            std::vector<ModelTriangle> insideTriangles = removeOutsideTriangles(it->second);
+            triangles.insert(triangles.end(),insideTriangles.begin(), insideTriangles.end());
+        }
+    }
+
+    // mode 1 = wireframe, mode 2 = rasteriser, mode 3 = raytracer
+    if(mode==3){
+        // raytracer, with a timer
+        time_t tic;
+        time(&tic);
+        drawBoxRayTraced(triangles);
+        time_t toc;
+        time(&toc);
+        std::cout << "runtime: " << toc-tic << " seconds" << '\n';
+    }
+    else drawBox(triangles,FOCALLENGTH); // rasteriser
+}
+
+// translate an object in the scene, given its name
+void moveObject(std::string name,vec3 moveVec){
+    std::vector<ModelTriangle> triangles = scene[name];
+    for (size_t i = 0; i < triangles.size(); i++) {
+        for (size_t j = 0; j < 3; j++) {
+            triangles[i].vertices[j] += moveVec;
+        }
+    }
+    scene[name] = triangles;
+    bounding_boxes[triangles[0].boundingBoxIndex].startVertex += moveVec; // update startVertex of bounding box
+}
+
+// obtain the centre of mass of an object
+vec3 getObjectCentroid(std::string name) {
+    std::vector<ModelTriangle> triangles = scene[name];
+
+    //get centre of mass
+    vec3 centroid = vec3(0,0,0);
+    for (size_t i = 0; i < triangles.size(); i++) {
+        for (size_t j = 0; j < 3; j++) {
+            centroid += triangles[i].vertices[j];
+        }
+    }
+    centroid = (1/((float) triangles.size()*3)) * centroid;
+
+    return centroid;
+}
+
+// rotate object about world origin
+void rotateObject(std::string name,vec3 rotationAngles){
+    glm::mat3 rotation_matrix  = glm::mat3();
+    //convert degrees to radians
+    rotationAngles *= M_PI/180.0f;
+    glm::mat3 rotationX = glm::transpose(glm::mat3(glm::vec3(1, 0, 0),
+                                    glm::vec3(0, cos(rotationAngles.x), -sin(rotationAngles.x)),
+                                    glm::vec3(0, sin(rotationAngles.x), cos(rotationAngles.x))));
+
+    glm::mat3 rotationY = glm::transpose(glm::mat3(glm::vec3(cos(rotationAngles.y), 0.0, sin(rotationAngles.y)),
+                                    glm::vec3(0.0, 1.0, 0.0),
+                                    glm::vec3(-sin(rotationAngles.y), 0.0, cos(rotationAngles.y))));
+    rotation_matrix *= rotationX;
+    rotation_matrix *= rotationY;
+
+    std::vector<ModelTriangle> triangles = scene[name];
+    vec3 minBBox = vec3(infinity, infinity, infinity);
+    vec3 maxBBox = vec3(-infinity, -infinity, -infinity);
+
+    for (size_t i = 0; i < triangles.size(); i++) {
+        for (size_t j = 0; j < 3; j++) {
+            triangles[i].vertices[j] = rotation_matrix* triangles[i].vertices[j];
+
+            // recalculate bounding box
+            if (triangles[i].vertices[j].x < minBBox.x) minBBox.x = triangles[i].vertices[j].x;
+            else if (triangles[i].vertices[j].x > maxBBox.x) maxBBox.x = triangles[i].vertices[j].x;
+            if (triangles[i].vertices[j].y < minBBox.y) minBBox.y = triangles[i].vertices[j].y;
+            else if (triangles[i].vertices[j].y > maxBBox.y) maxBBox.y = triangles[i].vertices[j].y;
+            if (triangles[i].vertices[j].z < minBBox.z) minBBox.z = triangles[i].vertices[j].z;
+            else if (triangles[i].vertices[j].z > maxBBox.z) maxBBox.z = triangles[i].vertices[j].z;
+        }
+    }
+    scene[name] = triangles;
+
+    BoundingBox bbox = BoundingBox(minBBox, maxBBox.x-minBBox.x, maxBBox.y-minBBox.y, maxBBox.z-minBBox.z);
+    bounding_boxes[triangles[0].boundingBoxIndex] = bbox;
+}
+
+// rotate object about its centroid
+void rotateAroundAxis(std::string name,vec3 rotationAngles){
+    vec3 centroid = getObjectCentroid(name);
+    rotateAroundPoint(name, rotationAngles, centroid);
+}
+
+// rotate object about a point
+void rotateAroundPoint(std::string name, vec3 rotationAngles, vec3 point){
+    moveObject(name,vec3(-point.x,-point.y,-point.z));
+    rotateObject(name, rotationAngles);
+    moveObject(name, vec3(point.x,point.y,point.z));
+}
+
+// scale object with respect to world origin
+void scaleObject(std::string name,float scale){
+    std::vector<ModelTriangle> triangles = scene[name];
+    for (size_t i = 0; i < triangles.size(); i++) {
+        for (size_t j = 0; j < 3; j++) {
+            triangles[i].vertices[j] *= scale;
+        }
+   }
+   scene[name] = triangles;
+
+   // update bounding box
+   BoundingBox bbox = bounding_boxes[triangles[0].boundingBoxIndex];
+   bbox.startVertex *= scale;
+   bbox.width *= scale;
+   bbox.height *= scale;
+   bbox.depth *= scale;
+   bounding_boxes[triangles[0].boundingBoxIndex] = bbox;
+}
+
+// scale object's y value
+void scaleYObject(std::string name,float scale){
+    std::vector<ModelTriangle> triangles = scene[name];
+    for (size_t i = 0; i < triangles.size(); i++) {
+        for (size_t j = 0; j < 3; j++) {
+            triangles[i].vertices[j].y *= scale;
+        }
+   }
+   scene[name] = triangles;
+
+   // update bounding box
+   BoundingBox bbox = bounding_boxes[triangles[0].boundingBoxIndex];
+   bbox.startVertex.y *= scale;
+   bbox.height *= scale;
+   bounding_boxes[triangles[0].boundingBoxIndex] = bbox;
+}
+
+
+// EVENT HANDLING AND CAMERA //
+
+
+// camera look-at functionality
 void lookAt(glm::vec3 point) {
     glm::vec3 forward = glm::normalize(cameraPos - point);
     glm::vec3 right = glm::normalize(glm::cross(forward, glm::vec3(0, -1, 0)));
@@ -2324,6 +2320,7 @@ void lookAt(glm::vec3 point) {
     cameraOrientation = ((glm::mat3(right, up, forward)));
 }
 
+// handles events
 bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAngles,glm::vec3* light_translation, bool* isStart)
 {
     bool toUpdate = true;
@@ -2370,7 +2367,6 @@ bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAng
         // look at
         if(event.key.keysym.sym == SDLK_SPACE) {
             lookAt(glm::vec3(0, 0, 0));
-            // toUpdate = false;
         }
 
         if(event.key.keysym.sym == SDLK_1) {
@@ -2385,10 +2381,6 @@ bool handleEvent(SDL_Event event, glm::vec3* translation, glm::vec3* rotationAng
             mode = 3;
             std::cout << "Switched to raytracer mode" << '\n';
         }
-        // if(event.key.keysym.sym == SDLK_4) {
-        //     genCount++;
-        //     scene["terrain"] = generateGeometry(grid, width, 2.5, 10, genCount);
-        // }
 
     }
     else if(event.type == SDL_MOUSEBUTTONDOWN) {

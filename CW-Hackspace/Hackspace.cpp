@@ -379,6 +379,7 @@ int main(int argc, char* argv[])
                         moveObject("logo",vec3(0,riseVelocity,0));
                         moveObject("box",vec3(0,riseVelocity,0));
                         moveObject("sphere",vec3(0,riseVelocity,0));
+                        calcVertexNormals(scene["sphere"]);
                         if (riseCount > 130) riseVelocity -= 0.05;
                         riseCount++;
                         lookAtPos += vec3(0, riseVelocity, 0);
@@ -399,25 +400,30 @@ int main(int argc, char* argv[])
                 std::cout << "light is at" << '\n';
                 print_vec3(light_positions[0]);
             }
-            drawScene();
-
-            // Need to render the frame at the end, or nothing actually gets shown on the screen !
-            window.renderFrame();
 
             // capping it at 200 frames because that's probably enough for 10 seconds
             if (currentFrame < 400) {
                 if(isStart){
                     if (currentFrame%2 == 0) {
-                        // std::vector<Colour> colours = loadColours();
-                        // std::string filename = "video/image" + std::to_string(currentFrame/2) + ".ppm";
-                        // std::cout << "Creating frame " << std::to_string(currentFrame/2) << '\n';
-                        // writePPM(filename,WIDTH,HEIGHT,colours);
+                        std::cout << currentFrame << '\n';
+                        std::vector<Colour> colours = loadColours();
+                        std::string filename = "video/image" + std::to_string(currentFrame/2) + ".ppm";
+
+                        std::cout << "Rendering frame " << std::to_string(currentFrame/2) << '\n';
+                        drawScene();
+
+                        // Need to render the frame at the end, or nothing actually gets shown on the screen !
+                        window.renderFrame();
+
+                        std::cout << "Creating frame " << std::to_string(currentFrame/2) << '\n';
+                        writePPM(filename,WIDTH,HEIGHT,colours);
                     }
                     currentFrame++;
                 }
             }
+            // else if (currentFrame <= 390) currentFrame++;
             else {
-                // std::cout << "Finished video" << '\n';
+                std::cout << "Finished video" << '\n';
                 isStart = false;
             }
         }
@@ -1461,8 +1467,10 @@ RayTriangleIntersection getFinalIntersection(std::vector<ModelTriangle> triangle
                 float maxNormRotation = 50;
                 float roughness = 1.0f;
                 // for frosted glass
-                float refractOffset = 0.007*(rand() % (int)(maxNormRotation * roughness) - (int) (maxNormRotation/2));
-                float reflectOffset = 0.007*(rand() % (int)(maxNormRotation * roughness) - (int) (maxNormRotation/2));
+                // float refractOffset = 0.001*(rand() % (int)(maxNormRotation * roughness) - (int) (maxNormRotation/2));
+                // float reflectOffset = 0.001*(rand() % (int)(maxNormRotation * roughness) - (int) (maxNormRotation/2));
+                float refractOffset = 0;
+                float reflectOffset = 0;
 
                 //reflection
                 vec3 glassReflectedRay = calcReflectedRay(ray,norm,reflectOffset);
@@ -1562,12 +1570,12 @@ void drawBoxRayTraced(std::vector<ModelTriangle> triangles){
             // complex anti-aliasing - firing multiple rays according to quincux pattern
 
             vec3 ray1 = computeRay((x+0.5),(y+0.5),FOV);
-            // vec3 ray2 = computeRay((x),(y),FOV);
-            // vec3 ray3 = computeRay((x+1),(y),FOV);
-            // vec3 ray4 = computeRay((x),(y+1),FOV);
-            // vec3 ray5 = computeRay((x+1),(y+1),FOV);
-            // std::vector<vec3> rays = {ray1,ray2,ray3,ray4,ray5};
-            std::vector<vec3> rays = {ray1};
+           vec3 ray2 = computeRay((x),(y),FOV);
+           vec3 ray3 = computeRay((x+1),(y),FOV);
+           vec3 ray4 = computeRay((x),(y+1),FOV);
+           vec3 ray5 = computeRay((x+1),(y+1),FOV);
+           std::vector<vec3> rays = {ray1,ray2,ray3,ray4,ray5};
+            // std::vector<vec3> rays = {ray1};
             vec3 sumColour = vec3(0,0,0);
             for (size_t r = 0; r < rays.size(); r++) {
                 RayTriangleIntersection final_intersection;

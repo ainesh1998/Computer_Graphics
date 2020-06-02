@@ -1,7 +1,9 @@
 # Computer_Graphics
-Computer Graphics unit
+Our assignment for the Computer Graphics unit. We were tasked to develop a 3D rasteriser and raytracer in C++ using the SDL and GLM libraries to create a 10-second animation using a pre-given OBJ file. We were given a list of features to implement, listed below. We submitted three animation videos, the first in wireframe mode, the second rendered using our shaded triangle rasteriser, and the final using our raytracer (which has the most features). Our raytracer animation is displayed in the GIF below.
 
-## Checklist
+<img src="/CW-Hackspace/finished_videos/raytracer_animation.gif"></img>
+
+## Indicative Marking Guidelines
 - \# = not mandatory to move to next range
 - Bold = done, italics = sort of
 
